@@ -1,0 +1,18 @@
+[
+    {
+        "description": "Full dictionary",
+        "file": "full-dict.json"
+    },
+    {
+        "description": "Simplified dictionary",
+        "file": "simple-dict.json"
+    },
+    {
+        "description": "Basic words only",
+        "file": "basic-dict.json"
+    },
+    {
+        "description": "Massive word list from github.com/dwyl/english-words",
+        "file": "massive-dict.json"
+    }
+]
