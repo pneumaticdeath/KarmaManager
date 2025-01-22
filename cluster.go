@@ -63,6 +63,6 @@ func (rc *RuneCluster) Minus(other *RuneCluster) (*RuneCluster, error) {
 	return result, nil
 }
 
-func (rc *RuneCluster) Empty() bool {
+func (rc *RuneCluster) IsEmpty() bool {
 	return len(*rc) == 0
 }

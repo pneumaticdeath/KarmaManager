@@ -4,7 +4,7 @@ import (
 	"testing"
 )
 
-func TestCharCluster(t *testing.T) {
+func TestRuneCluster(t *testing.T) {
 	abcde := NewRuneCluster("abcde")
 	abcd := NewRuneCluster("cba D")
 	other_abcd := NewRuneCluster("d C B a")
@@ -47,7 +47,7 @@ func TestCharCluster(t *testing.T) {
 		t.Error(err)
 	}
 
-	if !result.Empty() {
+	if !result.IsEmpty() {
 		t.Error("Result of abcd-abcd should be empty")
 	}
 }
