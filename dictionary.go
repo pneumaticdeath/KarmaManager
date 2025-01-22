@@ -1,20 +1,37 @@
 package main
 
 import (
+	"embed"
 	"encoding/json"
-	"io"
-	"log"
 )
 
-const read_buf_size = 10240
+//go:embed json
+var jsonFS embed.FS
 
 type Dictionary struct {
 	Name string
 	Words []string
+	Enabled bool
 }
 
+type MainDictionaryConfig struct {
+	Description string
+	File        string
+}
+
+type AddedDictionaryConfig struct {
+	Description string
+	File        string
+	Enabled     bool
+}
+
+const (
+	main_dicts_file = "main-dicts.json"
+	added_dicts_file = "added-dicts.json"
+)
+
 func NewDictionary(name string) *Dictionary {
-	d := &Dictionary{name, make([]string, 50)}
+	d := &Dictionary{name, make([]string, 50), true}
 	return d
 }
 
@@ -28,6 +45,7 @@ func ParseDictionary(name string, jsondata []byte) (*Dictionary, error) {
 	return nil, err
 }
 
+/*
 func ReadDictionary(name string, reader io.Reader) (*Dictionary, error) {
 	data, err := io.ReadAll(reader)
 	if err != nil && err != io.EOF {
@@ -36,4 +54,65 @@ func ReadDictionary(name string, reader io.Reader) (*Dictionary, error) {
 	}
 
 	return ParseDictionary(name, data)
+}
+*/
+
+func ReadConfigs() ([]MainDictionaryConfig, []AddedDictionaryConfig, error) {
+	mainData, err := jsonFS.ReadFile("json/"+main_dicts_file)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	var mainDicts []MainDictionaryConfig
+	err = json.Unmarshal(mainData, &mainDicts)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	addedData, err := jsonFS.ReadFile("json/"+added_dicts_file)
+	if err != nil {
+		return mainDicts, nil, err
+	}
+
+	var addedDicts []AddedDictionaryConfig
+	err = json.Unmarshal(addedData, &addedDicts)
+	if err != nil {
+		return mainDicts, nil, err
+	}
+	return mainDicts, addedDicts, nil
+}
+
+func ReadDictionaries() ([]*Dictionary, []*Dictionary, error) {
+	mainDictConfigs, addedDictConfigs, err := ReadConfigs()
+	if err != nil {
+		return nil, nil, err
+	}
+
+	var mainDicts []*Dictionary = make([]*Dictionary, len(mainDictConfigs))
+	for i, mdc := range mainDictConfigs {
+		data, err := jsonFS.ReadFile("json/"+mdc.File)
+		if err != nil {
+			return nil, nil, err
+		}
+		mainDicts[i], err = ParseDictionary(mdc.Description, data)
+		if err != nil {
+			return nil, nil, err
+		}
+	}
+
+	var addedDicts []*Dictionary = make([]*Dictionary, len(addedDictConfigs))
+	for i, adc := range addedDictConfigs {
+		data, err := jsonFS.ReadFile("json/"+adc.File)
+		if err != nil {
+			return mainDicts, nil , err
+		}
+
+		addedDicts[i], err = ParseDictionary(adc.Description, data)
+		if err != nil {
+			return mainDicts, nil, err
+		}
+		addedDicts[i].Enabled = adc.Enabled
+	}
+
+	return mainDicts, addedDicts, nil
 }

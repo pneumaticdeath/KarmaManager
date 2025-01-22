@@ -1,8 +1,8 @@
 package main
 
 import (
+	"fmt"
 	"os"
-	"strings"
 	"testing"
 )
 
@@ -48,6 +48,7 @@ func TestDictionaryParserFailure(t *testing.T) {
 	}
 }
 
+/* 
 func TestDictReader(t *testing.T) {
 	r := strings.NewReader("[\"Twinkle\",\"Little\",\"Star\"]")
 	dict, err := ReadDictionary("test", r)
@@ -69,16 +70,16 @@ func TestDictReader(t *testing.T) {
 		t.Error("Reader didn't parse all words")
 	}
 }
+*/
 
 func TestBigDictionary(t *testing.T) {
-	r, rerr := os.Open("json/full-dict.json")
+	data, rerr := os.ReadFile("json/full-dict.json")
 	if rerr != nil {
 		t.Error(rerr)
 		return
 	}
-	defer r.Close()
 	
-	dict, perr := ReadDictionary("Full", r)
+	dict, perr := ParseDictionary("Full", data)
 	if perr != nil {
 		t.Error(perr)
 		return
@@ -86,5 +87,59 @@ func TestBigDictionary(t *testing.T) {
 
 	if len(dict.Words) < 20000 {
 		t.Error("Got truncated dictionary")
+	}
+}
+
+func TestReadConfigs(t *testing.T) {
+	mainConfigs, addedConfigs, err := ReadConfigs()
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	if mainConfigs == nil || addedConfigs == nil {
+		t.Error("One config list is nil")
+		return
+	}
+
+	if len(mainConfigs) == 0 || len(addedConfigs) == 0 {
+		t.Error("One of the lists is 0 length")
+	}
+
+	for i, mc := range mainConfigs {
+		if mc.File == "" {
+			t.Error(fmt.Sprintf("main config %d has blank filename", i))
+		}
+
+		if mc.Description == "" {
+			t.Error(fmt.Sprintf("main config %d has blank description", i))
+		}
+	}
+
+	for i, ac := range addedConfigs {
+		if ac.File == "" {
+			t.Error(fmt.Sprintf("added config %d has blank filename", i))
+		}
+
+		if ac.Description == "" {
+			t.Error(fmt.Sprintf("added config %d has blank description", i))
+		}
+	}
+}
+
+func TestReadDictionaries(t *testing.T) {
+	mainDicts, addedDicts, err := ReadDictionaries()
+
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	if len(mainDicts) == 0 {
+		t.Error("No main dictionaries")
+	}
+
+	if len(addedDicts) == 0 {
+		t.Error("No added dictionaries")
 	}
 }
