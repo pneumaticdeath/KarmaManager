@@ -10,15 +10,15 @@ func TestDictionaryParsing(t *testing.T) {
 	data := []byte(`["Foo","Bar","baz","QUUX"]`)
 
 	dict, err := ParseDictionary("test_dict", data)
-	
+
 	if err != nil {
 		t.Error(err)
-		return 
+		return
 	}
 
 	if dict == nil {
 		t.Error("got nil dictionary back")
-		return 
+		return
 	}
 
 	if dict.Name != "test_dict" {
@@ -48,37 +48,13 @@ func TestDictionaryParserFailure(t *testing.T) {
 	}
 }
 
-/* 
-func TestDictReader(t *testing.T) {
-	r := strings.NewReader("[\"Twinkle\",\"Little\",\"Star\"]")
-	dict, err := ReadDictionary("test", r)
-
-	if err != nil {
-		t.Error(err)
-		return
-	}
-
-	if dict == nil {
-		t.Error("Nil dict returned from ReadDictionary()")
-	}
-
-	if dict.Name != "test" {
-		t.Error("Dictionary name not test, but ", dict.Name)
-	}
-
-	if len(dict.Words) != 3 {
-		t.Error("Reader didn't parse all words")
-	}
-}
-*/
-
 func TestBigDictionary(t *testing.T) {
 	data, rerr := os.ReadFile("json/full-dict.json")
 	if rerr != nil {
 		t.Error(rerr)
 		return
 	}
-	
+
 	dict, perr := ParseDictionary("Full", data)
 	if perr != nil {
 		t.Error(perr)

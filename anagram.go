@@ -5,7 +5,7 @@ import (
 )
 
 type dictPair struct {
-	word string
+	word    string
 	cluster *RuneCluster
 }
 
@@ -17,7 +17,7 @@ func NewAnnotatedDict(d *Dictionary) annotatedDict {
 	for index, word := range d.Words {
 		ad[index] = dictPair{word, NewRuneCluster(word)}
 	}
-	
+
 	return ad
 }
 
@@ -41,16 +41,16 @@ func (ad annotatedDict) Len() int {
 	return len(ad)
 }
 
-func (ad annotatedDict) Less(i, j int) bool { 
+func (ad annotatedDict) Less(i, j int) bool {
 	// sort first by length (decending) then by alphabet (decending)
 
 	if len(ad[i].word) == len(ad[j].word) {
 		return ad[i].word > ad[j].word
-	} 
+	}
 	return len(ad[i].word) > len(ad[j].word)
 }
 
-func FindAnagrams(input string, dictionary *Dictionary) (<-chan string) {
+func FindAnagrams(input string, dictionary *Dictionary) <-chan string {
 	outputChan := make(chan string, 10)
 
 	go makeAnagrams(input, dictionary, outputChan)
@@ -63,11 +63,11 @@ func makeAnagrams(input string, dictionary *Dictionary, output chan<- string) {
 
 	ad := NewAnnotatedDict(dictionary)
 
-	target:= NewRuneCluster(input)
+	target := NewRuneCluster(input)
 
 	filtered := ad.Filter(target)
 
-	sort.Sort(filtered)  // for efficientcy we need ot sort decending by size
+	sort.Sort(filtered) // for efficientcy we need ot sort decending by size
 
 	findTuples("", target, filtered, output)
 }
@@ -75,7 +75,7 @@ func makeAnagrams(input string, dictionary *Dictionary, output chan<- string) {
 func findTuples(current string, target *RuneCluster, dict annotatedDict, output chan<- string) {
 	if target.IsEmpty() {
 		if current != "" {
-			output<-current
+			output <- current
 		}
 		return
 	}
@@ -90,7 +90,7 @@ func findTuples(current string, target *RuneCluster, dict annotatedDict, output 
 
 		newTarget, err := target.Minus(dp.cluster)
 		if err != nil {
-			panic(err)  // this shouldn't be possible
+			panic(err) // this shouldn't be possible
 		}
 		newDict := dict[index:].Filter(newTarget)
 
