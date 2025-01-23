@@ -106,7 +106,7 @@ func ReadDictionaries() ([]*Dictionary, []*Dictionary, error) {
 	return mainDicts, addedDicts, nil
 }
 
-func MergeDictionaries(dicts... *Dictionary) *Dictionary {
+func MergeDictionaries(dicts ...*Dictionary) *Dictionary {
 	var length int = 0
 	names := make([]string, 0, len(dicts))
 	words := make([]string, 0, len(dicts[0].Words))

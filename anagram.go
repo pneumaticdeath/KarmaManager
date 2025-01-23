@@ -51,7 +51,7 @@ func (ad annotatedDict) Less(i, j int) bool {
 }
 
 func FindAnagrams(input string, dictionary *Dictionary) <-chan string {
-	outputChan := make(chan string, 1)
+	outputChan := make(chan string, 10)
 
 	go makeAnagrams(input, dictionary, outputChan)
 

@@ -1,15 +1,15 @@
 package main
 
 type ResultSet struct {
-	mainDicts []*Dictionary
-	addedDicts []*Dictionary
-	input string
-	resultCount int
-	mainDictIndex int
-	results []string
-	isDone bool 
+	mainDicts        []*Dictionary
+	addedDicts       []*Dictionary
+	input            string
+	resultCount      int
+	mainDictIndex    int
+	results          []string
+	isDone           bool
 	combinedDictName string
-	resultChan <-chan string
+	resultChan       <-chan string
 }
 
 func NewResultSet(mainDicts, addedDicts []*Dictionary, mainDictIndex int) *ResultSet {
@@ -27,7 +27,7 @@ func (rs *ResultSet) FindAnagrams(input string) {
 func (rs *ResultSet) Regenerate() {
 	rs.resultCount = 0
 	rs.results = make([]string, 0, 110)
-	rs.isDone = false 
+	rs.isDone = false
 	combinedDict := rs.CombineDicts()
 	rs.resultChan = FindAnagrams(rs.input, combinedDict)
 	rs.combinedDictName = combinedDict.Name
@@ -35,7 +35,7 @@ func (rs *ResultSet) Regenerate() {
 }
 
 func (rs *ResultSet) CombineDicts() *Dictionary {
-	dicts := make([]*Dictionary, 0, len(rs.addedDicts) + 1)
+	dicts := make([]*Dictionary, 0, len(rs.addedDicts)+1)
 	dicts = append(dicts, rs.mainDicts[rs.mainDictIndex])
 	for _, d := range rs.addedDicts {
 		if d.Enabled {
@@ -80,7 +80,7 @@ func (rs *ResultSet) Count() int {
 }
 
 func (rs *ResultSet) GetAt(index int) (string, bool) {
-	if index > rs.resultCount - 10 {
+	if index > rs.resultCount-10 {
 		rs.FetchNext(index - rs.resultCount + 10)
 	}
 	if index >= rs.resultCount {

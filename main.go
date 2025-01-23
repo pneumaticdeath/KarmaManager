@@ -24,7 +24,7 @@ func main() {
 	var mainDictNames []string = make([]string, len(mainDicts))
 	for i, d := range mainDicts {
 		mainDictNames[i] = d.Name
-	} 
+	}
 
 	resultSet := NewResultSet(mainDicts, addedDicts, 0)
 
@@ -43,7 +43,7 @@ func main() {
 
 	addedChecks := make([]fyne.CanvasObject, len(addedDicts))
 	for i, ad := range addedDicts {
-		enabled := &ad.Enabled // copy a pointer to an address 
+		enabled := &ad.Enabled // copy a pointer to an address
 		check := widget.NewCheck(ad.Name, func(checked bool) {
 			*enabled = checked
 			resultSet.Regenerate()
@@ -59,10 +59,10 @@ func main() {
 		resultSet.FindAnagrams(input)
 	}
 
-	/* 
-	regenButton := widget.NewButton("Regnerate", func() {
-		resultSet.FindAnagrams(inputEntry.Text)
-	})
+	/*
+		regenButton := widget.NewButton("Regnerate", func() {
+			resultSet.FindAnagrams(inputEntry.Text)
+		})
 	*/
 
 	// controlBar := container.New(layout.NewAdaptiveGridLayout(4), inputEntry, regenButton, mainSelect, addedDictsContainer)
@@ -87,6 +87,6 @@ func main() {
 
 	Window.SetContent(content)
 
-	Window.Resize(fyne.NewSize(1000,600))
+	Window.Resize(fyne.NewSize(800, 600))
 	Window.ShowAndRun()
 }
