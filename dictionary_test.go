@@ -6,7 +6,7 @@ import (
 	"testing"
 )
 
-func TestDictionaryParsing(t *testing.T) {
+func TestDictionary(t *testing.T) {
 	data := []byte(`["Foo","Bar","baz","QUUX"]`)
 
 	dict, err := ParseDictionary("test_dict", data)
@@ -31,6 +31,24 @@ func TestDictionaryParsing(t *testing.T) {
 
 	if dict.Words[3] != "QUUX" {
 		t.Error("Didn't ready words in order")
+	}
+
+	otherDict, _ := ParseDictionary("other", []byte(`["Fie", "Fy", "Foe", "Foo"]`))
+	combined := MergeDictionaries(dict, otherDict)
+
+	if len(combined.Words) == len(dict.Words) + len(otherDict.Words) {
+		t.Error("Merge didn't deduplicate")
+	} else if len(combined.Words) != len(dict.Words) + len(otherDict.Words) - 1 {
+		t.Error("Merge didn't deduplicate")
+	}
+
+
+	if len(combined.Words) == len(dict.Words) + len(otherDict.Words) {
+		t.Error("Merge didn't deduplicate")
+	}
+
+	if combined.Name != "test_dict + other" {
+		t.Error("Merge didn't combine names properly")
 	}
 }
 

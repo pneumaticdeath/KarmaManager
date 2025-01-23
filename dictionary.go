@@ -3,6 +3,7 @@ package main
 import (
 	"embed"
 	"encoding/json"
+	"strings"
 )
 
 //go:embed json
@@ -103,4 +104,27 @@ func ReadDictionaries() ([]*Dictionary, []*Dictionary, error) {
 	}
 
 	return mainDicts, addedDicts, nil
+}
+
+func MergeDictionaries(dicts... *Dictionary) *Dictionary {
+	var length int = 0
+	names := make([]string, 0, len(dicts))
+	words := make([]string, 0, len(dicts[0].Words))
+
+	knownWords := make(map[string]bool)
+	for _, d := range dicts {
+		names = append(names, d.Name)
+		for _, word := range d.Words {
+			if !knownWords[word] {
+				knownWords[word] = true
+				length += 1
+				words = append(words, word)
+			}
+		}
+	}
+
+	result := NewDictionary(strings.Join(names, " + "))
+	result.Words = words
+
+	return result
 }

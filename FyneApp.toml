@@ -1,0 +1,14 @@
+Website = "https://patenaude.io/"
+
+[Details]
+  Icon = "Icon.png"
+  Name = "KarmaManager"
+  ID = "io.patenaude.karmamanager"
+  Version = "0.0.1"
+  Build = 1
+
+[LinuxAndBSD]
+  GenericName = "Anagram Maker"
+  Categories = ["Game"]
+  Comment = "Make Anagramss"
+  Keywords = ["game"]
