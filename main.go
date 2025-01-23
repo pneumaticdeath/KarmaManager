@@ -2,7 +2,7 @@ package main
 
 import (
 	"errors"
-	// "fmt"
+	"fmt"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/app"
@@ -71,7 +71,7 @@ func main() {
 			return
 		}
 		text, _ := resultSet.GetAt(index)
-		label.Text = text
+		label.Text = fmt.Sprintf("%10d %s", index+1, text)
 		// fmt.Println(index, " ", text)
 		object.Refresh()
 	})
