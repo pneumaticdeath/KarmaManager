@@ -60,6 +60,7 @@ func (rs *ResultSet) FetchNext(count int) {
 	}
 
 	for count > 0 && !rs.isDone {
+		count -= 1
 		next, ok := <-rs.resultChan
 		if ok {
 			rs.results = append(rs.results, next)
