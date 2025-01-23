@@ -59,13 +59,6 @@ func main() {
 		resultSet.FindAnagrams(input)
 	}
 
-	/*
-		regenButton := widget.NewButton("Regnerate", func() {
-			resultSet.FindAnagrams(inputEntry.Text)
-		})
-	*/
-
-	// controlBar := container.New(layout.NewAdaptiveGridLayout(4), inputEntry, regenButton, mainSelect, addedDictsContainer)
 	controlBar := container.New(layout.NewAdaptiveGridLayout(3), inputEntry, mainSelect, addedDictsContainer)
 
 	mainDisplay := widget.NewList(func() int { // list length
