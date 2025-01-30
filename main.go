@@ -68,7 +68,12 @@ func main() {
 		resultSet.FindAnagrams(input)
 	}
 
-	controlBar := container.New(layout.NewAdaptiveGridLayout(3), inputEntry, mainSelect, addedDictsContainer)
+	inputSubmitButton := widget.NewButton("Find Anagrams", func() {
+		inputEntry.OnSubmitted(inputEntry.Text)
+	})
+
+	controlBar := container.New(layout.NewAdaptiveGridLayout(4), inputEntry, inputSubmitButton,
+		mainSelect, addedDictsContainer)
 
 	resultsDisplay := widget.NewList(func() int { // list length
 		return resultSet.Count()
