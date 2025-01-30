@@ -8,6 +8,7 @@ import (
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/app"
 	"fyne.io/fyne/v2/container"
+	"fyne.io/fyne/v2/data/binding"
 	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/widget"
@@ -31,11 +32,15 @@ func main() {
 
 	resultSet := NewResultSet(mainDicts, addedDicts, 0)
 
+	reset := func() {
+		resultSet.Regenerate()
+	}
+
 	mainSelect := widget.NewSelect(mainDictNames, func(dictName string) {
 		for i, n := range mainDictNames {
 			if dictName == n {
 				resultSet.SetMainIndex(i)
-				resultSet.Regenerate()
+				reset()
 				Window.SetTitle(resultSet.CombinedDictName())
 				return
 			}
@@ -49,7 +54,7 @@ func main() {
 		enabled := &ad.Enabled // copy a pointer to an address
 		check := widget.NewCheck(ad.Name, func(checked bool) {
 			*enabled = checked
-			resultSet.Regenerate()
+			reset()
 			Window.SetTitle(resultSet.CombinedDictName())
 		})
 		check.Checked = ad.Enabled
@@ -59,6 +64,7 @@ func main() {
 
 	inputEntry := widget.NewEntry()
 	inputEntry.OnSubmitted = func(input string) {
+		reset()
 		resultSet.FindAnagrams(input)
 	}
 
@@ -79,61 +85,90 @@ func main() {
 		object.Refresh()
 	})
 
-	lastSearchIndex := -1
-	lastSearchText := ""
+	searchresultslist := binding.NewIntList()
+
 	searchError := widget.NewLabel("")
 	searchbox := widget.NewEntry()
 	searchbox.OnSubmitted = func(searchfor string) {
+		searchresultslist.Set(make([]int, 0, 10))
 		searchError.Text = ""
 		searchError.Refresh()
 		if searchfor == "" {
-			lastSearchIndex = -1
 			return
 		}
 		searchstring := strings.ToLower(searchfor)
 		searchError.Text = fmt.Sprintf("Searching for '%s'", searchstring)
 		searchError.Refresh()
 		i := 0
-		if lastSearchText == searchstring {
-			i = lastSearchIndex + 1
-		} else {
-			lastSearchText = searchstring
-			lastSearchIndex = -1
-		}
+		count := 0
+		found := false
 		for i < resultSet.Count() && i < searchLimit {
 			text, _ := resultSet.GetAt(i)
 			if strings.Index(strings.ToLower(text), searchstring) != -1 {
-				resultsDisplay.ScrollTo(i)
-				resultsDisplay.Refresh()
-				searchError.Text = fmt.Sprintf("Found '%s' at %d", searchstring, i+1)
+				count += 1
+				found=true
+				searchresultslist.Append(i)
+				// resultsDisplay.ScrollTo(i)
+				// resultsDisplay.Refresh()
+				searchError.Text = fmt.Sprintf("Found %d matching anagrams.", count)
 				searchError.Refresh()
-				lastSearchIndex = i
-				return
 			}
 			i += 1
 		}
-		if resultSet.IsDone() && i >= resultSet.Count() {
-			if lastSearchIndex >= 0 {
-				searchError.Text = fmt.Sprintf("'%s' not found after %d, starting over.",
-					searchstring, lastSearchIndex+1)
-				lastSearchIndex = -1
-			} else {
-				searchError.Text = "Not Found!"
-			}
-		} else if i >= searchLimit {
+		if !found && resultSet.IsDone() && i >= resultSet.Count() {
+			searchError.Text = "Not Found!"
+			searchError.Refresh()
+		} else if !found && i >= searchLimit {
 			searchError.Text = fmt.Sprintf("Didn't find '%s' in the first %d results!", searchstring, searchLimit)
-			lastSearchIndex = i
+			searchError.Refresh()
 		}
-		searchError.Refresh()
+	}
+	searchbutton := widget.NewButton("Search", func() {
+		searchbox.OnSubmitted(searchbox.Text)
+	})
+	searchresults := widget.NewListWithData(searchresultslist, func() fyne.CanvasObject {
+		return widget.NewLabel("")
+	}, func(item binding.DataItem, obj fyne.CanvasObject) {
+		label, labelok := obj.(*widget.Label)
+		if !labelok {
+			dialog.ShowError(errors.New("couldn't cast searchresult label"), Window)
+			return
+		}
+		boundint, intok := item.(binding.Int)
+		if !intok {
+			dialog.ShowError(errors.New("couldn't cast dataItem to Int"), Window)
+			return
+		}
+		id, _ := boundint.Get()
+		text, _ := resultSet.GetAt(id)
+		label.Text = fmt.Sprintf("%10d %s", id+1, text)
+		label.Refresh()
+	})
+	searchresults.OnSelected = func(id widget.ListItemID) {
+		resultid, _ := searchresultslist.GetValue(id)
+		resultsDisplay.ScrollTo(resultid)
+		resultsDisplay.Refresh()
 	}
 
-	advControls := container.New(layout.NewVBoxLayout(), widget.NewLabel("Search for:"), searchbox, searchError)
+	searchcontainer := container.New(layout.NewGridLayout(2), searchbox, searchbutton)
+	searchcontrols := container.NewBorder(
+		container.New(layout.NewVBoxLayout(), widget.NewLabel("Search for:"), searchcontainer, searchError),
+		nil, nil, nil, searchresults)
 
-	mainDisplay := container.New(layout.NewAdaptiveGridLayout(2), resultsDisplay, advControls)
+	mainDisplay := container.New(layout.NewAdaptiveGridLayout(2), resultsDisplay, searchcontrols)
 
 	content := container.NewBorder(controlBar, nil, nil, nil, mainDisplay)
 
 	Window.SetContent(content)
+
+	reset = func() {
+		resultSet.Regenerate()
+		// searchbox.Text = ""
+		searchError.Text = ""
+		searchresultslist.Set(make([]int, 0))
+		resultsDisplay.ScrollToTop()
+		content.Refresh()
+	}
 
 	Window.Resize(fyne.NewSize(800, 600))
 	Window.ShowAndRun()
