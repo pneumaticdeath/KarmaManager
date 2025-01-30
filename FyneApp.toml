@@ -4,7 +4,7 @@ Website = "https://patenaude.io/"
   Icon = "Icon.png"
   Name = "KarmaManager"
   ID = "io.patenaude.karmamanager"
-  Version = "0.0.1"
+  Version = "0.0.2"
   Build = 10
 
 [LinuxAndBSD]
