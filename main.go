@@ -36,6 +36,9 @@ func main() {
 		resultSet.Regenerate()
 	}
 
+	reset_search := func() {
+	}
+
 	mainSelect := widget.NewSelect(mainDictNames, func(dictName string) {
 		for i, n := range mainDictNames {
 			if dictName == n {
@@ -65,6 +68,7 @@ func main() {
 	inputEntry := widget.NewEntry()
 	inputEntry.OnSubmitted = func(input string) {
 		reset()
+		reset_search()
 		resultSet.FindAnagrams(input)
 	}
 
@@ -102,16 +106,14 @@ func main() {
 			return
 		}
 		searchstring := strings.ToLower(searchfor)
-		searchError.Text = fmt.Sprintf("Searching for '%s'", searchstring)
+		searchError.Text = fmt.Sprintf("Filtering for '%s'", searchstring)
 		searchError.Refresh()
 		i := 0
 		count := 0
-		found := false
 		for i < resultSet.Count() && i < searchLimit {
 			text, _ := resultSet.GetAt(i)
 			if strings.Index(strings.ToLower(text), searchstring) != -1 {
 				count += 1
-				found=true
 				searchresultslist.Append(i)
 				// resultsDisplay.ScrollTo(i)
 				// resultsDisplay.Refresh()
@@ -120,15 +122,15 @@ func main() {
 			}
 			i += 1
 		}
-		if !found && resultSet.IsDone() && i >= resultSet.Count() {
+		if count == 0 && resultSet.IsDone() && i >= resultSet.Count() {
 			searchError.Text = "Not Found!"
 			searchError.Refresh()
-		} else if !found && i >= searchLimit {
+		} else if count == 0 && i >= searchLimit {
 			searchError.Text = fmt.Sprintf("Didn't find '%s' in the first %d results!", searchstring, searchLimit)
 			searchError.Refresh()
 		}
 	}
-	searchbutton := widget.NewButton("Search", func() {
+	searchbutton := widget.NewButton("Filter results", func() {
 		searchbox.OnSubmitted(searchbox.Text)
 	})
 	searchresults := widget.NewListWithData(searchresultslist, func() fyne.CanvasObject {
@@ -136,12 +138,12 @@ func main() {
 	}, func(item binding.DataItem, obj fyne.CanvasObject) {
 		label, labelok := obj.(*widget.Label)
 		if !labelok {
-			dialog.ShowError(errors.New("couldn't cast searchresult label"), Window)
+			dialog.ShowError(errors.New("Couldn't cast searchresult label"), Window)
 			return
 		}
 		boundint, intok := item.(binding.Int)
 		if !intok {
-			dialog.ShowError(errors.New("couldn't cast dataItem to Int"), Window)
+			dialog.ShowError(errors.New("Couldn't cast dataItem to Int"), Window)
 			return
 		}
 		id, _ := boundint.Get()
@@ -155,10 +157,9 @@ func main() {
 		resultsDisplay.Refresh()
 	}
 
-	searchcontainer := container.New(layout.NewGridLayout(2), searchbox, searchbutton)
+	searchcontainer := container.New(layout.NewGridLayout(3), widget.NewLabel("Filter by:"), searchbox, searchbutton)
 	searchcontrols := container.NewBorder(
-		container.New(layout.NewVBoxLayout(), widget.NewLabel("Search for:"), searchcontainer, searchError),
-		nil, nil, nil, searchresults)
+		container.New(layout.NewVBoxLayout(), searchcontainer, searchError), nil, nil, nil, searchresults)
 
 	mainDisplay := container.New(layout.NewAdaptiveGridLayout(2), resultsDisplay, searchcontrols)
 
@@ -173,6 +174,11 @@ func main() {
 		searchresultslist.Set(make([]int, 0))
 		resultsDisplay.ScrollToTop()
 		content.Refresh()
+	}
+
+	reset_search = func() {
+		searchbox.Text = ""
+		searchbox.Refresh()
 	}
 
 	Window.Resize(fyne.NewSize(800, 600))
