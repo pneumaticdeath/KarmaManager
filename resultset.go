@@ -4,6 +4,8 @@ type ResultSet struct {
 	mainDicts        []*Dictionary
 	addedDicts       []*Dictionary
 	input            string
+	included         []string
+	excluded         []string
 	resultCount      int
 	mainDictIndex    int
 	results          []string
@@ -13,7 +15,7 @@ type ResultSet struct {
 }
 
 func NewResultSet(mainDicts, addedDicts []*Dictionary, mainDictIndex int) *ResultSet {
-	rs := &ResultSet{mainDicts, addedDicts, "", 0, mainDictIndex, make([]string, 0), true, "", nil}
+	rs := &ResultSet{mainDicts, addedDicts, "", make([]string,0), make([]string,0), 0, mainDictIndex, make([]string, 0), true, "", nil}
 
 	rs.FindAnagrams("")
 	return rs
@@ -29,7 +31,7 @@ func (rs *ResultSet) Regenerate() {
 	rs.results = make([]string, 0, 110)
 	rs.isDone = false
 	combinedDict := rs.CombineDicts()
-	rs.resultChan = FindAnagrams(rs.input, combinedDict)
+	rs.resultChan = FindAnagrams(rs.input, rs.included, combinedDict)
 	rs.combinedDictName = combinedDict.Name
 	rs.FetchNext(100)
 }
@@ -43,7 +45,7 @@ func (rs *ResultSet) CombineDicts() *Dictionary {
 		}
 	}
 
-	return MergeDictionaries(dicts...)
+	return MergeDictionaries(rs.excluded, dicts...)
 }
 
 func (rs *ResultSet) CombinedDictName() string {
@@ -88,4 +90,12 @@ func (rs *ResultSet) GetAt(index int) (string, bool) {
 		return "", false
 	}
 	return rs.results[index], true
+}
+
+func (rs *ResultSet) SetInclusions(phrases []string) {
+	rs.included = phrases
+}
+
+func (rs *ResultSet) SetExclusions(words []string) {
+	rs.excluded = words
 }

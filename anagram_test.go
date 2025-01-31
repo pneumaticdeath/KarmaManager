@@ -14,7 +14,7 @@ func TestAnagrams(t *testing.T) {
 		t.Error("Didn't annotate the whole test dictionary")
 	}
 
-	results := FindAnagrams("Mitch Patenaude", testDict)
+	results := FindAnagrams("Mitch Patenaude", make([]string, 0), testDict)
 
 	result1, ok1 := <-results
 	result2, ok2 := <-results
@@ -44,7 +44,7 @@ func TestAnagrams(t *testing.T) {
 		t.Error("Got result on closed channel " + result3) // not possible
 	}
 
-	noresults := FindAnagrams("Quixotic", testDict)
+	noresults := FindAnagrams("Quixotic", make([]string, 0), testDict)
 	unresult, ok4 := <-noresults
 	if ok4 {
 		t.Error("Got anagram that shouldn't exist" + unresult)

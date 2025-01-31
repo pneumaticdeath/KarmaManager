@@ -34,7 +34,7 @@ func TestDictionary(t *testing.T) {
 	}
 
 	otherDict, _ := ParseDictionary("other", []byte(`["Fie", "Fy", "Foe", "Foo"]`))
-	combined := MergeDictionaries(dict, otherDict)
+	combined := MergeDictionaries(make([]string, 0), dict, otherDict)
 
 	if len(combined.Words) == len(dict.Words)+len(otherDict.Words) {
 		t.Error("Merge didn't deduplicate")

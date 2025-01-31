@@ -106,12 +106,16 @@ func ReadDictionaries() ([]*Dictionary, []*Dictionary, error) {
 	return mainDicts, addedDicts, nil
 }
 
-func MergeDictionaries(dicts ...*Dictionary) *Dictionary {
+func MergeDictionaries(excluded []string, dicts ...*Dictionary) *Dictionary {
 	var length int = 0
 	names := make([]string, 0, len(dicts))
 	words := make([]string, 0, len(dicts[0].Words))
 
 	knownWords := make(map[string]bool)
+	for _, word := range excluded {
+		knownWords[word] = true
+	} // if they're already "known" they won't be added again
+
 	for _, d := range dicts {
 		names = append(names, d.Name)
 		for _, word := range d.Words {

@@ -65,25 +65,30 @@ func main() {
 	}
 	addedDictsContainer := container.New(layout.NewHBoxLayout(), addedChecks...)
 
-	inputEntry := widget.NewEntry()
+	inputdata := binding.NewString()
+	inputEntry := widget.NewEntryWithData(inputdata)
 	inputEntry.OnSubmitted = func(input string) {
 		reset()
 		reset_search()
 		resultSet.FindAnagrams(input)
 	}
-
-	inputSubmitButton := widget.NewButton("Find Anagrams", func() {
+	inputdata.AddListener(binding.NewDataListener(func() {
 		inputEntry.OnSubmitted(inputEntry.Text)
-	})
+	}))
+
+	/* inputSubmitButton := widget.NewButton("Find Anagrams", func() {
+		inputEntry.OnSubmitted(inputEntry.Text)
+	}) */
 
 	inputClearButton := widget.NewButton("Clear input", func() {
-		inputEntry.Text = ""
+		inputdata.Set("")
 		resultSet.FindAnagrams("")
 		reset()
 		reset_search()
 	})
 
-	inputBar := container.New(layout.NewAdaptiveGridLayout(3), inputEntry, inputSubmitButton, inputClearButton)
+	// inputBar := container.New(layout.NewAdaptiveGridLayout(3), inputEntry, inputSubmitButton, inputClearButton)
+	inputBar := container.New(layout.NewAdaptiveGridLayout(2), inputEntry, inputClearButton)
 	dictionaryBar := container.New(layout.NewAdaptiveGridLayout(2), mainSelect, addedDictsContainer)
 
 	controlBar := container.New(layout.NewVBoxLayout(), inputBar, dictionaryBar)
@@ -166,10 +171,44 @@ func main() {
 	}
 
 	searchcontainer := container.New(layout.NewGridLayout(3), widget.NewLabel("Filter by:"), searchbox, searchbutton)
-	searchcontrols := container.NewBorder(
-		container.New(layout.NewVBoxLayout(), searchcontainer, searchError), nil, nil, nil, searchresults)
+	searchcontrols := container.NewBorder(container.New(layout.NewVBoxLayout(), searchcontainer, searchError), nil, nil, nil, searchresults)
 
-	mainDisplay := container.New(layout.NewAdaptiveGridLayout(2), resultsDisplay, searchcontrols)
+	inclusiondata := binding.NewString()
+	inclusiondata.Set("")
+	inclusionentry := widget.NewEntryWithData(inclusiondata)
+	inclusionentry.MultiLine = true
+	inclusionentry.Validator = func(input string) error {
+		rc := NewRuneCluster(inputEntry.Text)
+		phrases := strings.Split(input, "\n")
+		for index, phrase := range phrases {
+			phraseRC := NewRuneCluster(phrase)
+			if !phraseRC.SubSetOf(rc) {
+				return errors.New(fmt.Sprintf("Line %d not a subset of the input", index+1))
+			}
+		}
+		return nil
+	}
+	inclusiondata.AddListener(binding.NewDataListener(func () {
+		included, _ := inclusiondata.Get()
+		includedphrases := strings.Split(included, "\n")
+		resultSet.SetInclusions(includedphrases)
+		resultSet.Regenerate()
+		resultsDisplay.Refresh()
+	}))
+
+	exclusiondata := binding.NewString()
+	exclusiondata.AddListener(binding.NewDataListener(func() {
+		exclusions, _ := exclusiondata.Get()
+		excludedwords := strings.Split(exclusions, " ")
+		resultSet.SetExclusions(excludedwords)
+		resultSet.Regenerate()
+		resultsDisplay.Refresh()
+	}))
+	exclusionentry := widget.NewEntryWithData(exclusiondata)
+	exclusioncontainer := container.New(layout.NewVBoxLayout(), widget.NewLabel("Excluded words"), exclusionentry)
+	advancedcontainer := container.NewBorder(widget.NewLabel("Include phrases"), exclusioncontainer, nil, nil, inclusionentry)
+	controltabs := container.NewAppTabs(container.NewTabItem("Filter", searchcontrols), container.NewTabItem("Advanced", advancedcontainer))
+	mainDisplay := container.New(layout.NewAdaptiveGridLayout(2), resultsDisplay, controltabs)
 
 	content := container.NewBorder(controlBar, nil, nil, nil, mainDisplay)
 

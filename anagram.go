@@ -1,7 +1,9 @@
 package main
 
 import (
+	// "log"
 	"sort"
+	"strings"
 )
 
 type dictPair struct {
@@ -50,15 +52,15 @@ func (ad annotatedDict) Less(i, j int) bool {
 	return len(ad[i].word) > len(ad[j].word)
 }
 
-func FindAnagrams(input string, dictionary *Dictionary) <-chan string {
+func FindAnagrams(input string, include []string, dictionary *Dictionary) <-chan string {
 	outputChan := make(chan string, 10)
 
-	go makeAnagrams(input, dictionary, outputChan)
+	go makeAnagrams(input, include, dictionary, outputChan)
 
 	return outputChan
 }
 
-func makeAnagrams(input string, dictionary *Dictionary, output chan<- string) {
+func makeAnagrams(input string, include []string, dictionary *Dictionary, output chan<- string) {
 	defer close(output)
 
 	ad := NewAnnotatedDict(dictionary)
@@ -69,7 +71,27 @@ func makeAnagrams(input string, dictionary *Dictionary, output chan<- string) {
 
 	sort.Sort(filtered) // for efficientcy we need ot sort decending by size
 
-	findTuples("", target, filtered, output)
+	includedDone := 0
+	if len(include) > 0 {
+		for _, phrase := range include {
+			trimmedPhrase := strings.Trim(phrase, " \t\r\n")
+			if trimmedPhrase == "" {
+				continue
+			}
+			phraseRC := NewRuneCluster(phrase)
+			if !phraseRC.SubSetOf(target) {
+				// log.Println("Phrase \"" + phrase + "\" not a subset of input")
+				continue
+			}
+			includedDone += 1
+			newTarget, _ := target.Minus(phraseRC)
+			newFiltered := filtered.Filter(newTarget)
+			findTuples(trimmedPhrase, newTarget, newFiltered, output)
+		}
+	} 
+	if includedDone == 0 {
+		findTuples("", target, filtered, output)
+	}
 }
 
 func findTuples(current string, target *RuneCluster, dict annotatedDict, output chan<- string) {
