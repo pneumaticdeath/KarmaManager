@@ -76,8 +76,17 @@ func main() {
 		inputEntry.OnSubmitted(inputEntry.Text)
 	})
 
-	controlBar := container.New(layout.NewAdaptiveGridLayout(4), inputEntry, inputSubmitButton,
-		mainSelect, addedDictsContainer)
+	inputClearButton := widget.NewButton("Clear input", func() {
+		inputEntry.Text = ""
+		resultSet.FindAnagrams("")
+		reset()
+		reset_search()
+	})
+
+	inputBar := container.New(layout.NewAdaptiveGridLayout(3), inputEntry, inputSubmitButton, inputClearButton)
+	dictionaryBar := container.New(layout.NewAdaptiveGridLayout(2), mainSelect, addedDictsContainer)
+
+	controlBar := container.New(layout.NewVBoxLayout(), inputBar, dictionaryBar)
 
 	resultsDisplay := widget.NewList(func() int { // list length
 		return resultSet.Count()
@@ -90,7 +99,6 @@ func main() {
 		}
 		text, _ := resultSet.GetAt(index)
 		label.Text = fmt.Sprintf("%10d %s", index+1, text)
-		// fmt.Println(index, " ", text)
 		object.Refresh()
 	})
 
@@ -169,7 +177,6 @@ func main() {
 
 	reset = func() {
 		resultSet.Regenerate()
-		// searchbox.Text = ""
 		searchError.Text = ""
 		searchresultslist.Set(make([]int, 0))
 		resultsDisplay.ScrollToTop()
