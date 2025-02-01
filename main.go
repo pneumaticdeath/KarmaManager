@@ -248,6 +248,10 @@ func main() {
 		pumenu := fyne.NewMenu("Pop up", copyToCBMI, filterMI, excludeMI)
 		rdsize := resultsDisplay.Size()
 		widget.ShowPopUpMenuAtRelativePosition(pumenu, Window.Canvas(), fyne.NewPos(rdsize.Width/3, rdsize.Height/3), resultsDisplay)
+		go func() {
+			time.Sleep(15*time.Second)
+			resultsDisplay.UnselectAll()
+		}()
 	}
 
 	content := container.NewBorder(controlBar, nil, nil, nil, mainDisplay)
