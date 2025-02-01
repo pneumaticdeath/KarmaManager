@@ -11,7 +11,7 @@ func NewRuneCluster(input string) *RuneCluster {
 	rc := make(RuneCluster)
 	for i := 0; i < len(input); i++ {
 		r := rune(input[i])
-		if !unicode.IsSpace(r) {
+		if unicode.IsLetter(r) {
 			rc[unicode.ToLower(r)] += 1
 		}
 	}
