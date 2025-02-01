@@ -88,7 +88,7 @@ func makeAnagrams(input string, include []string, dictionary *Dictionary, output
 			newFiltered := filtered.Filter(newTarget)
 			findTuples(trimmedPhrase, newTarget, newFiltered, output)
 		}
-	} 
+	}
 	if includedDone == 0 {
 		findTuples("", target, filtered, output)
 	}

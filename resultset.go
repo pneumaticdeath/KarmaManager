@@ -15,7 +15,7 @@ type ResultSet struct {
 }
 
 func NewResultSet(mainDicts, addedDicts []*Dictionary, mainDictIndex int) *ResultSet {
-	rs := &ResultSet{mainDicts, addedDicts, "", make([]string,0), make([]string,0), 0, mainDictIndex, make([]string, 0), true, "", nil}
+	rs := &ResultSet{mainDicts, addedDicts, "", make([]string, 0), make([]string, 0), 0, mainDictIndex, make([]string, 0), true, "", nil}
 
 	rs.FindAnagrams("")
 	return rs
