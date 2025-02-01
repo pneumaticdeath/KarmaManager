@@ -102,20 +102,6 @@ func main() {
 		label.Text = fmt.Sprintf("%10d %s", index+1, text)
 		object.Refresh()
 	})
-	resultsDisplay.OnSelected = func(id widget.ListItemID) {
-		text, _ := resultSet.GetAt(id)
-		Window.Clipboard().SetContent(text)
-		label := widget.NewLabel("Copied to clipboard")
-		pu := widget.NewPopUp(label, Window.Canvas())
-		wsize := Window.Canvas().Size()
-		// lsize := label.Size()
-		pu.Move(fyne.NewPos((wsize.Width)/2, (wsize.Height)/2))
-		pu.Show()
-		go func() {
-			time.Sleep(3*time.Second)
-			pu.Hide()
-		}()
-	}
 
 	searchresultslist := binding.NewIntList()
 
@@ -219,6 +205,48 @@ func main() {
 	advancedcontainer := container.NewBorder(widget.NewLabel("Include phrases"), exclusioncontainer, nil, nil, inclusionentry)
 	controltabs := container.NewAppTabs(container.NewTabItem("Filter", searchcontrols), container.NewTabItem("Advanced", advancedcontainer))
 	mainDisplay := container.New(layout.NewAdaptiveGridLayout(2), resultsDisplay, controltabs)
+
+	resultsDisplay.OnSelected = func(id widget.ListItemID) {
+		text, _ := resultSet.GetAt(id)
+		copyToCBMI := fyne.NewMenuItem("Copy to clipboard", func() {
+			Window.Clipboard().SetContent(text)
+			label := widget.NewLabel("Copied to clipboard")
+			pu := widget.NewPopUp(label, Window.Canvas())
+			wsize := Window.Canvas().Size()
+			// lsize := label.Size()
+			pu.Move(fyne.NewPos((wsize.Width)/2, (wsize.Height)/2))
+			pu.Show()
+			go func() {
+				time.Sleep(3*time.Second)
+				pu.Hide()
+			}()
+		})
+		words := strings.Split(text, " ")
+		filterMIs := make([]*fyne.MenuItem, len(words))
+		excludeMIs := make([]*fyne.MenuItem, len(words))
+		for index, word := range words {
+			filterMIs[index] = fyne.NewMenuItem(word, func() {
+				searchbox.Text = word
+			})
+			excludeMIs[index] = fyne.NewMenuItem(word, func() {
+				existing, _ := exclusiondata.Get()
+				if existing == "" {
+					exclusiondata.Set(word)
+				} else {
+					exclusiondata.Set(existing + " " + word)
+				}
+			})
+		}
+		filtermenu := fyne.NewMenu("Filter by", filterMIs...)
+		exclusionmenu := fyne.NewMenu("Exclude", excludeMIs...)
+		filterMI := fyne.NewMenuItem("Filter by", nil)
+		filterMI.ChildMenu = filtermenu
+		excludeMI := fyne.NewMenuItem("Exclude", nil)
+		excludeMI.ChildMenu = exclusionmenu
+		pumenu := fyne.NewMenu("Pop up", copyToCBMI, filterMI, excludeMI)
+		rdsize := resultsDisplay.Size()
+		widget.ShowPopUpMenuAtRelativePosition(pumenu, Window.Canvas(), fyne.NewPos(rdsize.Width/3, rdsize.Height/3), resultsDisplay)
+	}
 
 	content := container.NewBorder(controlBar, nil, nil, nil, mainDisplay)
 
