@@ -15,7 +15,7 @@ import (
 	"fyne.io/fyne/v2/widget"
 )
 
-const searchLimit = 100000
+const searchLimit = 1000000
 
 func main() {
 	App := app.NewWithID("io.patenaude.karmamanager")
@@ -134,8 +134,12 @@ func main() {
 		if count == 0 && resultSet.IsDone() && i >= resultSet.Count() {
 			searchError.Text = "Not Found!"
 			searchError.Refresh()
-		} else if count == 0 && i >= searchLimit {
-			searchError.Text = fmt.Sprintf("Didn't find '%s' in the first %d results!", searchstring, searchLimit)
+		} else if i >= searchLimit {
+			if count == 0 {
+				searchError.Text = fmt.Sprintf("Didn't find '%s' in the first %d results!", searchstring, searchLimit)
+			} else {
+				searchError.Text = fmt.Sprintf("Found %d instances in the first %d results!", count, searchLimit)
+			}
 			searchError.Refresh()
 		}
 	}
