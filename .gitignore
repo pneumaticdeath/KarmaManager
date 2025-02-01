@@ -2,3 +2,4 @@ KarmaManager
 KarmaManager.*
 fyne-cross
 .env
+wasm
