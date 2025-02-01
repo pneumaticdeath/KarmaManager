@@ -227,6 +227,8 @@ func main() {
 		for index, word := range words {
 			filterMIs[index] = fyne.NewMenuItem(word, func() {
 				searchbox.Text = word
+				searchbox.Refresh()
+				searchbox.OnSubmitted(searchbox.Text)
 			})
 			excludeMIs[index] = fyne.NewMenuItem(word, func() {
 				existing, _ := exclusiondata.Get()
@@ -263,6 +265,8 @@ func main() {
 	reset_search = func() {
 		searchbox.Text = ""
 		searchbox.Refresh()
+		inclusiondata.Set("")
+		exclusiondata.Set("")
 	}
 
 	Window.Resize(fyne.NewSize(800, 600))
