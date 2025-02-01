@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/app"
@@ -76,10 +77,6 @@ func main() {
 		inputEntry.OnSubmitted(inputEntry.Text)
 	}))
 
-	/* inputSubmitButton := widget.NewButton("Find Anagrams", func() {
-		inputEntry.OnSubmitted(inputEntry.Text)
-	}) */
-
 	inputClearButton := widget.NewButton("Clear input", func() {
 		inputdata.Set("")
 		resultSet.FindAnagrams("")
@@ -87,7 +84,6 @@ func main() {
 		reset_search()
 	})
 
-	// inputBar := container.New(layout.NewAdaptiveGridLayout(3), inputEntry, inputSubmitButton, inputClearButton)
 	inputBar := container.New(layout.NewAdaptiveGridLayout(2), inputEntry, inputClearButton)
 	dictionaryBar := container.New(layout.NewAdaptiveGridLayout(2), mainSelect, addedDictsContainer)
 
@@ -106,6 +102,20 @@ func main() {
 		label.Text = fmt.Sprintf("%10d %s", index+1, text)
 		object.Refresh()
 	})
+	resultsDisplay.OnSelected = func(id widget.ListItemID) {
+		text, _ := resultSet.GetAt(id)
+		Window.Clipboard().SetContent(text)
+		label := widget.NewLabel("Copied to clipboard")
+		pu := widget.NewPopUp(label, Window.Canvas())
+		wsize := Window.Canvas().Size()
+		// lsize := label.Size()
+		pu.Move(fyne.NewPos((wsize.Width)/2, (wsize.Height)/2))
+		pu.Show()
+		go func() {
+			time.Sleep(3*time.Second)
+			pu.Hide()
+		}()
+	}
 
 	searchresultslist := binding.NewIntList()
 
