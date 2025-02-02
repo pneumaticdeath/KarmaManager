@@ -3,6 +3,7 @@ package main
 import (
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 	"time"
 
@@ -40,6 +41,49 @@ func SaveFavorites(favorites []FavoriteAnagram, prefs fyne.Preferences) {
 		strs[i] = encodeFavorite(fav)
 	}
 	prefs.SetStringList(favoritesKey, strs)
+}
+
+func ShowFavoriteEditor(favs *[]FavoriteAnagram, index int, prefs fyne.Preferences, window fyne.Window) {
+	fav := (*favs)[index]
+	dictEntry := widget.NewEntry()
+	dictEntry.Text = fav.Dictionaries
+	inputEntry := widget.NewEntry()
+	inputEntry.Text = fav.Input
+	anagramEntry := widget.NewEntry()
+	anagramEntry.Text = fav.Anagram
+	deleteCheck := widget.NewCheck("Delete favorite", func(checked bool) {
+		if checked {
+			dictEntry.Disable()
+			inputEntry.Disable()
+			anagramEntry.Disable()
+		} else {
+			dictEntry.Enable()
+			inputEntry.Enable()
+			anagramEntry.Enable()
+		}
+	})
+	items := []*widget.FormItem{
+		widget.NewFormItem("Dictionaries", dictEntry),
+		widget.NewFormItem("Input", inputEntry),
+		widget.NewFormItem("Anagram", anagramEntry),
+		widget.NewFormItem("DELETE", deleteCheck)}
+	dialog.ShowForm("Edit Favorite", "Save", "Cancel", items, func(submitted bool) {
+		if submitted {
+			if deleteCheck.Checked {
+				*favs = slices.Delete(*favs, index, index+1)
+			} else if NewRuneCluster(inputEntry.Text).Equals(NewRuneCluster(anagramEntry.Text)) {
+				fav.Dictionaries = dictEntry.Text
+				fav.Input = inputEntry.Text
+				fav.Anagram = anagramEntry.Text
+				(*favs)[index] = fav
+			} else {
+				dialog.ShowError(errors.New("Input and Anagram no longer match"), window)
+				return
+			}
+			SaveFavorites(*favs, prefs)
+			window.Canvas().Refresh(window.Content())
+		}
+	}, window)
 }
 
 func Favorites(prefs fyne.Preferences) []FavoriteAnagram {
@@ -328,7 +372,15 @@ func main() {
 	animationContent := NewAnimationDisplay()
 
 	favsList.OnSelected = func(id widget.ListItemID) {
-		animationContent.AnimateAnagram(favorites[id].Input, favorites[id].Anagram)
+		animateMI := fyne.NewMenuItem("Animate", func() {
+			animationContent.AnimateAnagram(favorites[id].Input, favorites[id].Anagram)
+		})
+		editMI := fyne.NewMenuItem("Edit", func() {
+			ShowFavoriteEditor(&favorites, id, App.Preferences(), Window)
+		})
+		pumenu := fyne.NewMenu("Pop up", animateMI, editMI)
+		flsize := favsList.Size()
+		widget.ShowPopUpMenuAtRelativePosition(pumenu, Window.Canvas(), fyne.NewPos(flsize.Width/3, flsize.Height/3), favsList)
 	}
 
 	favsContent := container.New(layout.NewAdaptiveGridLayout(2), favsList, animationContent)
