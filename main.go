@@ -15,16 +15,47 @@ import (
 	"fyne.io/fyne/v2/widget"
 )
 
-const searchLimit = 1000000
+const (
+	searchLimit = 1000000
+	favoritesKey = "io.patenaude.karmamanager.favorites"
+)
 
-type FavoriteAnagrams struct {
+type FavoriteAnagram struct {
 	Dictionaries, Input string
-	Anagrams            []string
+	Anagram             string
+}
+
+func encodeFavorite(fav FavoriteAnagram) string {
+	return fmt.Sprintf("%s\n%s\n%s", fav.Dictionaries, fav.Input, fav.Anagram)
+}
+
+func decodeFavorite(s string) FavoriteAnagram {
+	lines := strings.Split(s, "\n")
+	return FavoriteAnagram{lines[0], lines[1], lines[2]}
+}
+
+func SaveFavorites(favorites []FavoriteAnagram, prefs fyne.Preferences) {
+	strs := make([]string, len(favorites))
+	for i, fav := range favorites {
+		strs[i] = encodeFavorite(fav)
+	}
+	prefs.SetStringList(favoritesKey, strs)
+}
+
+func Favorites(prefs fyne.Preferences) []FavoriteAnagram {
+	strs := prefs.StringList(favoritesKey)
+	favs := make([]FavoriteAnagram, len(strs))
+	for i, s := range strs {
+		favs[i] = decodeFavorite(s)
+	}
+	return favs
 }
 
 func main() {
 	App := app.NewWithID("io.patenaude.karmamanager")
 	Window := App.NewWindow("Karma Manger")
+
+	favorites := Favorites(App.Preferences())
 
 	mainDicts, addedDicts, err := ReadDictionaries()
 	if err != nil {
@@ -230,6 +261,22 @@ func main() {
 				pu.Hide()
 			}()
 		})
+		addToFavsMI := fyne.NewMenuItem("Add to favorites", func() {
+			input, _ := inputdata.Get()
+			newFav := FavoriteAnagram{resultSet.CombinedDictName(), input, text}
+			favorites = append(favorites, newFav)
+			SaveFavorites(favorites, App.Preferences())
+			label := widget.NewLabel("Added to favorites")
+			pu := widget.NewPopUp(label, Window.Canvas())
+			wsize := Window.Canvas().Size()
+			// lsize := label.Size()
+			pu.Move(fyne.NewPos((wsize.Width)/2, (wsize.Height)/2))
+			pu.Show()
+			go func() {
+				time.Sleep(3 * time.Second)
+				pu.Hide()
+			}()
+		})
 		words := strings.Split(text, " ")
 		filterMIs := make([]*fyne.MenuItem, len(words))
 		excludeMIs := make([]*fyne.MenuItem, len(words))
@@ -254,7 +301,7 @@ func main() {
 		filterMI.ChildMenu = filtermenu
 		excludeMI := fyne.NewMenuItem("Exclude", nil)
 		excludeMI.ChildMenu = exclusionmenu
-		pumenu := fyne.NewMenu("Pop up", copyToCBMI, filterMI, excludeMI)
+		pumenu := fyne.NewMenu("Pop up", copyToCBMI, addToFavsMI, filterMI, excludeMI)
 		rdsize := resultsDisplay.Size()
 		widget.ShowPopUpMenuAtRelativePosition(pumenu, Window.Canvas(), fyne.NewPos(rdsize.Width/3, rdsize.Height/3), resultsDisplay)
 		go func() {
@@ -263,7 +310,23 @@ func main() {
 		}()
 	}
 
-	content := container.NewBorder(controlBar, nil, nil, nil, mainDisplay)
+	findContent := container.NewBorder(controlBar, nil, nil, nil, mainDisplay)
+
+	favsList := widget.NewList(func() int {
+		return len(favorites)
+	}, func() fyne.CanvasObject {
+		return widget.NewLabel("Fav")
+	}, func(id widget.ListItemID, obj fyne.CanvasObject) {
+		label, ok := obj.(*widget.Label)
+		if !ok {
+			return
+		}
+		label.Text = fmt.Sprintf("%40s->%-40s",favorites[id].Input, favorites[id].Anagram)
+		label.Refresh()
+	})
+	favsContent := container.New(layout.NewGridLayout(1), favsList)
+
+	content := container.NewAppTabs(container.NewTabItem("Find", findContent), container.NewTabItem("Favorites", favsContent))
 
 	Window.SetContent(content)
 
