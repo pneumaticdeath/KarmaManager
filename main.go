@@ -321,7 +321,7 @@ func main() {
 		if !ok {
 			return
 		}
-		label.Text = fmt.Sprintf("%40s->%-40s", favorites[id].Input, favorites[id].Anagram)
+		label.Text = fmt.Sprintf("%35s->%-35s", favorites[id].Input, favorites[id].Anagram)
 		label.Refresh()
 	})
 
