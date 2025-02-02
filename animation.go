@@ -5,25 +5,30 @@ import (
 	// "image"
 	// "image/color"
 	// "image/gif"
+	"log"
 	"strings"
-	// "unicode"
+	"time"
+	"unicode"
 
 	"fyne.io/fyne/v2"
+	"fyne.io/fyne/v2/canvas"
+	"fyne.io/fyne/v2/container"
+	"fyne.io/fyne/v2/theme"
+	"fyne.io/fyne/v2/widget"
 )
 
 var glyphSize fyne.Size = fyne.NewSize(20, 20)
-var glyphSpacing float32 = 4.0
-var maxCols int = 30
+var glyphSpacing float32 = 1.0
+var maxCols int = 20
 
 type RuneGlyph struct {
-	Letter                 rune
-	StartingPos, EndingPos fyne.Position
+	Letter           rune
+	StartPos, EndPos fyne.Position
 }
 
 type Animation struct {
 	Glyphs     []RuneGlyph
 	Rows, Cols int
-	Total      int
 }
 
 type LayoutElement struct {
@@ -97,7 +102,7 @@ func NthRuneIndex(layout []LayoutElement, r rune, n int) int {
 	return -1
 }
 
-func NewAnimation(input, anagram string, steps int) (*Animation, error) {
+func NewAnimation(input, anagram string) (*Animation, error) {
 	inputRC := NewRuneCluster(input)
 	anagramRC := NewRuneCluster(anagram)
 	if !inputRC.Equals(anagramRC) {
@@ -138,6 +143,59 @@ func NewAnimation(input, anagram string, steps int) (*Animation, error) {
 		}
 	}
 
-	animation := Animation{glyphs, max(inputRows, anagramRows), maxCols, steps}
+	animation := Animation{glyphs, max(inputRows, anagramRows), maxCols}
 	return &animation, nil
+}
+
+type AnimationDisplay struct {
+	widget.BaseWidget
+
+	surface    *fyne.Container
+	scroll     *container.Scroll
+	animations []*fyne.Animation
+}
+
+func NewAnimationDisplay() *AnimationDisplay {
+	surface := container.NewWithoutLayout()
+	scroll := container.NewScroll(surface)
+	scroll.Direction = container.ScrollNone
+
+	ad := &AnimationDisplay{surface: surface, scroll: scroll}
+	ad.ExtendBaseWidget(ad)
+	return ad
+}
+
+func (ad *AnimationDisplay) CreateRenderer() fyne.WidgetRenderer {
+	return widget.NewSimpleRenderer(ad.scroll)
+}
+
+func (ad *AnimationDisplay) AnimateAnagram(input, anagram string) {
+	animation, err := NewAnimation(input, anagram)
+
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	ad.animations = make([]*fyne.Animation, len(animation.Glyphs))
+	ad.surface.RemoveAll()
+	for index, glyph := range animation.Glyphs {
+		text := canvas.NewText(string(unicode.ToUpper(glyph.Letter)), theme.TextColor())
+		style := fyne.TextStyle{Monospace: true}
+		text.TextStyle = style
+		text.TextSize = 20.0
+		ad.surface.Add(text)
+		anim := canvas.NewPositionAnimation(glyph.StartPos, glyph.EndPos, 10*time.Second, func(pos fyne.Position) {
+			text.Move(pos)
+			ad.surface.Refresh()
+		})
+		anim.AutoReverse = true
+		anim.Start()
+		ad.animations[index] = anim
+	}
+}
+
+func (ad *AnimationDisplay) Clear() {
+	ad.animations = make([]*fyne.Animation, 0)
+	ad.surface.RemoveAll()
+	ad.surface.Refresh()
 }

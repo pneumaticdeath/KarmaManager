@@ -16,7 +16,7 @@ import (
 )
 
 const (
-	searchLimit = 1000000
+	searchLimit  = 200000
 	favoritesKey = "io.patenaude.karmamanager.favorites"
 )
 
@@ -321,10 +321,17 @@ func main() {
 		if !ok {
 			return
 		}
-		label.Text = fmt.Sprintf("%40s->%-40s",favorites[id].Input, favorites[id].Anagram)
+		label.Text = fmt.Sprintf("%40s->%-40s", favorites[id].Input, favorites[id].Anagram)
 		label.Refresh()
 	})
-	favsContent := container.New(layout.NewGridLayout(1), favsList)
+
+	animationContent := NewAnimationDisplay()
+
+	favsList.OnSelected = func(id widget.ListItemID) {
+		animationContent.AnimateAnagram(favorites[id].Input, favorites[id].Anagram)
+	}
+
+	favsContent := container.New(layout.NewAdaptiveGridLayout(2), favsList, animationContent)
 
 	content := container.NewAppTabs(container.NewTabItem("Find", findContent), container.NewTabItem("Favorites", favsContent))
 
