@@ -17,6 +17,11 @@ import (
 
 const searchLimit = 1000000
 
+type FavoriteAnagrams struct {
+	Dictionaries, Input string
+	Anagrams            []string
+}
+
 func main() {
 	App := app.NewWithID("io.patenaude.karmamanager")
 	Window := App.NewWindow("Karma Manger")
@@ -188,7 +193,7 @@ func main() {
 		}
 		return nil
 	}
-	inclusiondata.AddListener(binding.NewDataListener(func () {
+	inclusiondata.AddListener(binding.NewDataListener(func() {
 		included, _ := inclusiondata.Get()
 		includedphrases := strings.Split(included, "\n")
 		resultSet.SetInclusions(includedphrases)
@@ -221,7 +226,7 @@ func main() {
 			pu.Move(fyne.NewPos((wsize.Width)/2, (wsize.Height)/2))
 			pu.Show()
 			go func() {
-				time.Sleep(3*time.Second)
+				time.Sleep(3 * time.Second)
 				pu.Hide()
 			}()
 		})
@@ -253,7 +258,7 @@ func main() {
 		rdsize := resultsDisplay.Size()
 		widget.ShowPopUpMenuAtRelativePosition(pumenu, Window.Canvas(), fyne.NewPos(rdsize.Width/3, rdsize.Height/3), resultsDisplay)
 		go func() {
-			time.Sleep(15*time.Second)
+			time.Sleep(15 * time.Second)
 			resultsDisplay.UnselectAll()
 		}()
 	}
