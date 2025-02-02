@@ -6,6 +6,7 @@ import (
 	// "image/color"
 	// "image/gif"
 	"log"
+	"math"
 	"strings"
 	"time"
 	"unicode"
@@ -19,7 +20,6 @@ import (
 
 var glyphSize fyne.Size = fyne.NewSize(20, 20)
 var glyphSpacing float32 = 1.0
-var maxCols int = 20
 
 type RuneGlyph struct {
 	Letter           rune
@@ -102,7 +102,7 @@ func NthRuneIndex(layout []LayoutElement, r rune, n int) int {
 	return -1
 }
 
-func NewAnimation(input, anagram string) (*Animation, error) {
+func NewAnimation(input, anagram string, maxRows, maxCols int) (*Animation, error) {
 	inputRC := NewRuneCluster(input)
 	anagramRC := NewRuneCluster(anagram)
 	if !inputRC.Equals(anagramRC) {
@@ -170,10 +170,15 @@ func (ad *AnimationDisplay) CreateRenderer() fyne.WidgetRenderer {
 }
 
 func (ad *AnimationDisplay) AnimateAnagram(input, anagram string) {
-	animation, err := NewAnimation(input, anagram)
+	dispSize := ad.surface.Size()
+	maxCols := int(math.Floor(float64(dispSize.Width / (glyphSize.Width + glyphSpacing))))
+	maxRows := int(math.Floor(float64(dispSize.Height / (glyphSize.Height + glyphSpacing))))
+
+	animation, err := NewAnimation(input, anagram, maxRows, maxCols)
 
 	if err != nil {
-		log.Fatal(err)
+		log.Println(err)
+		return
 	}
 
 	ad.animations = make([]*fyne.Animation, len(animation.Glyphs))
