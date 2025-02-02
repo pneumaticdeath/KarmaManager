@@ -189,11 +189,12 @@ func (ad *AnimationDisplay) AnimateAnagram(input, anagram string) {
 		text.TextStyle = style
 		text.TextSize = 20.0
 		ad.surface.Add(text)
-		anim := canvas.NewPositionAnimation(glyph.StartPos, glyph.EndPos, 10*time.Second, func(pos fyne.Position) {
+		anim := canvas.NewPositionAnimation(glyph.StartPos, glyph.EndPos, 6*time.Second, func(pos fyne.Position) {
 			text.Move(pos)
 			ad.surface.Refresh()
 		})
 		anim.AutoReverse = true
+		anim.RepeatCount = fyne.AnimationRepeatForever
 		anim.Start()
 		ad.animations[index] = anim
 	}

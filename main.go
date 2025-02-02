@@ -172,14 +172,14 @@ func main() {
 	resultsDisplay := widget.NewList(func() int { // list length
 		return resultSet.Count()
 	}, func() fyne.CanvasObject { // Make new entry
-		return widget.NewLabel("Foo")
+		return NewTapLabel("Foo")
 	}, func(index int, object fyne.CanvasObject) { // Update entry
-		label, ok := object.(*widget.Label)
+		label, ok := object.(*TapLabel)
 		if !ok {
 			return
 		}
 		text, _ := resultSet.GetAt(index)
-		label.Text = fmt.Sprintf("%10d %s", index+1, text)
+		label.Label.Text = fmt.Sprintf("%10d %s", index+1, text)
 		object.Refresh()
 	})
 
@@ -290,98 +290,99 @@ func main() {
 	controltabs := container.NewAppTabs(container.NewTabItem("Filter", searchcontrols), container.NewTabItem("Advanced", advancedcontainer))
 	mainDisplay := container.New(layout.NewAdaptiveGridLayout(2), resultsDisplay, controltabs)
 
-	resultsDisplay.OnSelected = func(id widget.ListItemID) {
-		text, _ := resultSet.GetAt(id)
-		copyToCBMI := fyne.NewMenuItem("Copy to clipboard", func() {
-			Window.Clipboard().SetContent(text)
-			label := widget.NewLabel("Copied to clipboard")
-			pu := widget.NewPopUp(label, Window.Canvas())
-			wsize := Window.Canvas().Size()
-			// lsize := label.Size()
-			pu.Move(fyne.NewPos((wsize.Width)/2, (wsize.Height)/2))
-			pu.Show()
-			go func() {
-				time.Sleep(3 * time.Second)
-				pu.Hide()
-			}()
-		})
-		addToFavsMI := fyne.NewMenuItem("Add to favorites", func() {
-			input, _ := inputdata.Get()
-			newFav := FavoriteAnagram{resultSet.CombinedDictName(), input, text}
-			favorites = append(favorites, newFav)
-			SaveFavorites(favorites, App.Preferences())
-			label := widget.NewLabel("Added to favorites")
-			pu := widget.NewPopUp(label, Window.Canvas())
-			wsize := Window.Canvas().Size()
-			// lsize := label.Size()
-			pu.Move(fyne.NewPos((wsize.Width)/2, (wsize.Height)/2))
-			pu.Show()
-			go func() {
-				time.Sleep(3 * time.Second)
-				pu.Hide()
-			}()
-		})
-		words := strings.Split(text, " ")
-		filterMIs := make([]*fyne.MenuItem, len(words))
-		excludeMIs := make([]*fyne.MenuItem, len(words))
-		for index, word := range words {
-			filterMIs[index] = fyne.NewMenuItem(word, func() {
-				searchbox.Text = word
-				searchbox.Refresh()
-				searchbox.OnSubmitted(searchbox.Text)
-			})
-			excludeMIs[index] = fyne.NewMenuItem(word, func() {
-				existing, _ := exclusiondata.Get()
-				if existing == "" {
-					exclusiondata.Set(word)
-				} else {
-					exclusiondata.Set(existing + " " + word)
-				}
-			})
+	resultsDisplay.UpdateItem = func(id widget.ListItemID, obj fyne.CanvasObject) {
+		label, ok := obj.(*TapLabel)
+		if !ok {
+			return
 		}
-		filtermenu := fyne.NewMenu("Filter by", filterMIs...)
-		exclusionmenu := fyne.NewMenu("Exclude", excludeMIs...)
-		filterMI := fyne.NewMenuItem("Filter by", nil)
-		filterMI.ChildMenu = filtermenu
-		excludeMI := fyne.NewMenuItem("Exclude", nil)
-		excludeMI.ChildMenu = exclusionmenu
-		pumenu := fyne.NewMenu("Pop up", copyToCBMI, addToFavsMI, filterMI, excludeMI)
-		rdsize := resultsDisplay.Size()
-		widget.ShowPopUpMenuAtRelativePosition(pumenu, Window.Canvas(), fyne.NewPos(rdsize.Width/3, rdsize.Height/3), resultsDisplay)
-		go func() {
-			time.Sleep(15 * time.Second)
-			resultsDisplay.UnselectAll()
-		}()
+		text, _ := resultSet.GetAt(id)
+		label.Label.Text = fmt.Sprintf("%10d %s", id+1, text)
+		label.OnTapped = func(pe *fyne.PointEvent) {
+			copyToCBMI := fyne.NewMenuItem("Copy to clipboard", func() {
+				Window.Clipboard().SetContent(text)
+				label := widget.NewLabel("Copied to clipboard")
+				pu := widget.NewPopUp(label, Window.Canvas())
+				wsize := Window.Canvas().Size()
+				// lsize := label.Size()
+				pu.Move(fyne.NewPos((wsize.Width)/2, (wsize.Height)/2))
+				pu.Show()
+				go func() {
+					time.Sleep(3 * time.Second)
+					pu.Hide()
+				}()
+			})
+			addToFavsMI := fyne.NewMenuItem("Add to favorites", func() {
+				input, _ := inputdata.Get()
+				newFav := FavoriteAnagram{resultSet.CombinedDictName(), input, text}
+				favorites = append(favorites, newFav)
+				SaveFavorites(favorites, App.Preferences())
+				label := widget.NewLabel("Added to favorites")
+				pu := widget.NewPopUp(label, Window.Canvas())
+				wsize := Window.Canvas().Size()
+				pu.Move(fyne.NewPos((wsize.Width)/2, (wsize.Height)/2))
+				pu.Show()
+				go func() {
+					time.Sleep(3 * time.Second)
+					pu.Hide()
+				}()
+			})
+			words := strings.Split(text, " ")
+			filterMIs := make([]*fyne.MenuItem, len(words))
+			excludeMIs := make([]*fyne.MenuItem, len(words))
+			for index, word := range words {
+				filterMIs[index] = fyne.NewMenuItem(word, func() {
+					searchbox.Text = word
+					searchbox.Refresh()
+					searchbox.OnSubmitted(searchbox.Text)
+				})
+				excludeMIs[index] = fyne.NewMenuItem(word, func() {
+					existing, _ := exclusiondata.Get()
+					if existing == "" {
+						exclusiondata.Set(word)
+					} else {
+						exclusiondata.Set(existing + " " + word)
+					}
+				})
+			}
+			filtermenu := fyne.NewMenu("Filter by", filterMIs...)
+			exclusionmenu := fyne.NewMenu("Exclude", excludeMIs...)
+			filterMI := fyne.NewMenuItem("Filter by", nil)
+			filterMI.ChildMenu = filtermenu
+			excludeMI := fyne.NewMenuItem("Exclude", nil)
+			excludeMI.ChildMenu = exclusionmenu
+			pumenu := fyne.NewMenu("Pop up", copyToCBMI, addToFavsMI, filterMI, excludeMI)
+			widget.ShowPopUpMenuAtRelativePosition(pumenu, Window.Canvas(), pe.Position, label)
+		}
+		obj.Refresh()
 	}
 
 	findContent := container.NewBorder(controlBar, nil, nil, nil, mainDisplay)
 
+	animationContent := NewAnimationDisplay()
+
 	favsList := widget.NewList(func() int {
 		return len(favorites)
 	}, func() fyne.CanvasObject {
-		return widget.NewLabel("Fav")
+		return NewTapLabel("Fav")
 	}, func(id widget.ListItemID, obj fyne.CanvasObject) {
-		label, ok := obj.(*widget.Label)
+		label, ok := obj.(*TapLabel)
 		if !ok {
 			return
 		}
-		label.Text = fmt.Sprintf("%35s->%-35s", favorites[id].Input, favorites[id].Anagram)
+		label.Label.Text = fmt.Sprintf("%35s->%-35s", favorites[id].Input, favorites[id].Anagram)
+		label.OnTapped = func(pe *fyne.PointEvent) {
+			animateMI := fyne.NewMenuItem("Animate", func() {
+				animationContent.AnimateAnagram(favorites[id].Input, favorites[id].Anagram)
+			})
+			editMI := fyne.NewMenuItem("Edit", func() {
+				ShowFavoriteEditor(&favorites, id, App.Preferences(), Window)
+			})
+			pumenu := fyne.NewMenu("Pop up", animateMI, editMI)
+			widget.ShowPopUpMenuAtRelativePosition(pumenu, Window.Canvas(), pe.Position, label)
+		}
+
 		label.Refresh()
 	})
-
-	animationContent := NewAnimationDisplay()
-
-	favsList.OnSelected = func(id widget.ListItemID) {
-		animateMI := fyne.NewMenuItem("Animate", func() {
-			animationContent.AnimateAnagram(favorites[id].Input, favorites[id].Anagram)
-		})
-		editMI := fyne.NewMenuItem("Edit", func() {
-			ShowFavoriteEditor(&favorites, id, App.Preferences(), Window)
-		})
-		pumenu := fyne.NewMenu("Pop up", animateMI, editMI)
-		flsize := favsList.Size()
-		widget.ShowPopUpMenuAtRelativePosition(pumenu, Window.Canvas(), fyne.NewPos(flsize.Width/3, flsize.Height/3), favsList)
-	}
 
 	favsContent := container.New(layout.NewAdaptiveGridLayout(2), favsList, animationContent)
 
