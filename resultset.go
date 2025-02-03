@@ -1,9 +1,16 @@
 package main
 
+import (
+	"sort"
+	"strings"
+	"unicode"
+)
+
 type ResultSet struct {
 	mainDicts        []*Dictionary
 	addedDicts       []*Dictionary
 	input            string
+	normalizedInput  string
 	included         []string
 	excluded         []string
 	resultCount      int
@@ -15,7 +22,7 @@ type ResultSet struct {
 }
 
 func NewResultSet(mainDicts, addedDicts []*Dictionary, mainDictIndex int) *ResultSet {
-	rs := &ResultSet{mainDicts, addedDicts, "", make([]string, 0), make([]string, 0), 0, mainDictIndex, make([]string, 0), true, "", nil}
+	rs := &ResultSet{mainDicts, addedDicts, "", "", make([]string, 0), make([]string, 0), 0, mainDictIndex, make([]string, 0), true, "", nil}
 
 	rs.FindAnagrams("")
 	return rs
@@ -23,6 +30,7 @@ func NewResultSet(mainDicts, addedDicts []*Dictionary, mainDictIndex int) *Resul
 
 func (rs *ResultSet) FindAnagrams(input string) {
 	rs.input = input
+	rs.normalizedInput = normalize(input)
 	rs.Regenerate()
 }
 
@@ -62,11 +70,13 @@ func (rs *ResultSet) FetchNext(count int) {
 	}
 
 	for count > 0 && !rs.isDone {
-		count -= 1
 		next, ok := <-rs.resultChan
 		if ok {
-			rs.results = append(rs.results, next)
-			rs.resultCount += 1
+			if normalize(next) != rs.normalizedInput {
+				rs.results = append(rs.results, next)
+				rs.resultCount += 1
+				count -= 1
+			}
 		} else {
 			rs.isDone = true
 			return
@@ -98,4 +108,19 @@ func (rs *ResultSet) SetInclusions(phrases []string) {
 
 func (rs *ResultSet) SetExclusions(words []string) {
 	rs.excluded = words
+}
+
+func normalize(str string) string {
+	b := strings.Builder{}
+	for _, c := range str {
+		r := rune(c)
+		if unicode.IsSpace(r) || unicode.IsLetter(r) {
+			b.WriteRune(unicode.ToLower(r))
+		}
+	}
+
+	var words sort.StringSlice =  strings.Split(b.String(), " ")
+	words.Sort()
+
+	return strings.Join(words, " ")
 }
