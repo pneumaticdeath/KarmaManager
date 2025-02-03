@@ -200,6 +200,10 @@ func (ad *AnimationDisplay) AnimateAnagram(input, anagram string) {
 	}
 }
 
+func (ad *AnimationDisplay) Tapped(pe *fyne.PointEvent) {
+	ad.Clear()
+}
+
 func (ad *AnimationDisplay) Clear() {
 	ad.animations = make([]*fyne.Animation, 0)
 	ad.surface.RemoveAll()
