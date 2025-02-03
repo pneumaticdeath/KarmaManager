@@ -153,6 +153,7 @@ type AnimationDisplay struct {
 	surface    *fyne.Container
 	scroll     *container.Scroll
 	animations []*fyne.Animation
+	running    bool
 }
 
 func NewAnimationDisplay() *AnimationDisplay {
@@ -198,10 +199,29 @@ func (ad *AnimationDisplay) AnimateAnagram(input, anagram string) {
 		anim.Start()
 		ad.animations[index] = anim
 	}
+	ad.running = true
+}
+
+func (ad *AnimationDisplay) Start() {
+	for _, anim := range ad.animations {
+		anim.Start()
+	}
+	ad.running = true
+}
+
+func (ad *AnimationDisplay) Stop() {
+	for _, anim := range ad.animations {
+		anim.Stop()
+	}
+	ad.running = false
 }
 
 func (ad *AnimationDisplay) Tapped(pe *fyne.PointEvent) {
-	ad.Clear()
+	if ad.running {
+		ad.Stop()
+	} else {
+		ad.Start()
+	}
 }
 
 func (ad *AnimationDisplay) Clear() {
