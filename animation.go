@@ -31,63 +31,7 @@ type Animation struct {
 	Rows, Cols int
 }
 
-type LayoutElement struct {
-	Rune     rune
-	Row, Col int
-}
-
-func MakeLayout(input string, maxColumns int) ([]LayoutElement, int) {
-	layout := make([]LayoutElement, 0, len(input))
-	words := strings.Split(input, " ")
-	row := 0
-	col := 0
-	for _, word := range words {
-		if word == "" {
-			continue
-		}
-
-		remainingColumns := maxColumns - col
-		for len(word) >= maxColumns {
-			partial := word[:remainingColumns-1]
-			word = word[remainingColumns-1:]
-			i := 0
-			for i < len(partial) {
-				r := rune(partial[i])
-				layout = append(layout, LayoutElement{r, row, col + i})
-				i += 1
-			}
-			layout = append(layout, LayoutElement{'-', row, col + i})
-			row += 1
-			col = 0
-			remainingColumns = maxColumns
-		}
-
-		if len(word) > remainingColumns {
-			row += 1
-			col = 0
-		}
-
-		i := 0
-		for i < len(word) {
-			r := rune(word[i])
-			layout = append(layout, LayoutElement{r, row, col + i})
-			i += 1
-		}
-		col += len(word) + 1 // the one is for the space after the word
-		if col >= maxColumns {
-			row += 1
-			col = 0
-		}
-	}
-
-	if col == 0 { // Edge case... we wrapped but didn't actually append any words
-		return layout, row
-	} else {
-		return layout, row + 1
-	}
-}
-
-func NthRuneIndex(layout []LayoutElement, r rune, n int) int {
+func NthRuneIndex(layout []RuneLayoutElement, r rune, n int) int {
 	index := 0
 	foundCount := 0
 	for index < len(layout) {
@@ -111,8 +55,8 @@ func NewAnimation(input, anagram string, maxRows, maxCols int) (*Animation, erro
 
 	inputLC := strings.ToLower(input)
 	anagramLC := strings.ToLower(anagram)
-	inputLayout, inputRows := MakeLayout(inputLC, maxCols)
-	anagramLayout, anagramRows := MakeLayout(anagramLC, maxCols)
+	inputLayout, inputRows := MakeRuneLayout(inputLC, maxCols)
+	anagramLayout, anagramRows := MakeRuneLayout(anagramLC, maxCols)
 
 	numGlyphs := max(len(inputLayout), len(anagramLayout))
 
