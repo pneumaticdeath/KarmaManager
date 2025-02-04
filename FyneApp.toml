@@ -1,7 +1,7 @@
 Website = "https://patenaude.io/"
 
 [Details]
-  Icon = "Icon.png"
+  Icon = "Icon.svg"
   Name = "KarmaManager"
   ID = "io.patenaude.karmamanager"
   Version = "0.0.2"

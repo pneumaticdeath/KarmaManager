@@ -119,7 +119,7 @@ func normalize(str string) string {
 		}
 	}
 
-	var words sort.StringSlice =  strings.Split(b.String(), " ")
+	var words sort.StringSlice = strings.Split(b.String(), " ")
 	words.Sort()
 
 	return strings.Join(words, " ")

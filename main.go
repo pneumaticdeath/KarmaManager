@@ -331,7 +331,7 @@ func main() {
 				ad := NewAnimationDisplay(App.Metadata().Icon)
 				input, _ := inputdata.Get()
 				cd := dialog.NewCustom("Animated anagram...", "dismiss", ad, Window)
-				cd.Resize(fyne.NewSize(500,400))
+				cd.Resize(fyne.NewSize(500, 400))
 				cd.Show()
 				ad.AnimateAnagram(input, text)
 			})
@@ -383,7 +383,7 @@ func main() {
 			animateMI := fyne.NewMenuItem("Animate", func() {
 				ad := NewAnimationDisplay(App.Metadata().Icon)
 				cd := dialog.NewCustom("Animated anagram...", "dismiss", ad, Window)
-				cd.Resize(fyne.NewSize(400,300))
+				cd.Resize(fyne.NewSize(400, 300))
 				cd.Show()
 				ad.AnimateAnagram(favorites[id].Input, favorites[id].Anagram)
 			})
