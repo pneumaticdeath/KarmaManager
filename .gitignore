@@ -3,3 +3,4 @@ KarmaManager.*
 fyne-cross
 .env
 wasm
+.DS_Store
