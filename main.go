@@ -328,7 +328,7 @@ func main() {
 				}()
 			})
 			animateMI := fyne.NewMenuItem("Animate", func() {
-				ad := NewAnimationDisplay()
+				ad := NewAnimationDisplay(App.Metadata().Icon)
 				input, _ := inputdata.Get()
 				cd := dialog.NewCustom("Animated anagram...", "dismiss", ad, Window)
 				cd.Resize(fyne.NewSize(500,400))
@@ -381,7 +381,7 @@ func main() {
 		label.Label.Text = fmt.Sprintf("%35s->%-35s", favorites[id].Input, favorites[id].Anagram)
 		label.OnTapped = func(pe *fyne.PointEvent) {
 			animateMI := fyne.NewMenuItem("Animate", func() {
-				ad := NewAnimationDisplay()
+				ad := NewAnimationDisplay(App.Metadata().Icon)
 				cd := dialog.NewCustom("Animated anagram...", "dismiss", ad, Window)
 				cd.Resize(fyne.NewSize(400,300))
 				cd.Show()

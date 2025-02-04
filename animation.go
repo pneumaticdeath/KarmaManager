@@ -153,15 +153,18 @@ type AnimationDisplay struct {
 	surface    *fyne.Container
 	scroll     *container.Scroll
 	animations []*fyne.Animation
+	Duration   time.Duration
+	Icon       fyne.Resource
+	Badge      string
 	running    bool
 }
 
-func NewAnimationDisplay() *AnimationDisplay {
+func NewAnimationDisplay(icon fyne.Resource) *AnimationDisplay {
 	surface := container.NewWithoutLayout()
 	scroll := container.NewScroll(surface)
 	scroll.Direction = container.ScrollNone
 
-	ad := &AnimationDisplay{surface: surface, scroll: scroll}
+	ad := &AnimationDisplay{surface: surface, scroll: scroll, Duration: 6*time.Second, Icon: icon, Badge: "made with KarmaManager"}
 	ad.ExtendBaseWidget(ad)
 	return ad
 }
@@ -175,6 +178,11 @@ func (ad *AnimationDisplay) AnimateAnagram(input, anagram string) {
 	maxCols := int(math.Floor(float64(dispSize.Width / (glyphSize.Width + glyphSpacing))))
 	maxRows := int(math.Floor(float64(dispSize.Height / (glyphSize.Height + glyphSpacing))))
 
+	// icon := canvas.NewImageFromResource(ad.Icon)
+	// icon.SetMinSize(fyne.NewSize(32, 32))
+	// icon.FillMode = canvas.ImageFillContain
+	badge := widget.NewLabel(ad.Badge)
+
 	animation, err := NewAnimation(input, anagram, maxRows, maxCols)
 
 	if err != nil {
@@ -182,23 +190,51 @@ func (ad *AnimationDisplay) AnimateAnagram(input, anagram string) {
 		return
 	}
 
-	ad.animations = make([]*fyne.Animation, len(animation.Glyphs))
+	numGlyphs := len(animation.Glyphs)
+	ad.animations = make([]*fyne.Animation, numGlyphs + 1)
 	ad.surface.RemoveAll()
+	style := fyne.TextStyle{Monospace: true}
 	for index, glyph := range animation.Glyphs {
 		text := canvas.NewText(string(unicode.ToUpper(glyph.Letter)), theme.TextColor())
-		style := fyne.TextStyle{Monospace: true}
 		text.TextStyle = style
 		text.TextSize = 20.0
 		ad.surface.Add(text)
-		anim := canvas.NewPositionAnimation(glyph.StartPos, glyph.EndPos, 6*time.Second, func(pos fyne.Position) {
-			text.Move(pos)
-			ad.surface.Refresh()
-		})
+		anim := canvas.NewPositionAnimation(glyph.StartPos, glyph.EndPos, ad.Duration, text.Move)
 		anim.AutoReverse = true
 		anim.RepeatCount = fyne.AnimationRepeatForever
 		anim.Start()
 		ad.animations[index] = anim
 	}
+	// ad.surface.Add(icon)
+	ad.surface.Add(badge)
+	// iconStartPos := fyne.NewPos(dispSize.Width, dispSize.Height)
+	// iconEndPos := fyne.NewPos(10, dispSize.Height - icon.MinSize().Height - 10)
+	// iconAnim := canvas.NewPositionAnimation(iconStartPos, iconEndPos, ad.Duration, func(p fyne.Position) {
+	// 	icon.Move(p)
+	// 	ad.surface.Refresh()
+	// })
+	// iconAnim.AutoReverse = true
+	// iconAnim.RepeatCount = fyne.AnimationRepeatForever
+	// icon.Move(iconStartPos)
+	// icon.Move(iconEndPos)
+	// icon.Resize(icon.MinSize())
+	badgeStartPos := fyne.NewPos(0-badge.MinSize().Width-10, dispSize.Height)
+	// badgeEndPos := fyne.NewPos(10 + icon.MinSize().Width + 10, dispSize.Height - badge.MinSize().Height - 10)
+	badgeEndPos := fyne.NewPos(10, dispSize.Height - badge.MinSize().Height - 10)
+	//  badge.Move(badgeEndPos)
+	// badge.Resize(badge.MinSize())
+	badgeAnim := canvas.NewPositionAnimation(badgeStartPos, badgeEndPos, ad.Duration, func(p fyne.Position) {
+		badge.Move(p)
+	})
+	badgeAnim.AutoReverse = true
+	badgeAnim.RepeatCount = fyne.AnimationRepeatForever
+	// iconAnim.Start()
+	badgeAnim.Start()
+	// ad.animations[numGlyphs] = iconAnim
+	// ad.animations[numGlyphs+1] = iconAnim
+	// ad.animations[numGlyphs+1] = badgeAnim
+	ad.animations[numGlyphs] = badgeAnim
+
 	ad.running = true
 }
 
