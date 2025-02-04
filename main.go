@@ -185,37 +185,46 @@ func main() {
 		object.Refresh()
 	})
 
-	searchresultslist := binding.NewIntList()
-
+	lastSearchString := ""
+	lastSearchIndex := -1
 	searchError := widget.NewLabel("")
 	searchbox := widget.NewEntry()
 	searchbox.OnSubmitted = func(searchfor string) {
-		searchresultslist.Set(make([]int, 0, 10))
 		searchError.Text = ""
 		searchError.Refresh()
 		if searchfor == "" {
 			return
 		}
 		searchstring := strings.ToLower(searchfor)
-		searchError.Text = fmt.Sprintf("Filtering for '%s'", searchstring)
+		searchError.Text = fmt.Sprintf("Finding '%s'", searchstring)
 		searchError.Refresh()
 		i := 0
+		if lastSearchString == searchstring {
+			i = lastSearchIndex + 1
+		} else {
+			lastSearchString = searchstring
+			lastSearchIndex = -1
+		}
 		count := 0
 		for i < resultSet.Count() && i < searchLimit {
 			text, _ := resultSet.GetAt(i)
 			if strings.Index(strings.ToLower(text), searchstring) != -1 {
 				count += 1
-				searchresultslist.Append(i)
-				// resultsDisplay.ScrollTo(i)
-				// resultsDisplay.Refresh()
-				searchError.Text = fmt.Sprintf("Found %d matching anagrams.", count)
+				// searchresultslist.Append(i)
+				resultsDisplay.ScrollTo(i)
+				resultsDisplay.Refresh()
+				searchError.Text = fmt.Sprintf("Found at location %d", i+1)
 				searchError.Refresh()
+				lastSearchIndex = i
+				return
 			}
 			i += 1
 		}
 		if count == 0 && resultSet.IsDone() && i >= resultSet.Count() {
 			searchError.Text = "Not Found!"
 			searchError.Refresh()
+			lastSearchString = ""
+			lastSearchIndex = -1
 		} else if i >= searchLimit {
 			if count == 0 {
 				searchError.Text = fmt.Sprintf("Didn't find '%s' in the first %d results!", searchstring, searchLimit)
@@ -225,35 +234,11 @@ func main() {
 			searchError.Refresh()
 		}
 	}
-	searchbutton := widget.NewButton("Filter results", func() {
+	searchbutton := widget.NewButton("Find", func() {
 		searchbox.OnSubmitted(searchbox.Text)
 	})
-	searchresults := widget.NewListWithData(searchresultslist, func() fyne.CanvasObject {
-		return widget.NewLabel("")
-	}, func(item binding.DataItem, obj fyne.CanvasObject) {
-		label, labelok := obj.(*widget.Label)
-		if !labelok {
-			dialog.ShowError(errors.New("Couldn't cast searchresult label"), Window)
-			return
-		}
-		boundint, intok := item.(binding.Int)
-		if !intok {
-			dialog.ShowError(errors.New("Couldn't cast dataItem to Int"), Window)
-			return
-		}
-		id, _ := boundint.Get()
-		text, _ := resultSet.GetAt(id)
-		label.Text = fmt.Sprintf("%10d %s", id+1, text)
-		label.Refresh()
-	})
-	searchresults.OnSelected = func(id widget.ListItemID) {
-		resultid, _ := searchresultslist.GetValue(id)
-		resultsDisplay.ScrollTo(resultid)
-		resultsDisplay.Refresh()
-	}
 
-	searchcontainer := container.New(layout.NewGridLayout(3), widget.NewLabel("Filter by:"), searchbox, searchbutton)
-	searchcontrols := container.NewBorder(container.New(layout.NewVBoxLayout(), searchcontainer, searchError), nil, nil, nil, searchresults)
+	searchcontainer := container.New(layout.NewGridLayout(3), searchbutton, searchbox, searchError)
 
 	inclusiondata := binding.NewString()
 	inclusiondata.Set("")
@@ -287,10 +272,9 @@ func main() {
 		resultsDisplay.Refresh()
 	}))
 	exclusionentry := widget.NewEntryWithData(exclusiondata)
-	exclusioncontainer := container.New(layout.NewVBoxLayout(), widget.NewLabel("Excluded words"), exclusionentry)
-	advancedcontainer := container.NewBorder(widget.NewLabel("Include phrases"), exclusioncontainer, nil, nil, inclusionentry)
-	controltabs := container.NewAppTabs(container.NewTabItem("Filter", searchcontrols), container.NewTabItem("Advanced", advancedcontainer))
-	mainDisplay := container.New(layout.NewAdaptiveGridLayout(2), resultsDisplay, controltabs)
+	bottomcontainer := container.New(layout.NewVBoxLayout(), widget.NewLabel("Excluded words"), exclusionentry)
+	controlscontainer := container.NewBorder(widget.NewLabel("Include phrases"), bottomcontainer, nil, nil, inclusionentry)
+	mainDisplay := container.New(layout.NewAdaptiveGridLayout(2), resultsDisplay, controlscontainer)
 
 	resultsDisplay.UpdateItem = func(id widget.ListItemID, obj fyne.CanvasObject) {
 		label, ok := obj.(*TapLabel)
@@ -365,7 +349,7 @@ func main() {
 		obj.Refresh()
 	}
 
-	findContent := container.NewBorder(controlBar, nil, nil, nil, mainDisplay)
+	findContent := container.NewBorder(controlBar, searchcontainer, nil, nil, mainDisplay)
 
 	var refreshFavsList func()
 
@@ -379,6 +363,7 @@ func main() {
 			return
 		}
 		label.Label.Text = fmt.Sprintf("%35s->%-35s", favorites[id].Input, favorites[id].Anagram)
+		label.Label.Alignment = fyne.TextAlignCenter
 		label.OnTapped = func(pe *fyne.PointEvent) {
 			animateMI := fyne.NewMenuItem("Animate", func() {
 				ad := NewAnimationDisplay(App.Metadata().Icon)
@@ -410,7 +395,8 @@ func main() {
 	reset = func() {
 		resultSet.Regenerate()
 		searchError.Text = ""
-		searchresultslist.Set(make([]int, 0))
+		lastSearchIndex = -1
+		lastSearchString = ""
 		resultsDisplay.ScrollToTop()
 		content.Refresh()
 	}
