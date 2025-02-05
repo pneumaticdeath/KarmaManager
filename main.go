@@ -51,38 +51,34 @@ func ShowFavoriteEditor(favs *[]FavoriteAnagram, index int, prefs fyne.Preferenc
 	inputEntry.Text = fav.Input
 	anagramEntry := widget.NewEntry()
 	anagramEntry.Text = fav.Anagram
-	deleteCheck := widget.NewCheck("Delete favorite", func(checked bool) {
-		if checked {
-			dictEntry.Disable()
-			inputEntry.Disable()
-			anagramEntry.Disable()
-		} else {
-			dictEntry.Enable()
-			inputEntry.Enable()
-			anagramEntry.Enable()
-		}
-	})
 	items := []*widget.FormItem{
 		widget.NewFormItem("Dictionaries", dictEntry),
 		widget.NewFormItem("Input", inputEntry),
-		widget.NewFormItem("Anagram", anagramEntry),
-		widget.NewFormItem("DELETE", deleteCheck)}
+		widget.NewFormItem("Anagram", anagramEntry)}
 	dialog.ShowForm("Edit Favorite", "Save", "Cancel", items, func(submitted bool) {
 		if submitted {
-			if deleteCheck.Checked {
-				*favs = slices.Delete(*favs, index, index+1)
-			} else if NewRuneCluster(inputEntry.Text).Equals(NewRuneCluster(anagramEntry.Text)) {
+			if NewRuneCluster(inputEntry.Text).Equals(NewRuneCluster(anagramEntry.Text)) {
 				fav.Dictionaries = dictEntry.Text
 				fav.Input = inputEntry.Text
 				fav.Anagram = anagramEntry.Text
 				(*favs)[index] = fav
+				if refresh != nil {
+					refresh()
+				}
+				SaveFavorites(*favs, prefs)
 			} else {
 				dialog.ShowError(errors.New("Input and Anagram no longer match"), window)
 				return
 			}
-			if refresh != nil {
-				refresh()
-			}
+		}
+	}, window)
+}
+
+func ShowDeleteFavConfirm(favs *[]FavoriteAnagram, id int, prefs fyne.Preferences, refresh func(), window fyne.Window) {
+	dialog.ShowConfirm("Really delete?", "Are you sure you want to delete this favorite?", func(confirmed bool) {
+		if confirmed {
+			*favs = slices.Delete(*favs, id, id+1)
+			refresh()
 			SaveFavorites(*favs, prefs)
 		}
 	}, window)
@@ -362,7 +358,7 @@ func main() {
 		if !ok {
 			return
 		}
-		label.Label.Text = fmt.Sprintf("%35s->%-35s", favorites[id].Input, favorites[id].Anagram)
+		label.Label.Text = fmt.Sprintf("%s->%s", favorites[id].Input, favorites[id].Anagram)
 		label.Label.Alignment = fyne.TextAlignCenter
 		label.OnTapped = func(pe *fyne.PointEvent) {
 			animateMI := fyne.NewMenuItem("Animate", func() {
@@ -375,7 +371,10 @@ func main() {
 			editMI := fyne.NewMenuItem("Edit", func() {
 				ShowFavoriteEditor(&favorites, id, App.Preferences(), refreshFavsList, Window)
 			})
-			pumenu := fyne.NewMenu("Pop up", animateMI, editMI)
+			deleteMI := fyne.NewMenuItem("Delete", func() {
+				ShowDeleteFavConfirm(&favorites, id, App.Preferences(), refreshFavsList, Window)
+			})
+			pumenu := fyne.NewMenu("Pop up", animateMI, editMI, deleteMI)
 			widget.ShowPopUpMenuAtRelativePosition(pumenu, Window.Canvas(), pe.Position, label)
 		}
 
