@@ -55,7 +55,7 @@ func ShowFavoriteEditor(favs *[]FavoriteAnagram, index int, prefs fyne.Preferenc
 		widget.NewFormItem("Dictionaries", dictEntry),
 		widget.NewFormItem("Input", inputEntry),
 		widget.NewFormItem("Anagram", anagramEntry)}
-	dialog.ShowForm("Edit Favorite", "Save", "Cancel", items, func(submitted bool) {
+	ef := dialog.NewForm("Edit Favorite", "Save", "Cancel", items, func(submitted bool) {
 		if submitted {
 			if NewRuneCluster(inputEntry.Text).Equals(NewRuneCluster(anagramEntry.Text)) {
 				fav.Dictionaries = dictEntry.Text
@@ -72,6 +72,8 @@ func ShowFavoriteEditor(favs *[]FavoriteAnagram, index int, prefs fyne.Preferenc
 			}
 		}
 	}, window)
+	ef.Resize(fyne.NewSize(400,200))
+	ef.Show()
 }
 
 func ShowDeleteFavConfirm(favs *[]FavoriteAnagram, id int, prefs fyne.Preferences, refresh func(), window fyne.Window) {
