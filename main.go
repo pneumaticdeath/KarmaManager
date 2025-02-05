@@ -45,20 +45,25 @@ func SaveFavorites(favorites []FavoriteAnagram, prefs fyne.Preferences) {
 
 func ShowFavoriteEditor(favs *[]FavoriteAnagram, index int, prefs fyne.Preferences, refresh func(), window fyne.Window) {
 	fav := (*favs)[index]
-	dictEntry := widget.NewEntry()
-	dictEntry.Text = fav.Dictionaries
 	inputEntry := widget.NewEntry()
 	inputEntry.Text = fav.Input
+	inputEntry.Disable()
 	anagramEntry := widget.NewEntry()
 	anagramEntry.Text = fav.Anagram
+	var anagramValidator fyne.StringValidator = func(_ string) error {
+		if NewRuneCluster(anagramEntry.Text).Equals(NewRuneCluster(inputEntry.Text)) {
+			return nil
+		}
+		return errors.New("Input and anagram don't match")
+	}
+	inputEntry.Validator = anagramValidator
+	anagramEntry.Validator = anagramValidator
 	items := []*widget.FormItem{
-		widget.NewFormItem("Dictionaries", dictEntry),
 		widget.NewFormItem("Input", inputEntry),
 		widget.NewFormItem("Anagram", anagramEntry)}
 	ef := dialog.NewForm("Edit Favorite", "Save", "Cancel", items, func(submitted bool) {
 		if submitted {
 			if NewRuneCluster(inputEntry.Text).Equals(NewRuneCluster(anagramEntry.Text)) {
-				fav.Dictionaries = dictEntry.Text
 				fav.Input = inputEntry.Text
 				fav.Anagram = anagramEntry.Text
 				(*favs)[index] = fav
@@ -68,11 +73,10 @@ func ShowFavoriteEditor(favs *[]FavoriteAnagram, index int, prefs fyne.Preferenc
 				SaveFavorites(*favs, prefs)
 			} else {
 				dialog.ShowError(errors.New("Input and Anagram no longer match"), window)
-				return
 			}
 		}
 	}, window)
-	ef.Resize(fyne.NewSize(400,200))
+	ef.Resize(fyne.NewSize(400, 200))
 	ef.Show()
 }
 
