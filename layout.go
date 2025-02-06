@@ -1,7 +1,10 @@
 package main
 
 import (
+	// "fmt"
 	"strings"
+
+	"fyne.io/fyne/v2"
 )
 
 type RuneLayoutElement struct {
@@ -57,5 +60,31 @@ func MakeRuneLayout(input string, maxColumns int) ([]RuneLayoutElement, int) {
 		return layout, row
 	} else {
 		return layout, row + 1
+	}
+}
+
+func LayoutWordGlyphs(wordWidgets []*WordWidget, padding, rowHeight float32, dispSize fyne.Size) {
+	row := 0
+	min_x := padding
+	min_y := padding
+	max_x := dispSize.Width - padding
+	// max_y := dispSize.Height - padding
+	x := min_x
+	y := min_y
+
+	for _, word := range wordWidgets {
+		horizSpaceRemaining := max_x - x
+		if word.MinSize().Width > horizSpaceRemaining && x > min_x {
+			row += 1
+			y += rowHeight
+			x = min_x
+		}
+
+		pos := fyne.NewPos(x, y)
+		// fmt.Printf("Moving glyph %d to %v\n", index, pos)
+		word.Move(pos)
+		word.Resize(word.MinSize())
+
+		x += word.MinSize().Width + padding
 	}
 }

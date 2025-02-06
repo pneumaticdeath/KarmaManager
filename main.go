@@ -45,39 +45,47 @@ func SaveFavorites(favorites []FavoriteAnagram, prefs fyne.Preferences) {
 
 func ShowFavoriteEditor(favs *[]FavoriteAnagram, index int, prefs fyne.Preferences, refresh func(), window fyne.Window) {
 	fav := (*favs)[index]
-	inputEntry := widget.NewEntry()
-	inputEntry.Text = fav.Input
-	inputEntry.Disable()
-	anagramEntry := widget.NewEntry()
-	anagramEntry.Text = fav.Anagram
-	var anagramValidator fyne.StringValidator = func(_ string) error {
-		if NewRuneCluster(anagramEntry.Text).Equals(NewRuneCluster(inputEntry.Text)) {
-			return nil
-		}
-		return errors.New("Input and anagram don't match")
-	}
-	inputEntry.Validator = anagramValidator
-	anagramEntry.Validator = anagramValidator
-	items := []*widget.FormItem{
-		widget.NewFormItem("Input", inputEntry),
-		widget.NewFormItem("Anagram", anagramEntry)}
-	ef := dialog.NewForm("Edit Favorite", "Save", "Cancel", items, func(submitted bool) {
-		if submitted {
-			if NewRuneCluster(inputEntry.Text).Equals(NewRuneCluster(anagramEntry.Text)) {
-				fav.Input = inputEntry.Text
-				fav.Anagram = anagramEntry.Text
-				(*favs)[index] = fav
-				if refresh != nil {
-					refresh()
-				}
-				SaveFavorites(*favs, prefs)
-			} else {
-				dialog.ShowError(errors.New("Input and Anagram no longer match"), window)
+	words := strings.Split(fav.Anagram, " ")
+	ef := NewEditField(words)
+	d := dialog.NewCustom("Edit", "dismiss", ef, window)
+	d.Resize(fyne.NewSize(400, 400))
+	ef.Draw()
+	d.Show()
+	/*
+		inputEntry := widget.NewEntry()
+		inputEntry.Text = fav.Input
+		inputEntry.Disable()
+		anagramEntry := widget.NewEntry()
+		anagramEntry.Text = fav.Anagram
+		var anagramValidator fyne.StringValidator = func(_ string) error {
+			if NewRuneCluster(anagramEntry.Text).Equals(NewRuneCluster(inputEntry.Text)) {
+				return nil
 			}
+			return errors.New("Input and anagram don't match")
 		}
-	}, window)
-	ef.Resize(fyne.NewSize(400, 200))
-	ef.Show()
+		inputEntry.Validator = anagramValidator
+		anagramEntry.Validator = anagramValidator
+		items := []*widget.FormItem{
+			widget.NewFormItem("Input", inputEntry),
+			widget.NewFormItem("Anagram", anagramEntry)}
+		ef := dialog.NewForm("Edit Favorite", "Save", "Cancel", items, func(submitted bool) {
+			if submitted {
+				if NewRuneCluster(inputEntry.Text).Equals(NewRuneCluster(anagramEntry.Text)) {
+					fav.Input = inputEntry.Text
+					fav.Anagram = anagramEntry.Text
+					(*favs)[index] = fav
+					if refresh != nil {
+						refresh()
+					}
+					SaveFavorites(*favs, prefs)
+				} else {
+					dialog.ShowError(errors.New("Input and Anagram no longer match"), window)
+				}
+			}
+		}, window)
+		ef.Resize(fyne.NewSize(400, 200))
+		ef.Show()
+	*/
 }
 
 func ShowDeleteFavConfirm(favs *[]FavoriteAnagram, id int, prefs fyne.Preferences, refresh func(), window fyne.Window) {
