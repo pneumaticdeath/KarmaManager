@@ -175,7 +175,7 @@ func (ef *EditField) DropCallback(index int, initialPos fyne.Position) {
 	currentPos := ef.widgets[index].Position()
 
 	newRow := int(math.Floor(float64((currentPos.Y-padding)/(ef.wordheight+padding) + 0.5)))
-	oldRow := ef.widgets[index].Row
+	// oldRow := ef.widgets[index].Row
 
 	targetX := ef.widgets[index].Position().X + ef.widgets[index].Size().Width/2
 	// targetY := ef.widgets[index].Position().Y + ef.widgets[index].Size().Height/2
