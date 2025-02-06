@@ -35,6 +35,15 @@ func decodeFavorite(s string) FavoriteAnagram {
 	return FavoriteAnagram{lines[0], lines[1], lines[2]}
 }
 
+func Favorites(prefs fyne.Preferences) []FavoriteAnagram {
+	strs := prefs.StringList(favoritesKey)
+	favs := make([]FavoriteAnagram, len(strs))
+	for i, s := range strs {
+		favs[i] = decodeFavorite(s)
+	}
+	return favs
+}
+
 func SaveFavorites(favorites []FavoriteAnagram, prefs fyne.Preferences) {
 	strs := make([]string, len(favorites))
 	for i, fav := range favorites {
@@ -43,12 +52,22 @@ func SaveFavorites(favorites []FavoriteAnagram, prefs fyne.Preferences) {
 	prefs.SetStringList(favoritesKey, strs)
 }
 
-func ShowFavoriteEditor(favs *[]FavoriteAnagram, index int, prefs fyne.Preferences, refresh func(), window fyne.Window) {
-	fav := (*favs)[index]
-	words := strings.Split(fav.Anagram, " ")
+func ShowEditor(title, text string, submit func(string), window fyne.Window) {
+	words := strings.Split(text, " ")
 	ef := NewEditField(words, window)
-	d := dialog.NewCustomConfirm("Edit", "Save", "Cancel", ef, func(submitted bool) {
-		newAnagram := strings.Join(ef.Words, " ")
+	d := dialog.NewCustomConfirm(title, "Save", "Cancel", ef, func(submitted bool) {
+		if submitted {
+			submit(strings.Join(ef.Words, " "))
+		}
+	}, window)
+	d.Resize(fyne.NewSize(400, 400))
+	ef.Initialize()
+	d.Show()
+}
+
+func ShowFavoriteAnagramEditor(favs *[]FavoriteAnagram, index int, prefs fyne.Preferences, refresh func(), window fyne.Window) {
+	fav := (*favs)[index]
+	ShowEditor("Edit anagram", fav.Anagram, func(newAnagram string) {
 		if fav.Anagram != newAnagram {
 			fav.Anagram = newAnagram
 			(*favs)[index] = fav
@@ -58,39 +77,20 @@ func ShowFavoriteEditor(favs *[]FavoriteAnagram, index int, prefs fyne.Preferenc
 			SaveFavorites(*favs, prefs)
 		}
 	}, window)
-	d.Resize(fyne.NewSize(400, 400))
-	ef.Initialize()
-	d.Show()
-	/*
-		inputEntry := widget.NewEntry()
-		inputEntry.Text = fav.Input
-		inputEntry.Disable()
-		anagramEntry := widget.NewEntry()
-		anagramEntry.Text = fav.Anagram
-		var anagramValidator fyne.StringValidator = func(_ string) error {
-			if NewRuneCluster(anagramEntry.Text).Equals(NewRuneCluster(inputEntry.Text)) {
-				return nil
+}
+
+func ShowFavoriteInputEditor(favs *[]FavoriteAnagram, index int, prefs fyne.Preferences, refresh func(), window fyne.Window) {
+	fav := (*favs)[index]
+	ShowEditor("Edit input phrase", fav.Input, func(newInput string) {
+		if fav.Input != newInput {
+			fav.Input = newInput
+			(*favs)[index] = fav
+			if refresh != nil {
+				refresh()
 			}
-			return errors.New("Input and anagram don't match")
+			SaveFavorites(*favs, prefs)
 		}
-		inputEntry.Validator = anagramValidator
-		anagramEntry.Validator = anagramValidator
-		items := []*widget.FormItem{
-			widget.NewFormItem("Input", inputEntry),
-			widget.NewFormItem("Anagram", anagramEntry)}
-		ef := dialog.NewForm("Edit Favorite", "Save", "Cancel", items, func(submitted bool) {
-			if submitted {
-				if NewRuneCluster(inputEntry.Text).Equals(NewRuneCluster(anagramEntry.Text)) {
-					fav.Input = inputEntry.Text
-					fav.Anagram = anagramEntry.Text
-				} else {
-					dialog.ShowError(errors.New("Input and Anagram no longer match"), window)
-				}
-			}
-		}, window)
-		ef.Resize(fyne.NewSize(400, 200))
-		ef.Show()
-	*/
+	}, window)
 }
 
 func ShowDeleteFavConfirm(favs *[]FavoriteAnagram, id int, prefs fyne.Preferences, refresh func(), window fyne.Window) {
@@ -101,15 +101,6 @@ func ShowDeleteFavConfirm(favs *[]FavoriteAnagram, id int, prefs fyne.Preference
 			SaveFavorites(*favs, prefs)
 		}
 	}, window)
-}
-
-func Favorites(prefs fyne.Preferences) []FavoriteAnagram {
-	strs := prefs.StringList(favoritesKey)
-	favs := make([]FavoriteAnagram, len(strs))
-	for i, s := range strs {
-		favs[i] = decodeFavorite(s)
-	}
-	return favs
 }
 
 func main() {
@@ -275,7 +266,7 @@ func main() {
 		includedphrases := strings.Split(included, "\n")
 		resultSet.SetInclusions(includedphrases)
 		resultSet.Regenerate()
-		resultsDisplay.Refresh()
+		// resultsDisplay.Refresh()
 	}))
 
 	exclusiondata := binding.NewString()
@@ -284,7 +275,7 @@ func main() {
 		excludedwords := strings.Split(exclusions, " ")
 		resultSet.SetExclusions(excludedwords)
 		resultSet.Regenerate()
-		resultsDisplay.Refresh()
+		// resultsDisplay.Refresh()
 	}))
 	exclusionentry := widget.NewEntryWithData(exclusiondata)
 	bottomcontainer := container.New(layout.NewVBoxLayout(), widget.NewLabel("Excluded words"), exclusionentry)
@@ -387,13 +378,16 @@ func main() {
 				cd.Show()
 				ad.AnimateAnagram(favorites[id].Input, favorites[id].Anagram)
 			})
-			editMI := fyne.NewMenuItem("Edit", func() {
-				ShowFavoriteEditor(&favorites, id, App.Preferences(), refreshFavsList, Window)
+			editAnagramMI := fyne.NewMenuItem("Edit Anagram", func() {
+				ShowFavoriteAnagramEditor(&favorites, id, App.Preferences(), refreshFavsList, Window)
+			})
+			editInputMI := fyne.NewMenuItem("Edit Input", func() {
+				ShowFavoriteInputEditor(&favorites, id, App.Preferences(), refreshFavsList, Window)
 			})
 			deleteMI := fyne.NewMenuItem("Delete", func() {
 				ShowDeleteFavConfirm(&favorites, id, App.Preferences(), refreshFavsList, Window)
 			})
-			pumenu := fyne.NewMenu("Pop up", animateMI, editMI, deleteMI)
+			pumenu := fyne.NewMenu("Pop up", animateMI, editInputMI, editAnagramMI, deleteMI)
 			widget.ShowPopUpMenuAtRelativePosition(pumenu, Window.Canvas(), pe.Position, label)
 		}
 
