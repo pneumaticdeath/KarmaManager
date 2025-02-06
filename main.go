@@ -340,6 +340,9 @@ func main() {
 				cd.Resize(fyne.NewSize(500, 400))
 				cd.Show()
 				ad.AnimateAnagram(input, text)
+				cd.SetOnClosed(func() {
+					ad.Stop()
+				})
 			})
 			words := strings.Split(text, " ")
 			filterMIs := make([]*fyne.MenuItem, len(words))
@@ -418,6 +421,9 @@ func main() {
 				cd.Resize(fyne.NewSize(400, 300))
 				cd.Show()
 				ad.AnimateAnagram(favorites[id].Input, favorites[id].Anagram)
+				cd.SetOnClosed(func() {
+					ad.Stop()
+				})
 			})
 			sendToMainMI := fyne.NewMenuItem("Send to main input tab", func() {
 				inputdata.Set(favorites[id].Input)
