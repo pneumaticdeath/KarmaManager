@@ -46,10 +46,20 @@ func SaveFavorites(favorites []FavoriteAnagram, prefs fyne.Preferences) {
 func ShowFavoriteEditor(favs *[]FavoriteAnagram, index int, prefs fyne.Preferences, refresh func(), window fyne.Window) {
 	fav := (*favs)[index]
 	words := strings.Split(fav.Anagram, " ")
-	ef := NewEditField(words)
-	d := dialog.NewCustom("Edit", "dismiss", ef, window)
+	ef := NewEditField(words, window)
+	d := dialog.NewCustomConfirm("Edit", "Save", "Cancel", ef, func(submitted bool) {
+		newAnagram := strings.Join(ef.Words, " ")
+		if fav.Anagram != newAnagram {
+			fav.Anagram = newAnagram
+			(*favs)[index] = fav
+			if refresh != nil {
+				refresh()
+			}
+			SaveFavorites(*favs, prefs)
+		}
+	}, window)
 	d.Resize(fyne.NewSize(400, 400))
-	ef.Draw()
+	ef.Initialize()
 	d.Show()
 	/*
 		inputEntry := widget.NewEntry()
@@ -73,11 +83,6 @@ func ShowFavoriteEditor(favs *[]FavoriteAnagram, index int, prefs fyne.Preferenc
 				if NewRuneCluster(inputEntry.Text).Equals(NewRuneCluster(anagramEntry.Text)) {
 					fav.Input = inputEntry.Text
 					fav.Anagram = anagramEntry.Text
-					(*favs)[index] = fav
-					if refresh != nil {
-						refresh()
-					}
-					SaveFavorites(*favs, prefs)
 				} else {
 					dialog.ShowError(errors.New("Input and Anagram no longer match"), window)
 				}

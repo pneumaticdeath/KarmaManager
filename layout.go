@@ -63,8 +63,9 @@ func MakeRuneLayout(input string, maxColumns int) ([]RuneLayoutElement, int) {
 	}
 }
 
-func LayoutWordGlyphs(wordWidgets []*WordWidget, padding, rowHeight float32, dispSize fyne.Size) {
+func LayoutWordWidgets(wordWidgets []*WordWidget, padding, rowHeight float32, dispSize fyne.Size) {
 	row := 0
+	column := 0
 	min_x := padding
 	min_y := padding
 	max_x := dispSize.Width - padding
@@ -76,6 +77,7 @@ func LayoutWordGlyphs(wordWidgets []*WordWidget, padding, rowHeight float32, dis
 		horizSpaceRemaining := max_x - x
 		if word.MinSize().Width > horizSpaceRemaining && x > min_x {
 			row += 1
+			column = 0
 			y += rowHeight
 			x = min_x
 		}
@@ -84,7 +86,12 @@ func LayoutWordGlyphs(wordWidgets []*WordWidget, padding, rowHeight float32, dis
 		// fmt.Printf("Moving glyph %d to %v\n", index, pos)
 		word.Move(pos)
 		word.Resize(word.MinSize())
+		word.Row = row
+		word.Column = column
 
 		x += word.MinSize().Width + padding
+
+		column += 1
+
 	}
 }
