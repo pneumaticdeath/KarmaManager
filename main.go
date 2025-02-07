@@ -167,7 +167,6 @@ func main() {
 
 	inputClearButton := widget.NewButton("Clear input", func() {
 		inputdata.Set("")
-		resultSet.FindAnagrams("")
 		reset()
 		reset_search()
 	})
