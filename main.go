@@ -302,7 +302,7 @@ func main() {
 				pu.Move(fyne.NewPos((wsize.Width)/2, (wsize.Height)/2))
 				pu.Show()
 				go func() {
-					time.Sleep(2 * time.Second)
+					time.Sleep(time.Second)
 					pu.Hide()
 				}()
 			})
@@ -314,23 +314,25 @@ func main() {
 				pu.Move(fyne.NewPos((wsize.Width)/2, (wsize.Height)/2))
 				pu.Show()
 				go func() {
-					time.Sleep(2 * time.Second)
+					time.Sleep(time.Second)
 					pu.Hide()
 				}()
 			})
 			addToFavsMI := fyne.NewMenuItem("Add to favorites", func() {
-				newFav := FavoriteAnagram{resultSet.CombinedDictName(), input, text}
-				favorites = append(favorites, newFav)
-				SaveFavorites(favorites, App.Preferences())
-				pulabel := widget.NewLabel("Added to favorites")
-				pu := widget.NewPopUp(pulabel, Window.Canvas())
-				wsize := Window.Canvas().Size()
-				pu.Move(fyne.NewPos((wsize.Width)/2, (wsize.Height)/2))
-				pu.Show()
-				go func() {
-					time.Sleep(2 * time.Second)
-					pu.Hide()
-				}()
+				ShowEditor("Add to favorites", text, func(editted string) {
+					newFav := FavoriteAnagram{resultSet.CombinedDictName(), input, editted}
+					favorites = append(favorites, newFav)
+					SaveFavorites(favorites, App.Preferences())
+					pulabel := widget.NewLabel("Added to favorites")
+					pu := widget.NewPopUp(pulabel, Window.Canvas())
+					wsize := Window.Canvas().Size()
+					pu.Move(fyne.NewPos((wsize.Width)/2, (wsize.Height)/2))
+					pu.Show()
+					go func() {
+						time.Sleep(time.Second)
+						pu.Hide()
+					}()
+				}, Window)
 			})
 			animateMI := fyne.NewMenuItem("Animate", func() {
 				ad := NewAnimationDisplay(App.Metadata().Icon)
@@ -398,7 +400,7 @@ func main() {
 				pu.Move(fyne.NewPos((wsize.Width)/2, (wsize.Height)/2))
 				pu.Show()
 				go func() {
-					time.Sleep(2 * time.Second)
+					time.Sleep(time.Second)
 					pu.Hide()
 				}()
 			})
@@ -410,7 +412,7 @@ func main() {
 				pu.Move(fyne.NewPos((wsize.Width)/2, (wsize.Height)/2))
 				pu.Show()
 				go func() {
-					time.Sleep(2 * time.Second)
+					time.Sleep(time.Second)
 					pu.Hide()
 				}()
 			})
