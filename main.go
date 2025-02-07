@@ -60,7 +60,7 @@ func ShowEditor(title, text string, submit func(string), window fyne.Window) {
 			submit(strings.Join(ef.Words, " "))
 		}
 	}, window)
-	d.Resize(fyne.NewSize(400, 400))
+	d.Resize(fyne.NewSize(600, 400))
 	ef.Initialize()
 	d.Show()
 }
@@ -337,7 +337,7 @@ func main() {
 				ad := NewAnimationDisplay(App.Metadata().Icon)
 				input, _ := inputdata.Get()
 				cd := dialog.NewCustom("Animated anagram...", "dismiss", ad, Window)
-				cd.Resize(fyne.NewSize(500, 400))
+				cd.Resize(fyne.NewSize(600, 400))
 				cd.Show()
 				ad.AnimateAnagram(input, text)
 				cd.SetOnClosed(func() {
@@ -418,7 +418,7 @@ func main() {
 			animateMI := fyne.NewMenuItem("Animate", func() {
 				ad := NewAnimationDisplay(App.Metadata().Icon)
 				cd := dialog.NewCustom("Animated anagram...", "dismiss", ad, Window)
-				cd.Resize(fyne.NewSize(400, 300))
+				cd.Resize(fyne.NewSize(600, 300))
 				cd.Show()
 				ad.AnimateAnagram(favorites[id].Input, favorites[id].Anagram)
 				cd.SetOnClosed(func() {
@@ -429,7 +429,7 @@ func main() {
 				inputdata.Set(favorites[id].Input)
 				reset()
 				// reset_search()
-				// time.Sleep(10*time.Millisecond)
+				time.Sleep(50 * time.Millisecond)
 				exclusiondata.Set("")
 				inclusiondata.Set(favorites[id].Anagram)
 				// resultsDisplay.Refresh()

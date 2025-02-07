@@ -2,7 +2,7 @@ package main
 
 import (
 	"errors"
-	"fmt"
+	// "fmt"
 	// "image"
 	"image/color"
 	// "image/gif"
@@ -98,9 +98,9 @@ type AnimationDisplay struct {
 
 	surface            *fyne.Container
 	scroll             *container.Scroll
-	animations         []*fyne.Animation
 	MoveDuration       time.Duration
 	ColorCycleDuration time.Duration
+	PauseDuration      time.Duration
 	Icon               fyne.Resource
 	Badge              string
 	running            bool
@@ -111,7 +111,9 @@ func NewAnimationDisplay(icon fyne.Resource) *AnimationDisplay {
 	scroll := container.NewScroll(surface)
 	scroll.Direction = container.ScrollNone
 
-	ad := &AnimationDisplay{surface: surface, scroll: scroll, MoveDuration: 6 * time.Second, ColorCycleDuration: time.Second, Icon: icon, Badge: "made with KarmaManager"}
+	ad := &AnimationDisplay{surface: surface, scroll: scroll, MoveDuration: 5 * time.Second,
+		ColorCycleDuration: time.Second, PauseDuration: time.Second, Icon: icon,
+		Badge: "made with KarmaManager"}
 	ad.ExtendBaseWidget(ad)
 	return ad
 }
@@ -154,7 +156,6 @@ func (ad *AnimationDisplay) AnimateAnagram(input, anagram string) {
 
 	numGlyphs := len(animation.Glyphs)
 	animElements := make([]*canvas.Text, numGlyphs)
-	ad.animations = make([]*fyne.Animation, numGlyphs)
 	style := fyne.TextStyle{Monospace: true}
 	for index, glyph := range animation.Glyphs {
 		text := canvas.NewText(string(unicode.ToUpper(glyph.Letter)), theme.TextColor())
@@ -170,54 +171,44 @@ func (ad *AnimationDisplay) AnimateAnagram(input, anagram string) {
 				text := animElements[index]
 				anim := canvas.NewPositionAnimation(glyph.StartPos, glyph.EndPos, ad.MoveDuration, text.Move)
 				anim.Start()
-				ad.animations[index] = anim
 			}
 
 			time.Sleep(ad.MoveDuration)
 
-			for index, text := range animElements {
+			for _, text := range animElements {
 				anim := canvas.NewColorRGBAAnimation(theme.TextColor(), purple, ad.ColorCycleDuration, func(newColor color.Color) {
 					text.Color = newColor
 					text.Refresh()
 				})
-				anim.AutoReverse = true
 				anim.Start()
-				ad.animations[index] = anim
 			}
 
-			time.Sleep(2 * ad.ColorCycleDuration)
+			time.Sleep(ad.ColorCycleDuration)
+
+			time.Sleep(ad.PauseDuration)
+
+			for _, text := range animElements {
+				anim := canvas.NewColorRGBAAnimation(purple, theme.TextColor(), ad.ColorCycleDuration, func(newColor color.Color) {
+					text.Color = newColor
+					text.Refresh()
+				})
+				anim.Start()
+			}
+
+			time.Sleep(ad.ColorCycleDuration)
 
 			for index, glyph := range animation.Glyphs {
 				text := animElements[index]
 				anim := canvas.NewPositionAnimation(glyph.EndPos, glyph.StartPos, ad.MoveDuration, text.Move)
 				anim.Start()
-				ad.animations[index] = anim
 			}
 
 			time.Sleep(ad.MoveDuration + 500*time.Millisecond)
-
-			if ad.running {
-				fmt.Println("Animation starting over")
-			} else {
-				fmt.Println("Animation exiting")
-			}
 		}
 	}()
 }
 
-/*
-func (ad *AnimationDisplay) Start() {
-	for _, anim := range ad.animations {
-		anim.Start()
-	}
-	ad.running = true
-}
-*/
-
 func (ad *AnimationDisplay) Stop() {
-	for _, anim := range ad.animations {
-		anim.Stop()
-	}
 	ad.running = false
 }
 
@@ -226,7 +217,6 @@ func (ad *AnimationDisplay) Tapped(pe *fyne.PointEvent) {
 }
 
 func (ad *AnimationDisplay) Clear() {
-	ad.animations = make([]*fyne.Animation, 0)
 	ad.surface.RemoveAll()
 	ad.surface.Refresh()
 }
