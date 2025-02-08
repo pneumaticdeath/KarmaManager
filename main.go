@@ -305,17 +305,16 @@ func main() {
 	findContent := container.NewBorder(controlBar, searchcontainer, nil, nil, mainDisplay)
 
 	// var refreshFavsList func()
-	var selectMainTab func(int)
+	var selectTab func(int)
 
 	sendToMainTabFunc := func(fav FavoriteAnagram) {
-		inputdata.Set(fav.Input)
 		reset()
-		// reset_search()
+		inputdata.Set(fav.Input)
 		time.Sleep(50 * time.Millisecond)
 		exclusiondata.Set("")
 		inclusiondata.Set(fav.Anagram)
-		// resultsDisplay.Refresh()
-		selectMainTab(0)
+		selectTab(0)
+		resultsDisplay.Refresh()
 		inclusionentry.Refresh()
 	}
 
@@ -413,7 +412,7 @@ func main() {
 
 	MainWindow.SetContent(content)
 
-	selectMainTab = func(index int) {
+	selectTab = func(index int) {
 		content.SelectTabIndex(index)
 	}
 
