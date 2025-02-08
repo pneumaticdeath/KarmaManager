@@ -195,23 +195,21 @@ func (ef *EditField) DropCallback(index int, initialPos fyne.Position) {
 			break
 		}
 	}
-	reinitialize := false
+	// reinitialize := false
 	if targetIndex >= len(ef.widgets) && index != len(ef.widgets)-1 {
 		ef.Words = append(ef.Words, ef.Words[index])
 		ef.Words = slices.Delete(ef.Words, index, index+1)
-		reinitialize = true
+		// reinitialize = true
 	} else if targetIndex > index {
 		ef.Words = slices.Insert(ef.Words, targetIndex, ef.Words[index])
 		ef.Words = slices.Delete(ef.Words, index, index+1)
-		reinitialize = true
+		// reinitialize = true
 	} else if targetIndex < index {
 		word := ef.Words[index]
 		ef.Words = slices.Delete(ef.Words, index, index+1)
 		ef.Words = slices.Insert(ef.Words, targetIndex, word)
-		reinitialize = true
+		// reinitialize = true
 	}
 
-	if reinitialize {
-		ef.Initialize()
-	}
+	ef.Initialize()
 }
