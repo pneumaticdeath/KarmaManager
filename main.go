@@ -3,6 +3,7 @@ package main
 import (
 	"errors"
 	"fmt"
+	"sort"
 	"strings"
 	"time"
 
@@ -247,6 +248,7 @@ func main() {
 				ShowEditor("Add to favorites", text, func(editted string) {
 					newFav := FavoriteAnagram{resultSet.CombinedDictName(), input, editted}
 					favorites = append(favorites, newFav)
+					RebuildFavorites()
 					SaveFavorites(favorites, App.Preferences())
 					pulabel := widget.NewLabel("Added to favorites")
 					pu := widget.NewPopUp(pulabel, MainWindow.Canvas())
@@ -317,7 +319,7 @@ func main() {
 		inclusionentry.Refresh()
 	}
 
-	favsList := NewFavoritesList(favorites, func(fav FavoriteAnagram) string {
+	favsList := NewFavoritesList(&favorites, func(fav FavoriteAnagram) string {
 		return fmt.Sprintf("%s -> %s", fav.Input, fav.Anagram)
 	}, sendToMainTabFunc)
 	/*
@@ -386,10 +388,6 @@ func main() {
 		})
 	*/
 
-	RebuildFavorites = func() {
-		favsList.Refresh()
-	}
-
 	favsContent := container.New(layout.NewAdaptiveGridLayout(1), favsList)
 
 	/*
@@ -405,6 +403,11 @@ func main() {
 
 		content := container.NewAppTabs(container.NewTabItem("Find", findContent), container.NewTabItem("Favorites", favsContent), container.NewTabItem("Input Groups", favInputGroupsAccordian))
 	*/
+
+	RebuildFavorites = func() {
+		sort.Sort(favorites)
+		favsList.Refresh()
+	}
 
 	content := container.NewAppTabs(container.NewTabItem("Find", findContent), container.NewTabItem("Favorites", favsContent))
 
