@@ -13,6 +13,7 @@ import (
 	"fyne.io/fyne/v2/data/binding"
 	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/layout"
+	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 )
 
@@ -197,6 +198,12 @@ func main() {
 		resultSet.Regenerate()
 		resultsDisplay.Refresh()
 	}))
+	inclusionclearbutton := widget.NewButtonWithIcon("", theme.ContentClearIcon(), func() {
+		inclusiondata.Set("")
+		// resultSet.SetInclusions([]string{})
+		// resultSet.Regenerate()
+		// resultsDisplay.Refresh()
+	})
 
 	exclusiondata := binding.NewString()
 	exclusiondata.AddListener(binding.NewDataListener(func() {
@@ -204,11 +211,18 @@ func main() {
 		excludedwords := strings.Split(exclusions, " ")
 		resultSet.SetExclusions(excludedwords)
 		resultSet.Regenerate()
-		// resultsDisplay.Refresh()
+		resultsDisplay.Refresh()
 	}))
 	exclusionentry := widget.NewEntryWithData(exclusiondata)
-	bottomcontainer := container.New(layout.NewVBoxLayout(), widget.NewLabel("Excluded words"), exclusionentry)
-	controlscontainer := container.NewBorder(widget.NewLabel("Include phrases"), bottomcontainer, nil, nil, inclusionentry)
+	exclusionclearbutton := widget.NewButtonWithIcon("", theme.ContentClearIcon(), func() {
+		exclusiondata.Set("")
+		// resultSet.SetExclusions([]string{})
+		// resultSet.Regenerate()
+	})
+	exclusionlabel := container.New(layout.NewHBoxLayout(), widget.NewLabel("Excluded words"), layout.NewSpacer(), exclusionclearbutton)
+	bottomcontainer := container.New(layout.NewVBoxLayout(), exclusionlabel, exclusionentry)
+	inclusionlabel := container.New(layout.NewHBoxLayout(), widget.NewLabel("Include phrases"), layout.NewSpacer(), inclusionclearbutton)
+	controlscontainer := container.NewBorder(inclusionlabel, bottomcontainer, nil, nil, inclusionentry)
 	mainDisplay := container.New(layout.NewAdaptiveGridLayout(2), resultsDisplay, controlscontainer)
 
 	resultsDisplay.UpdateItem = func(id widget.ListItemID, obj fyne.CanvasObject) {
