@@ -32,10 +32,10 @@ func (fs FavoritesSlice) Swap(i, j int) {
 }
 
 func (fs FavoritesSlice) Less(i, j int) bool {
-	if fs[i].Input == fs[j].Input {
-		return fs[i].Anagram < fs[j].Anagram
+	if strings.ToLower(fs[i].Input) == strings.ToLower(fs[j].Input) {
+		return strings.ToLower(fs[i].Anagram) < strings.ToLower(fs[j].Anagram)
 	}
-	return fs[i].Input < fs[j].Input
+	return strings.ToLower(fs[i].Input) < strings.ToLower(fs[j].Input)
 }
 
 func encodeFavorite(fav FavoriteAnagram) string {
