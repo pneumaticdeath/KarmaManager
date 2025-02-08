@@ -16,14 +16,23 @@ import (
 )
 
 const (
-	searchLimit  = 200000
+	searchLimit = 200000
 )
+
+var MainWindow fyne.Window
+var Icon fyne.Resource
+var AppPreferences fyne.Preferences
+var RebuildFavorites func()
 
 func main() {
 	App := app.NewWithID("io.patenaude.karmamanager")
-	Window := App.NewWindow("Karma Manger")
+	MainWindow = App.NewWindow("Karma Manger")
+
+	Icon = App.Metadata().Icon
+	AppPreferences = App.Preferences()
 
 	favorites := Favorites(App.Preferences())
+	// favInputGroups := MakeGroupedFavorites(favorites)
 
 	mainDicts, addedDicts, err := ReadDictionaries()
 	if err != nil {
@@ -49,11 +58,11 @@ func main() {
 			if dictName == n {
 				resultSet.SetMainIndex(i)
 				reset()
-				Window.SetTitle(resultSet.CombinedDictName())
+				MainWindow.SetTitle(resultSet.CombinedDictName())
 				return
 			}
 		}
-		dialog.ShowError(errors.New("Can't find selected main dictionary"), Window)
+		dialog.ShowError(errors.New("Can't find selected main dictionary"), MainWindow)
 	})
 	mainSelect.SetSelectedIndex(0)
 
@@ -63,7 +72,7 @@ func main() {
 		check := widget.NewCheck(ad.Name, func(checked bool) {
 			*enabled = checked
 			reset()
-			Window.SetTitle(resultSet.CombinedDictName())
+			MainWindow.SetTitle(resultSet.CombinedDictName())
 		})
 		check.Checked = ad.Enabled
 		addedChecks[i] = check
@@ -179,7 +188,7 @@ func main() {
 	inclusiondata.AddListener(binding.NewDataListener(func() {
 		included, err := inclusiondata.Get()
 		if err != nil {
-			dialog.ShowError(err, Window)
+			dialog.ShowError(err, MainWindow)
 			return
 		}
 		includedphrases := strings.Split(included, "\n")
@@ -211,10 +220,10 @@ func main() {
 		label.OnTapped = func(pe *fyne.PointEvent) {
 			input, _ := inputdata.Get()
 			copyAnagramToCBMI := fyne.NewMenuItem("Copy anagram to clipboard", func() {
-				Window.Clipboard().SetContent(text)
+				MainWindow.Clipboard().SetContent(text)
 				pulabel := widget.NewLabel("Copied to clipboard")
-				pu := widget.NewPopUp(pulabel, Window.Canvas())
-				wsize := Window.Canvas().Size()
+				pu := widget.NewPopUp(pulabel, MainWindow.Canvas())
+				wsize := MainWindow.Canvas().Size()
 				pu.Move(fyne.NewPos((wsize.Width)/2, (wsize.Height)/2))
 				pu.Show()
 				go func() {
@@ -223,10 +232,10 @@ func main() {
 				}()
 			})
 			copyBothToCBMI := fyne.NewMenuItem("Copy input and anagram to clipboard", func() {
-				Window.Clipboard().SetContent(fmt.Sprintf("%s->%s", input, text))
+				MainWindow.Clipboard().SetContent(fmt.Sprintf("%s->%s", input, text))
 				pulabel := widget.NewLabel("Copied to clipboard")
-				pu := widget.NewPopUp(pulabel, Window.Canvas())
-				wsize := Window.Canvas().Size()
+				pu := widget.NewPopUp(pulabel, MainWindow.Canvas())
+				wsize := MainWindow.Canvas().Size()
 				pu.Move(fyne.NewPos((wsize.Width)/2, (wsize.Height)/2))
 				pu.Show()
 				go func() {
@@ -240,20 +249,20 @@ func main() {
 					favorites = append(favorites, newFav)
 					SaveFavorites(favorites, App.Preferences())
 					pulabel := widget.NewLabel("Added to favorites")
-					pu := widget.NewPopUp(pulabel, Window.Canvas())
-					wsize := Window.Canvas().Size()
+					pu := widget.NewPopUp(pulabel, MainWindow.Canvas())
+					wsize := MainWindow.Canvas().Size()
 					pu.Move(fyne.NewPos((wsize.Width)/2, (wsize.Height)/2))
 					pu.Show()
 					go func() {
 						time.Sleep(time.Second)
 						pu.Hide()
 					}()
-				}, Window)
+				}, MainWindow)
 			})
 			animateMI := fyne.NewMenuItem("Animate", func() {
 				ad := NewAnimationDisplay(App.Metadata().Icon)
 				input, _ := inputdata.Get()
-				cd := dialog.NewCustom("Animated anagram...", "dismiss", ad, Window)
+				cd := dialog.NewCustom("Animated anagram...", "dismiss", ad, MainWindow)
 				cd.Resize(fyne.NewSize(600, 400))
 				cd.Show()
 				ad.AnimateAnagram(input, text)
@@ -286,98 +295,120 @@ func main() {
 			excludeMI := fyne.NewMenuItem("Exclude", nil)
 			excludeMI.ChildMenu = exclusionmenu
 			pumenu := fyne.NewMenu("Pop up", copyAnagramToCBMI, copyBothToCBMI, addToFavsMI, animateMI, filterMI, excludeMI)
-			widget.ShowPopUpMenuAtRelativePosition(pumenu, Window.Canvas(), pe.Position, label)
+			widget.ShowPopUpMenuAtRelativePosition(pumenu, MainWindow.Canvas(), pe.Position, label)
 		}
 		obj.Refresh()
 	}
 
 	findContent := container.NewBorder(controlBar, searchcontainer, nil, nil, mainDisplay)
 
-	var refreshFavsList func()
+	// var refreshFavsList func()
 	var selectMainTab func(int)
 
-	favsList := widget.NewList(func() int {
-		return len(favorites)
-	}, func() fyne.CanvasObject {
-		return NewTapLabel("Fav")
-	}, func(id widget.ListItemID, obj fyne.CanvasObject) {
-		label, ok := obj.(*TapLabel)
-		if !ok {
-			return
-		}
-		label.Label.Text = fmt.Sprintf("%s->%s", favorites[id].Input, favorites[id].Anagram)
-		label.Label.Alignment = fyne.TextAlignCenter
-		label.OnTapped = func(pe *fyne.PointEvent) {
-			copyAnagramToCBMI := fyne.NewMenuItem("Copy anagram to clipboard", func() {
-				Window.Clipboard().SetContent(favorites[id].Anagram)
-				pulabel := widget.NewLabel("Copied to clipboard")
-				pu := widget.NewPopUp(pulabel, Window.Canvas())
-				wsize := Window.Canvas().Size()
-				pu.Move(fyne.NewPos((wsize.Width)/2, (wsize.Height)/2))
-				pu.Show()
-				go func() {
-					time.Sleep(time.Second)
-					pu.Hide()
-				}()
-			})
-			copyBothToCBMI := fyne.NewMenuItem("Copy input and anagram to clipboard", func() {
-				Window.Clipboard().SetContent(fmt.Sprintf("%s->%s", favorites[id].Input, favorites[id].Anagram))
-				pulabel := widget.NewLabel("Copied to clipboard")
-				pu := widget.NewPopUp(pulabel, Window.Canvas())
-				wsize := Window.Canvas().Size()
-				pu.Move(fyne.NewPos((wsize.Width)/2, (wsize.Height)/2))
-				pu.Show()
-				go func() {
-					time.Sleep(time.Second)
-					pu.Hide()
-				}()
-			})
-			animateMI := fyne.NewMenuItem("Animate", func() {
-				ad := NewAnimationDisplay(App.Metadata().Icon)
-				cd := dialog.NewCustom("Animated anagram...", "dismiss", ad, Window)
-				cd.Resize(fyne.NewSize(600, 300))
-				cd.Show()
-				ad.AnimateAnagram(favorites[id].Input, favorites[id].Anagram)
-				cd.SetOnClosed(func() {
-					ad.Stop()
+	sendToMainTabFunc := func(fav FavoriteAnagram) {
+		inputdata.Set(fav.Input)
+		reset()
+		// reset_search()
+		time.Sleep(50 * time.Millisecond)
+		exclusiondata.Set("")
+		inclusiondata.Set(fav.Anagram)
+		// resultsDisplay.Refresh()
+		selectMainTab(0)
+		inclusionentry.Refresh()
+	}
+
+	favsList := NewFavoritesList(favorites, func(fav FavoriteAnagram) string {
+		return fmt.Sprintf("%s -> %s", fav.Input, fav.Anagram)
+	}, sendToMainTabFunc)
+	/*
+		widget.NewList(func() int {
+			return len(favorites)
+		}, func() fyne.CanvasObject {
+			return NewTapLabel("Fav")
+		}, func(id widget.ListItemID, obj fyne.CanvasObject) {
+			label, ok := obj.(*TapLabel)
+			if !ok {
+				return
+			}
+			label.Label.Text = fmt.Sprintf("%s->%s", favorites[id].Input, favorites[id].Anagram)
+			label.Label.Alignment = fyne.TextAlignCenter
+			label.OnTapped = func(pe *fyne.PointEvent) {
+				copyAnagramToCBMI := fyne.NewMenuItem("Copy anagram to clipboard", func() {
+					MainWindow.Clipboard().SetContent(favorites[id].Anagram)
+					pulabel := widget.NewLabel("Copied to clipboard")
+					pu := widget.NewPopUp(pulabel, MainWindow.Canvas())
+					wsize := MainWindow.Canvas().Size()
+					pu.Move(fyne.NewPos((wsize.Width)/2, (wsize.Height)/2))
+					pu.Show()
+					go func() {
+						time.Sleep(time.Second)
+						pu.Hide()
+					}()
 				})
-			})
-			sendToMainMI := fyne.NewMenuItem("Send to main input tab", func() {
-				inputdata.Set(favorites[id].Input)
-				reset()
-				// reset_search()
-				time.Sleep(50 * time.Millisecond)
-				exclusiondata.Set("")
-				inclusiondata.Set(favorites[id].Anagram)
-				// resultsDisplay.Refresh()
-				selectMainTab(0)
-				inclusionentry.Refresh()
-			})
-			editAnagramMI := fyne.NewMenuItem("Edit Anagram", func() {
-				ShowFavoriteAnagramEditor(&favorites, id, App.Preferences(), refreshFavsList, Window)
-			})
-			editInputMI := fyne.NewMenuItem("Edit Input", func() {
-				ShowFavoriteInputEditor(&favorites, id, App.Preferences(), refreshFavsList, Window)
-			})
-			deleteMI := fyne.NewMenuItem("Delete", func() {
-				ShowDeleteFavConfirm(&favorites, id, App.Preferences(), refreshFavsList, Window)
-			})
-			pumenu := fyne.NewMenu("Pop up", copyAnagramToCBMI, copyBothToCBMI, animateMI, sendToMainMI, editInputMI, editAnagramMI, deleteMI)
-			widget.ShowPopUpMenuAtRelativePosition(pumenu, Window.Canvas(), pe.Position, label)
-		}
+				copyBothToCBMI := fyne.NewMenuItem("Copy input and anagram to clipboard", func() {
+					MainWindow.Clipboard().SetContent(fmt.Sprintf("%s->%s", favorites[id].Input, favorites[id].Anagram))
+					pulabel := widget.NewLabel("Copied to clipboard")
+					pu := widget.NewPopUp(pulabel, MainWindow.Canvas())
+					wsize := MainWindow.Canvas().Size()
+					pu.Move(fyne.NewPos((wsize.Width)/2, (wsize.Height)/2))
+					pu.Show()
+					go func() {
+						time.Sleep(time.Second)
+						pu.Hide()
+					}()
+				})
+				animateMI := fyne.NewMenuItem("Animate", func() {
+					ad := NewAnimationDisplay(App.Metadata().Icon)
+					cd := dialog.NewCustom("Animated anagram...", "dismiss", ad, MainWindow)
+					cd.Resize(fyne.NewSize(600, 300))
+					cd.Show()
+					ad.AnimateAnagram(favorites[id].Input, favorites[id].Anagram)
+					cd.SetOnClosed(func() {
+						ad.Stop()
+					})
+				})
+				sendToMainMI := fyne.NewMenuItem("Send to main input tab", func() {
+				})
+				editAnagramMI := fyne.NewMenuItem("Edit Anagram", func() {
+					ShowFavoriteAnagramEditor(&favorites, id, App.Preferences(), refreshFavsList, MainWindow)
+				})
+				editInputMI := fyne.NewMenuItem("Edit Input", func() {
+					ShowFavoriteInputEditor(&favorites, id, App.Preferences(), refreshFavsList, MainWindow)
+				})
+				deleteMI := fyne.NewMenuItem("Delete", func() {
+					ShowDeleteFavConfirm(&favorites, id, App.Preferences(), refreshFavsList, MainWindow)
+				})
+				pumenu := fyne.NewMenu("Pop up", copyAnagramToCBMI, copyBothToCBMI, animateMI, sendToMainMI, editInputMI, editAnagramMI, deleteMI)
+				widget.ShowPopUpMenuAtRelativePosition(pumenu, MainWindow.Canvas(), pe.Position, label)
+			}
 
-		label.Refresh()
-	})
+			label.Refresh()
+		})
+	*/
 
-	refreshFavsList = func() {
+	RebuildFavorites = func() {
 		favsList.Refresh()
 	}
 
 	favsContent := container.New(layout.NewAdaptiveGridLayout(1), favsList)
 
+	/*
+		favInputGroupsAIs := make([]*widget.AccordionItem, 0, len(favInputGroups))
+		for input, favlist := range favInputGroups {
+			ai := widget.NewAccordionItem(input, NewFavoritesList(favlist, func(fav FavoriteAnagram) string {
+				return fav.Anagram
+			}, sendToMainTabFunc))
+			favInputGroupsAIs = append(favInputGroupsAIs, ai)
+		}
+
+		favInputGroupsAccordian := widget.NewAccordion(favInputGroupsAIs...)
+
+		content := container.NewAppTabs(container.NewTabItem("Find", findContent), container.NewTabItem("Favorites", favsContent), container.NewTabItem("Input Groups", favInputGroupsAccordian))
+	*/
+
 	content := container.NewAppTabs(container.NewTabItem("Find", findContent), container.NewTabItem("Favorites", favsContent))
 
-	Window.SetContent(content)
+	MainWindow.SetContent(content)
 
 	selectMainTab = func(index int) {
 		content.SelectTabIndex(index)
@@ -399,6 +430,6 @@ func main() {
 		exclusiondata.Set("")
 	}
 
-	Window.Resize(fyne.NewSize(800, 600))
-	Window.ShowAndRun()
+	MainWindow.Resize(fyne.NewSize(800, 600))
+	MainWindow.ShowAndRun()
 }
