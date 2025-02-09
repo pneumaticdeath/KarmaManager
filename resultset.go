@@ -19,14 +19,19 @@ type ResultSet struct {
 	results          []string
 	isDone           bool
 	combinedDictName string
+	progressCallback func(int, int)
 	resultChan       <-chan string
 }
 
 func NewResultSet(mainDicts, addedDicts []*Dictionary, mainDictIndex int) *ResultSet {
-	rs := &ResultSet{mainDicts, addedDicts, "", "", make([]string, 0), make([]string, 0), make(map[string]int), 0, mainDictIndex, make([]string, 0), true, "", nil}
+	rs := &ResultSet{mainDicts, addedDicts, "", "", make([]string, 0), make([]string, 0), make(map[string]int), 0, mainDictIndex, make([]string, 0), true, "", nil, nil}
 
 	rs.FindAnagrams("")
 	return rs
+}
+
+func (rs *ResultSet) SetProgressCallback(cb func(int, int)) {
+	rs.progressCallback = cb
 }
 
 func (rs *ResultSet) FindAnagrams(input string) {
@@ -71,7 +76,9 @@ func (rs *ResultSet) FetchNext(count int) {
 		return
 	}
 
-	for count > 0 && !rs.isDone {
+	fetchCount := 0
+
+	for fetchCount < count && !rs.isDone {
 		next, ok := <-rs.resultChan
 		if ok {
 			if normalize(next) != rs.normalizedInput {
@@ -82,12 +89,19 @@ func (rs *ResultSet) FetchNext(count int) {
 				}
 				rs.results = append(rs.results, next)
 				rs.resultCount += 1
-				count -= 1
+				fetchCount += 1
+
+				if rs.progressCallback != nil && fetchCount%10 == 0 {
+					rs.progressCallback(fetchCount, count)
+				}
+
 			}
 		} else {
 			rs.isDone = true
-			return
 		}
+	}
+	if rs.progressCallback != nil {
+		rs.progressCallback(count, count)
 	}
 }
 
@@ -118,7 +132,7 @@ func (rs *ResultSet) SetExclusions(words []string) {
 }
 
 type WordCount struct {
-	Word string
+	Word  string
 	Count int
 }
 
@@ -153,7 +167,7 @@ func (rs *ResultSet) TopNWords(n int) Counts {
 
 func normalize(str string) string {
 	b := strings.Builder{}
-	for _, c := range strings.Trim(str," ") {
+	for _, c := range strings.Trim(str, " ") {
 		r := rune(c)
 		if unicode.IsSpace(r) || unicode.IsLetter(r) {
 			b.WriteRune(unicode.ToLower(r))

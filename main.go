@@ -27,7 +27,7 @@ var AppPreferences fyne.Preferences
 var RebuildFavorites func()
 
 func ShowInterestingWordsList(rs *ResultSet, n int, include func(string), exclude func(string), window fyne.Window) {
-	rs.GetAt(5000)  // just to get a little bit of data to work with
+	rs.GetAt(50000) // just to get a little bit of data to work with
 	topN := rs.TopNWords(n)
 	var closeDialog func()
 	topList := widget.NewList(func() int {
@@ -129,13 +129,24 @@ func main() {
 		inputEntry.OnSubmitted(inputEntry.Text)
 	}))
 
-	inputClearButton := widget.NewButton("Clear input", func() {
+	inputClearButton := widget.NewButtonWithIcon("", theme.ContentClearIcon(), func() {
 		inputdata.Set("")
 		reset()
 		reset_search()
 	})
 
-	inputBar := container.New(layout.NewAdaptiveGridLayout(2), inputEntry, inputClearButton)
+	progressBar := widget.NewProgressBar()
+	progressBar.Min = 0.0
+	progressBar.Max = 1.0
+	pbCallback := func(current, goal int) {
+		progressBar.SetValue(float64(current) / float64(goal))
+		progressBar.Refresh()
+	}
+	resultSet.SetProgressCallback(pbCallback)
+
+	input := container.NewBorder(nil, nil, nil, inputClearButton, inputEntry)
+	inputBar := container.New(layout.NewAdaptiveGridLayout(2), input, progressBar)
+
 	dictionaryBar := container.New(layout.NewAdaptiveGridLayout(2), mainSelect, addedDictsContainer)
 
 	controlBar := container.New(layout.NewVBoxLayout(), inputBar, dictionaryBar)
@@ -376,6 +387,7 @@ func main() {
 	}
 
 	findContent := container.NewBorder(controlBar, searchcontainer, nil, nil, mainDisplay)
+	// findContent = container.NewBorder(controlBar, progressBar, nil, nil, mainDisplay)
 
 	// var refreshFavsList func()
 	var selectTab func(int)
