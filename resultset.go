@@ -13,6 +13,7 @@ type ResultSet struct {
 	normalizedInput  string
 	included         []string
 	excluded         []string
+	wordCount        map[string]int
 	resultCount      int
 	mainDictIndex    int
 	results          []string
@@ -22,7 +23,7 @@ type ResultSet struct {
 }
 
 func NewResultSet(mainDicts, addedDicts []*Dictionary, mainDictIndex int) *ResultSet {
-	rs := &ResultSet{mainDicts, addedDicts, "", "", make([]string, 0), make([]string, 0), 0, mainDictIndex, make([]string, 0), true, "", nil}
+	rs := &ResultSet{mainDicts, addedDicts, "", "", make([]string, 0), make([]string, 0), make(map[string]int), 0, mainDictIndex, make([]string, 0), true, "", nil}
 
 	rs.FindAnagrams("")
 	return rs
@@ -36,6 +37,7 @@ func (rs *ResultSet) FindAnagrams(input string) {
 
 func (rs *ResultSet) Regenerate() {
 	rs.resultCount = 0
+	rs.wordCount = make(map[string]int)
 	rs.results = make([]string, 0, 110)
 	rs.isDone = false
 	combinedDict := rs.CombineDicts()
@@ -73,6 +75,11 @@ func (rs *ResultSet) FetchNext(count int) {
 		next, ok := <-rs.resultChan
 		if ok {
 			if normalize(next) != rs.normalizedInput {
+				for _, word := range strings.Split(next, " ") {
+					if word != "" {
+						rs.wordCount[strings.ToLower(word)] += 1
+					}
+				}
 				rs.results = append(rs.results, next)
 				rs.resultCount += 1
 				count -= 1
@@ -110,9 +117,43 @@ func (rs *ResultSet) SetExclusions(words []string) {
 	rs.excluded = words
 }
 
+type WordCount struct {
+	Word string
+	Count int
+}
+
+type Counts []WordCount
+
+func (c Counts) Len() int {
+	return len(c)
+}
+
+func (c Counts) Swap(i, j int) {
+	c[i], c[j] = c[j], c[i]
+}
+
+func (c Counts) Less(i, j int) bool {
+	return c[j].Count < c[i].Count
+}
+
+func (rs *ResultSet) TopNWords(n int) Counts {
+	words := make(Counts, 0, len(rs.wordCount))
+	for w, c := range rs.wordCount {
+		words = append(words, WordCount{w, c})
+	}
+
+	sort.Sort(words)
+
+	if len(words) > n {
+		return words[:n]
+	} else {
+		return words
+	}
+}
+
 func normalize(str string) string {
 	b := strings.Builder{}
-	for _, c := range str {
+	for _, c := range strings.Trim(str," ") {
 		r := rune(c)
 		if unicode.IsSpace(r) || unicode.IsLetter(r) {
 			b.WriteRune(unicode.ToLower(r))
