@@ -131,8 +131,8 @@ func main() {
 
 	inputClearButton := widget.NewButtonWithIcon("", theme.ContentClearIcon(), func() {
 		inputdata.Set("")
-		reset()
-		reset_search()
+		// reset()
+		// reset_search()
 	})
 
 	progressBar := widget.NewProgressBar()
@@ -144,8 +144,12 @@ func main() {
 	}
 	resultSet.SetProgressCallback(pbCallback)
 
-	input := container.NewBorder(nil, nil, nil, inputClearButton, inputEntry)
-	inputBar := container.New(layout.NewAdaptiveGridLayout(2), input, progressBar)
+	interestingButton := widget.NewButton("Interesting words", nil)
+
+	interestBar := container.New(layout.NewGridLayout(2), interestingButton, progressBar)
+
+	inputField := container.NewBorder(nil, nil, nil, inputClearButton, inputEntry)
+	inputBar := container.New(layout.NewAdaptiveGridLayout(2), inputField, interestBar)
 
 	dictionaryBar := container.New(layout.NewAdaptiveGridLayout(2), mainSelect, addedDictsContainer)
 
@@ -164,61 +168,6 @@ func main() {
 		label.Label.Text = fmt.Sprintf("%10d %s", index+1, text)
 		object.Refresh()
 	})
-
-	lastSearchString := ""
-	lastSearchIndex := -1
-	searchError := widget.NewLabel("")
-	searchbox := widget.NewEntry()
-	searchbox.OnSubmitted = func(searchfor string) {
-		searchError.Text = ""
-		searchError.Refresh()
-		if searchfor == "" {
-			return
-		}
-		searchstring := strings.ToLower(searchfor)
-		searchError.Text = fmt.Sprintf("Finding '%s'", searchstring)
-		searchError.Refresh()
-		i := 0
-		if lastSearchString == searchstring {
-			i = lastSearchIndex + 1
-		} else {
-			lastSearchString = searchstring
-			lastSearchIndex = -1
-		}
-		count := 0
-		for i < resultSet.Count() && i < searchLimit {
-			text, _ := resultSet.GetAt(i)
-			if strings.Index(strings.ToLower(text), searchstring) != -1 {
-				count += 1
-				// searchresultslist.Append(i)
-				resultsDisplay.ScrollTo(i)
-				resultsDisplay.Refresh()
-				searchError.Text = fmt.Sprintf("Found at location %d", i+1)
-				searchError.Refresh()
-				lastSearchIndex = i
-				return
-			}
-			i += 1
-		}
-		if count == 0 && resultSet.IsDone() && i >= resultSet.Count() {
-			searchError.Text = "Not Found!"
-			searchError.Refresh()
-			lastSearchString = ""
-			lastSearchIndex = -1
-		} else if i >= searchLimit {
-			if count == 0 {
-				searchError.Text = fmt.Sprintf("Didn't find '%s' in the first %d results!", searchstring, searchLimit)
-			} else {
-				searchError.Text = fmt.Sprintf("Found %d instances in the first %d results!", count, searchLimit)
-			}
-			searchError.Refresh()
-		}
-	}
-	searchbutton := widget.NewButton("Find", func() {
-		searchbox.OnSubmitted(searchbox.Text)
-	})
-
-	searchcontainer := container.New(layout.NewGridLayout(3), searchbutton, searchbox, searchError)
 
 	inclusiondata := binding.NewString()
 	inclusiondata.Set("")
@@ -286,12 +235,12 @@ func main() {
 			exclusiondata.Set(existing + " " + word)
 		}
 	}
-	interestingbutton := widget.NewButton("Interesting words", func() {
+	interestingButton.OnTapped = func() {
 		ShowInterestingWordsList(resultSet, 1000, includeFunc, excludeFunc, MainWindow)
-	})
+	}
 	exclusionlabel := container.New(layout.NewHBoxLayout(), widget.NewLabel("Excluded words"), exclusionclearbutton)
 	bottomcontainer := container.New(layout.NewVBoxLayout(), exclusionlabel, exclusionentry)
-	inclusionlabel := container.New(layout.NewHBoxLayout(), widget.NewLabel("Include phrases"), inclusionclearbutton, layout.NewSpacer(), interestingbutton)
+	inclusionlabel := container.New(layout.NewHBoxLayout(), widget.NewLabel("Include phrases"), inclusionclearbutton)
 	controlscontainer := container.NewBorder(inclusionlabel, bottomcontainer, nil, nil, inclusionentry)
 	mainDisplay := container.New(layout.NewAdaptiveGridLayout(2), resultsDisplay, controlscontainer)
 
@@ -357,36 +306,29 @@ func main() {
 				})
 			})
 			words := strings.Split(text, " ")
-			filterMIs := make([]*fyne.MenuItem, len(words))
+			includeMIs := make([]*fyne.MenuItem, len(words))
 			excludeMIs := make([]*fyne.MenuItem, len(words))
 			for index, word := range words {
-				filterMIs[index] = fyne.NewMenuItem(word, func() {
-					searchbox.Text = word
-					searchbox.Refresh()
-					searchbox.OnSubmitted(searchbox.Text)
+				includeMIs[index] = fyne.NewMenuItem(word, func() {
+					includeFunc(word)
 				})
 				excludeMIs[index] = fyne.NewMenuItem(word, func() {
-					existing, _ := exclusiondata.Get()
-					if existing == "" {
-						exclusiondata.Set(word)
-					} else {
-						exclusiondata.Set(existing + " " + word)
-					}
+					excludeFunc(word)
 				})
 			}
-			filtermenu := fyne.NewMenu("Filter by", filterMIs...)
+			includemenu := fyne.NewMenu("Include", includeMIs...)
 			exclusionmenu := fyne.NewMenu("Exclude", excludeMIs...)
-			filterMI := fyne.NewMenuItem("Filter by", nil)
-			filterMI.ChildMenu = filtermenu
+			includeMI := fyne.NewMenuItem("Include", nil)
+			includeMI.ChildMenu = includemenu
 			excludeMI := fyne.NewMenuItem("Exclude", nil)
 			excludeMI.ChildMenu = exclusionmenu
-			pumenu := fyne.NewMenu("Pop up", copyAnagramToCBMI, copyBothToCBMI, addToFavsMI, animateMI, filterMI, excludeMI)
+			pumenu := fyne.NewMenu("Pop up", copyAnagramToCBMI, copyBothToCBMI, addToFavsMI, animateMI, includeMI, excludeMI)
 			widget.ShowPopUpMenuAtRelativePosition(pumenu, MainWindow.Canvas(), pe.Position, label)
 		}
 		obj.Refresh()
 	}
 
-	findContent := container.NewBorder(controlBar, searchcontainer, nil, nil, mainDisplay)
+	findContent := container.NewBorder(controlBar, nil, nil, nil, mainDisplay)
 	// findContent = container.NewBorder(controlBar, progressBar, nil, nil, mainDisplay)
 
 	// var refreshFavsList func()
@@ -426,16 +368,16 @@ func main() {
 
 	reset = func() {
 		resultSet.Regenerate()
-		searchError.Text = ""
-		lastSearchIndex = -1
-		lastSearchString = ""
+		// searchError.Text = ""
+		// lastSearchIndex = -1
+		// lastSearchString = ""
 		resultsDisplay.ScrollToTop()
 		content.Refresh()
 	}
 
 	reset_search = func() {
-		searchbox.Text = ""
-		searchbox.Refresh()
+		// searchbox.Text = ""
+		// searchbox.Refresh()
 		inclusiondata.Set("")
 		exclusiondata.Set("")
 	}
