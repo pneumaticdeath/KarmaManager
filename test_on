@@ -11,7 +11,11 @@ case "$1" in
 		fyne release --target ios --certificate "${IOSDEVCERT}" --profile "${IOSDEVPROF}"
 		fyne install --os ios
 		;;
+	iossimulator)
+		fyne release --target ios --certificate "${IOSDEVCERT}" --profile "${IOSDEVPROF}"
+		fyne install --os iossimulator
+		;;
 	*)
-		echo Only android and ios supported currently
+		echo Only android, ios and iossimulator supported currently
 		;;
 esac	
