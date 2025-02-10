@@ -138,6 +138,7 @@ func NewFavoritesList(list *FavoritesSlice, labelFunc func(FavoriteAnagram) stri
 	}, func() fyne.CanvasObject {
 		return NewTapLabel("Fav")
 	}, func(id widget.ListItemID, obj fyne.CanvasObject) {
+		groups := MakeGroupedFavorites(*list)
 		label, ok := obj.(*TapLabel)
 		if !ok {
 			return
@@ -179,6 +180,20 @@ func NewFavoritesList(list *FavoritesSlice, labelFunc func(FavoriteAnagram) stri
 					ad.Stop()
 				})
 			})
+			multiAnimationMI := fyne.NewMenuItem(fmt.Sprintf("Animate all with input \"%s\"",(*list)[id].Input), func() {
+				ad := NewAnimationDisplay(Icon)
+				cd := dialog.NewCustom("Animated anagrams...", "dismiss", ad, MainWindow)
+				cd.Resize(fyne.NewSize(600,300))
+				cd.Show()
+				anagrams := make([]string, len(groups[(*list)[id].Input]))
+				for index, fav := range groups[(*list)[id].Input] {
+					anagrams[index] = fav.Anagram
+				}
+				ad.AnimateAnagrams((*list)[id].Input, anagrams...)
+				cd.SetOnClosed(func() {
+					ad.Stop()
+				})
+			})
 			sendToMainMI := fyne.NewMenuItem("Send to main input tab", func() {
 				sendToMainTab((*list)[id])
 			})
@@ -191,7 +206,7 @@ func NewFavoritesList(list *FavoritesSlice, labelFunc func(FavoriteAnagram) stri
 			deleteMI := fyne.NewMenuItem("Delete", func() {
 				ShowDeleteFavConfirm(list, id, AppPreferences, RebuildFavorites, MainWindow)
 			})
-			pumenu := fyne.NewMenu("Pop up", copyAnagramToCBMI, copyBothToCBMI, animateMI, sendToMainMI, editInputMI, editAnagramMI, deleteMI)
+			pumenu := fyne.NewMenu("Pop up", copyAnagramToCBMI, copyBothToCBMI, animateMI, multiAnimationMI, sendToMainMI, editInputMI, editAnagramMI, deleteMI)
 			widget.ShowPopUpMenuAtRelativePosition(pumenu, MainWindow.Canvas(), pe.Position, label)
 		}
 
