@@ -300,7 +300,7 @@ func main() {
 				cd := dialog.NewCustom("Animated anagram...", "dismiss", ad, MainWindow)
 				cd.Resize(fyne.NewSize(600, 400))
 				cd.Show()
-				ad.AnimateAnagram(input, text)
+				ad.AnimateAnagrams(input, text)
 				cd.SetOnClosed(func() {
 					ad.Stop()
 				})

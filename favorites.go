@@ -174,7 +174,7 @@ func NewFavoritesList(list *FavoritesSlice, labelFunc func(FavoriteAnagram) stri
 				cd := dialog.NewCustom("Animated anagram...", "dismiss", ad, MainWindow)
 				cd.Resize(fyne.NewSize(600, 300))
 				cd.Show()
-				ad.AnimateAnagram((*list)[id].Input, (*list)[id].Anagram)
+				ad.AnimateAnagrams((*list)[id].Input, (*list)[id].Anagram)
 				cd.SetOnClosed(func() {
 					ad.Stop()
 				})

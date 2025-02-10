@@ -122,7 +122,7 @@ func (ad *AnimationDisplay) CreateRenderer() fyne.WidgetRenderer {
 	return widget.NewSimpleRenderer(ad.scroll)
 }
 
-func (ad *AnimationDisplay) AnimateAnagram(input, anagram string) {
+func (ad *AnimationDisplay) AnimateAnagrams(input string, anagrams... string) {
 	ad.running = true
 	dispSize := ad.surface.Size()
 	maxCols := int(math.Floor(float64(dispSize.Width / (glyphSize.Width + glyphSpacing))))
@@ -132,14 +132,6 @@ func (ad *AnimationDisplay) AnimateAnagram(input, anagram string) {
 	icon.SetMinSize(fyne.NewSize(64, 64))
 	icon.FillMode = canvas.ImageFillContain
 	badge := widget.NewLabel(ad.Badge)
-
-	animation, err := NewAnimation(input, anagram, maxRows, maxCols)
-
-	if err != nil {
-		log.Println(err)
-		ad.running = false
-		return
-	}
 
 	ad.surface.RemoveAll()
 	// Add icon and badging
@@ -154,56 +146,111 @@ func (ad *AnimationDisplay) AnimateAnagram(input, anagram string) {
 
 	purple := color.NRGBA{R: 192, B: 192, A: 255}
 
-	numGlyphs := len(animation.Glyphs)
-	animElements := make([]*canvas.Text, numGlyphs)
-	style := fyne.TextStyle{Monospace: true}
-	for index, glyph := range animation.Glyphs {
-		text := canvas.NewText(string(unicode.ToUpper(glyph.Letter)), theme.TextColor())
-		text.TextStyle = style
-		text.TextSize = textSize
-		animElements[index] = text
-		ad.surface.Add(text)
+	animations := make([]*Animation, 0, len(anagrams))
+	from := input
+	to := ""
+	for _, to = range anagrams {
+		animation, err := NewAnimation(from, to, maxRows, maxCols)
+		if err != nil {
+			log.Println(err)
+			ad.running = false
+			return
+		}
+		animations = append(animations, animation)
+		from = to
 	}
+	endAnimation, err := NewAnimation(to, input, maxRows, maxCols)
+	if err != nil {
+		log.Println(err)
+		ad.running = false
+		return
+	}
+
+	style := fyne.TextStyle{Monospace: true}
+
+	var oldElements []*canvas.Text = make([]*canvas.Text, 0)
 
 	go func() {
 		for ad.running {
+			var animation Animation
+			for _, animation := range animations {
+				animElements := make([]*canvas.Text, len(animation.Glyphs))
+
+				for index, glyph := range animation.Glyphs {
+					text := canvas.NewText(string(unicode.ToUpper(glyph.Letter)), theme.TextColor())
+					text.TextStyle = style
+					text.TextSize = textSize
+					animElements[index] = text
+					ad.surface.Add(text)
+				}
+
+				for _, oldElement := range oldElements {
+					ad.surface.Remove(oldElement)
+				}
+				
+				for index, glyph := range animation.Glyphs {
+					text := animElements[index]
+					anim := canvas.NewPositionAnimation(glyph.StartPos, glyph.EndPos, ad.MoveDuration, text.Move)
+					anim.Start()
+				}
+
+				time.Sleep(ad.MoveDuration)
+
+				for _, text := range animElements {
+					anim := canvas.NewColorRGBAAnimation(theme.TextColor(), purple, ad.ColorCycleDuration, func(newColor color.Color) {
+						text.Color = newColor
+						text.Refresh()
+					})
+					anim.Start()
+				}
+
+				time.Sleep(ad.ColorCycleDuration)
+
+				time.Sleep(ad.PauseDuration)
+
+				for _, text := range animElements {
+					anim := canvas.NewColorRGBAAnimation(purple, theme.TextColor(), ad.ColorCycleDuration, func(newColor color.Color) {
+						text.Color = newColor
+						text.Refresh()
+					})
+					anim.Start()
+				}
+
+				time.Sleep(ad.ColorCycleDuration)
+
+				oldElements = animElements
+			}
+			animElements := make([]*canvas.Text, len(endAnimation.Glyphs))
+
+			for index, glyph := range endAnimation.Glyphs {
+				text := canvas.NewText(string(unicode.ToUpper(glyph.Letter)), theme.TextColor())
+				text.TextStyle = style
+				text.TextSize = textSize
+				animElements[index] = text
+				ad.surface.Add(text)
+			}
+				
+			for _, oldElement := range oldElements {
+				ad.surface.Remove(oldElement)
+			}
+
 			for index, glyph := range animation.Glyphs {
+				text := canvas.NewText(string(unicode.ToUpper(glyph.Letter)), theme.TextColor())
+				text.TextStyle = style
+				text.TextSize = textSize
+				animElements[index] = text
+				ad.surface.Add(text)
+			}
+
+			for index, glyph := range endAnimation.Glyphs {
 				text := animElements[index]
 				anim := canvas.NewPositionAnimation(glyph.StartPos, glyph.EndPos, ad.MoveDuration, text.Move)
 				anim.Start()
 			}
 
-			time.Sleep(ad.MoveDuration)
+			time.Sleep(ad.MoveDuration + 200*time.Millisecond)
 
-			for _, text := range animElements {
-				anim := canvas.NewColorRGBAAnimation(theme.TextColor(), purple, ad.ColorCycleDuration, func(newColor color.Color) {
-					text.Color = newColor
-					text.Refresh()
-				})
-				anim.Start()
-			}
-
-			time.Sleep(ad.ColorCycleDuration)
-
-			time.Sleep(ad.PauseDuration)
-
-			for _, text := range animElements {
-				anim := canvas.NewColorRGBAAnimation(purple, theme.TextColor(), ad.ColorCycleDuration, func(newColor color.Color) {
-					text.Color = newColor
-					text.Refresh()
-				})
-				anim.Start()
-			}
-
-			time.Sleep(ad.ColorCycleDuration)
-
-			for index, glyph := range animation.Glyphs {
-				text := animElements[index]
-				anim := canvas.NewPositionAnimation(glyph.EndPos, glyph.StartPos, ad.MoveDuration, text.Move)
-				anim.Start()
-			}
-
-			time.Sleep(ad.MoveDuration + 500*time.Millisecond)
+			oldElements = animElements
 		}
 	}()
 }
