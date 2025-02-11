@@ -178,6 +178,7 @@ func (ad *AnimationDisplay) AnimateAnagrams(input string, anagrams ...string) {
 	badge.Resize(badge.MinSize())
 
 	purple := color.NRGBA{R: 192, B: 192, A: 255}
+	green := color.NRGBA{G: 192, A: 255}
 
 	style := fyne.TextStyle{Monospace: true}
 
@@ -196,9 +197,9 @@ func (ad *AnimationDisplay) AnimateAnagrams(input string, anagrams ...string) {
 		ad.surface.Add(text)
 	}
 
-	colorPulse := func() {
+	colorPulse := func(c color.Color) {
 		for _, text := range animElements {
-			anim := canvas.NewColorRGBAAnimation(theme.TextColor(), purple, ad.ColorCycleDuration, func(newColor color.Color) {
+			anim := canvas.NewColorRGBAAnimation(theme.TextColor(), c, ad.ColorCycleDuration, func(newColor color.Color) {
 				text.Color = newColor
 				text.Refresh()
 			})
@@ -210,7 +211,7 @@ func (ad *AnimationDisplay) AnimateAnagrams(input string, anagrams ...string) {
 		time.Sleep(ad.PauseDuration)
 
 		for _, text := range animElements {
-			anim := canvas.NewColorRGBAAnimation(purple, theme.TextColor(), ad.ColorCycleDuration, func(newColor color.Color) {
+			anim := canvas.NewColorRGBAAnimation(c, theme.TextColor(), ad.ColorCycleDuration, func(newColor color.Color) {
 				text.Color = newColor
 				text.Refresh()
 			})
@@ -231,7 +232,7 @@ func (ad *AnimationDisplay) AnimateAnagrams(input string, anagrams ...string) {
 
 			time.Sleep(ad.MoveDuration)
 
-			colorPulse()
+			colorPulse(purple)
 
 			// Now all the steps except the last one
 
@@ -245,7 +246,7 @@ func (ad *AnimationDisplay) AnimateAnagrams(input string, anagrams ...string) {
 
 				time.Sleep(ad.MoveDuration)
 
-				colorPulse()
+				colorPulse(purple)
 
 				stepIndex += 1
 			}
@@ -257,6 +258,8 @@ func (ad *AnimationDisplay) AnimateAnagrams(input string, anagrams ...string) {
 			}
 
 			time.Sleep(ad.MoveDuration + ad.PauseDuration)
+
+			colorPulse(green)
 		}
 	}()
 }
