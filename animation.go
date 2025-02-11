@@ -25,7 +25,8 @@ var glyphSpacing float32 = 1.0
 
 type RuneGlyph struct {
 	Letter           rune
-	StartPos, EndPos fyne.Position
+	StartPos         fyne.Position
+	StepPos          []fyne.Position
 }
 
 type Animation struct {
@@ -34,10 +35,25 @@ type Animation struct {
 }
 
 func NthRuneIndex(layout []RuneLayoutElement, r rune, n int) int {
+        index := 0
+        foundCount := 0
+        for index < len(layout) {
+                if layout[index].Rune == r {
+                        foundCount += 1
+                        if foundCount == n {
+                                return index
+                        }
+                }
+                index += 1
+        }
+        return -1
+}
+
+func NthGlyphIndex(glyphs []RuneGlyph, r rune, n int) int {
 	index := 0
 	foundCount := 0
-	for index < len(layout) {
-		if layout[index].Rune == r {
+	for index < len(glyphs) {
+		if glyphs[index].Letter == r {
 			foundCount += 1
 			if foundCount == n {
 				return index
@@ -48,48 +64,65 @@ func NthRuneIndex(layout []RuneLayoutElement, r rune, n int) int {
 	return -1
 }
 
-func NewAnimation(input, anagram string, maxRows, maxCols int) (*Animation, error) {
+func NewAnimation(input string, anagrams []string, maxRows, maxCols int) (*Animation, error) {
 	inputRC := NewRuneCluster(input)
-	anagramRC := NewRuneCluster(anagram)
-	if !inputRC.Equals(anagramRC) {
-		return nil, errors.New("input doesn't match anagram")
+	for _, anagram := range anagrams {
+		anagramRC := NewRuneCluster(anagram)
+		if !inputRC.Equals(anagramRC) {
+			return nil, errors.New("input doesn't match anagram")
+		}
 	}
 
 	inputLC := strings.ToLower(input)
-	anagramLC := strings.ToLower(anagram)
-	inputLayout, inputRows := MakeRuneLayout(inputLC, maxCols)
-	anagramLayout, anagramRows := MakeRuneLayout(anagramLC, maxCols)
-
-	numGlyphs := max(len(inputLayout), len(anagramLayout))
-
+	inputLayout, rows := MakeRuneLayout(inputLC, maxCols)
+	numGlyphs := len(inputLayout)
 	glyphs := make([]RuneGlyph, 0, numGlyphs)
-	runeCounts := make(map[rune]int)
-	glyphsUsed := make([]bool, len(anagramLayout))
 
 	for _, element := range inputLayout {
 		startPos := fyne.NewPos(float32(element.Col)*(glyphSize.Width+glyphSpacing), float32(element.Row)*(glyphSize.Height+glyphSpacing))
-		runeCounts[element.Rune] += 1
-		n := runeCounts[element.Rune]
-		endPos := fyne.NewPos(-2*glyphSize.Width, -2*glyphSize.Height)
-		endIndex := NthRuneIndex(anagramLayout, element.Rune, n)
-		if endIndex >= 0 {
-			glyphsUsed[endIndex] = true
-			endPos.X = float32(anagramLayout[endIndex].Col) * (glyphSize.Width + glyphSpacing)
-			endPos.Y = float32(anagramLayout[endIndex].Row) * (glyphSize.Height + glyphSpacing)
-		}
-		glyphs = append(glyphs, RuneGlyph{element.Rune, startPos, endPos})
+		glyphs = append(glyphs, RuneGlyph{element.Rune, startPos, make([]fyne.Position, len(anagrams))})
 	}
 
-	for i, used := range glyphsUsed {
-		if !used {
-			endElement := anagramLayout[i]
-			startPos := fyne.NewPos(-2*glyphSize.Width, -2*glyphSize.Height)
-			endPos := fyne.NewPos(float32(endElement.Col)*(glyphSize.Width+glyphSpacing), float32(endElement.Row)*(glyphSize.Height+glyphSpacing))
-			glyphs = append(glyphs, RuneGlyph{endElement.Rune, startPos, endPos})
+	offscreenParking := fyne.NewPos(-2*glyphSize.Width, -2*glyphSize.Height)
+	// anagramLayouts := make([][]RuneElement, len(anagrams))
+	for index, anagram := range anagrams {
+		anagramLC := strings.ToLower(anagram)
+		anagramLayout, anagramRows := MakeRuneLayout(anagramLC, maxCols)
+		if anagramRows > rows {
+			rows = anagramRows
+		}
+
+		glyphsUsed := make([]bool, len(glyphs))
+		runeCounts := make(map[rune]int)
+
+		for _, element := range anagramLayout {
+			runeCounts[element.Rune] += 1
+			n := runeCounts[element.Rune]
+			stepPos := fyne.NewPos(
+				float32(element.Col)*(glyphSize.Width+glyphSpacing),
+				float32(element.Row)*(glyphSize.Height+glyphSpacing))
+			glyphIndex := NthGlyphIndex(glyphs, element.Rune, n)
+			if glyphIndex >= 0 {
+				glyphsUsed[glyphIndex] = true
+				glyphs[glyphIndex].StepPos[index] = stepPos
+			} else {
+				glyphsUsed = append(glyphsUsed, true)
+				newGlyph := RuneGlyph{element.Rune, offscreenParking, make([]fyne.Position, len(anagrams))}
+				for i := 0; i < index; i+=1 {
+					newGlyph.StepPos[i] = offscreenParking
+				}
+				newGlyph.StepPos[index] = stepPos
+				glyphs = append(glyphs, newGlyph)
+			}
+		}
+		for i, used := range glyphsUsed {
+			if !used {
+				glyphs[i].StepPos[index] = offscreenParking
+			}
 		}
 	}
 
-	animation := Animation{glyphs, max(inputRows, anagramRows), maxCols}
+	animation := Animation{glyphs, rows, maxCols}
 	return &animation, nil
 }
 
@@ -112,7 +145,7 @@ func NewAnimationDisplay(icon fyne.Resource) *AnimationDisplay {
 	scroll.Direction = container.ScrollNone
 
 	ad := &AnimationDisplay{surface: surface, scroll: scroll, MoveDuration: 3 * time.Second,
-		ColorCycleDuration: time.Second, PauseDuration: 2 * time.Second, Icon: icon,
+		ColorCycleDuration: 500*time.Millisecond, PauseDuration: 1500*time.Millisecond, Icon: icon,
 		Badge: "made with KarmaManager"}
 	ad.ExtendBaseWidget(ad)
 	return ad
@@ -146,111 +179,86 @@ func (ad *AnimationDisplay) AnimateAnagrams(input string, anagrams... string) {
 
 	purple := color.NRGBA{R: 192, B: 192, A: 255}
 
-	animations := make([]*Animation, 0, len(anagrams))
-	from := input
-	to := ""
-	for _, to = range anagrams {
-		animation, err := NewAnimation(from, to, maxRows, maxCols)
-		if err != nil {
-			log.Println(err)
-			ad.running = false
-			return
-		}
-		animations = append(animations, animation)
-		from = to
-	}
-	endAnimation, err := NewAnimation(to, input, maxRows, maxCols)
+	style := fyne.TextStyle{Monospace: true}
+
+	animation, err := NewAnimation(input, anagrams, maxRows, maxCols)
 	if err != nil {
 		log.Println(err)
 		ad.running = false
 		return
 	}
+	animElements := make([]*canvas.Text, len(animation.Glyphs))
+	for index, glyph := range animation.Glyphs {
+		text := canvas.NewText(string(unicode.ToUpper(glyph.Letter)), theme.TextColor())
+		text.TextStyle = style
+		text.TextSize = textSize
+		animElements[index] = text
+		ad.surface.Add(text)
+	}
 
-	style := fyne.TextStyle{Monospace: true}
+	colorPulse := func() {
+		for _, text := range animElements {
+			anim := canvas.NewColorRGBAAnimation(theme.TextColor(), purple, ad.ColorCycleDuration, func(newColor color.Color) {
+				text.Color = newColor
+				text.Refresh()
+			})
+			anim.Start()
+		}
 
-	var oldElements []*canvas.Text = make([]*canvas.Text, 0)
+		time.Sleep(ad.ColorCycleDuration)
+
+		time.Sleep(ad.PauseDuration)
+
+		for _, text := range animElements {
+			anim := canvas.NewColorRGBAAnimation(purple, theme.TextColor(), ad.ColorCycleDuration, func(newColor color.Color) {
+				text.Color = newColor
+				text.Refresh()
+			})
+			anim.Start()
+		}
+
+		time.Sleep(ad.ColorCycleDuration)
+	}
+
 
 	go func() {
 		for ad.running {
-			var animation Animation
-			for _, animation := range animations {
-				animElements := make([]*canvas.Text, len(animation.Glyphs))
+			// Start to first pos
+			for glyphIndex, glyph := range animation.Glyphs {
+				text := animElements[glyphIndex]
+				anim := canvas.NewPositionAnimation(glyph.StartPos, glyph.StepPos[0], ad.MoveDuration, text.Move)
+				anim.Start()
+			}
 
-				for index, glyph := range animation.Glyphs {
-					text := canvas.NewText(string(unicode.ToUpper(glyph.Letter)), theme.TextColor())
-					text.TextStyle = style
-					text.TextSize = textSize
-					animElements[index] = text
-					ad.surface.Add(text)
-				}
+			time.Sleep(ad.MoveDuration)
 
-				for _, oldElement := range oldElements {
-					ad.surface.Remove(oldElement)
-				}
-				
-				for index, glyph := range animation.Glyphs {
-					text := animElements[index]
-					anim := canvas.NewPositionAnimation(glyph.StartPos, glyph.EndPos, ad.MoveDuration, text.Move)
+			colorPulse()
+
+			// Now all the steps except the last one
+
+			stepIndex := 0
+			for stepIndex < len(anagrams) - 1 {
+				for glyphIndex, glyph := range animation.Glyphs {
+					text := animElements[glyphIndex]
+					anim := canvas.NewPositionAnimation(glyph.StepPos[stepIndex], glyph.StepPos[stepIndex+1], ad.MoveDuration, text.Move)
 					anim.Start()
 				}
 
 				time.Sleep(ad.MoveDuration)
 
-				for _, text := range animElements {
-					anim := canvas.NewColorRGBAAnimation(theme.TextColor(), purple, ad.ColorCycleDuration, func(newColor color.Color) {
-						text.Color = newColor
-						text.Refresh()
-					})
-					anim.Start()
-				}
+				colorPulse()
 
-				time.Sleep(ad.ColorCycleDuration)
-
-				time.Sleep(ad.PauseDuration)
-
-				for _, text := range animElements {
-					anim := canvas.NewColorRGBAAnimation(purple, theme.TextColor(), ad.ColorCycleDuration, func(newColor color.Color) {
-						text.Color = newColor
-						text.Refresh()
-					})
-					anim.Start()
-				}
-
-				time.Sleep(ad.ColorCycleDuration)
-
-				oldElements = animElements
+				stepIndex += 1
 			}
-			animElements := make([]*canvas.Text, len(endAnimation.Glyphs))
 
-			for index, glyph := range endAnimation.Glyphs {
-				text := canvas.NewText(string(unicode.ToUpper(glyph.Letter)), theme.TextColor())
-				text.TextStyle = style
-				text.TextSize = textSize
-				animElements[index] = text
-				ad.surface.Add(text)
-			}
-				
-			for _, oldElement := range oldElements {
-				ad.surface.Remove(oldElement)
-			}
 
 			for index, glyph := range animation.Glyphs {
-				text := canvas.NewText(string(unicode.ToUpper(glyph.Letter)), theme.TextColor())
-				text.TextStyle = style
-				text.TextSize = textSize
-				animElements[index] = text
-				ad.surface.Add(text)
-			}
-
-			for index, glyph := range endAnimation.Glyphs {
 				text := animElements[index]
-				anim := canvas.NewPositionAnimation(glyph.StartPos, glyph.EndPos, ad.MoveDuration, text.Move)
+				anim := canvas.NewPositionAnimation(glyph.StepPos[stepIndex], glyph.StartPos, ad.MoveDuration, text.Move)
 				anim.Start()
 			}
 
-			time.Sleep(ad.MoveDuration + 200*time.Millisecond)
-
-			oldElements = animElements
+			time.Sleep(ad.MoveDuration + ad.PauseDuration)
 		}
 	}()
 }
