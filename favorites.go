@@ -174,12 +174,16 @@ func NewFavoritesList(list *FavoritesSlice, labelFunc func(FavoriteAnagram) stri
 				anagrams := []string{(*list)[id].Anagram}
 				ShowAnimation("Animated anagram...", (*list)[id].Input, anagrams, MainWindow)
 			})
-			multiAnimationMI := fyne.NewMenuItem(fmt.Sprintf("Animate all with input \"%s\"", (*list)[id].Input), func() {
+			multiAnimationMI := fyne.NewMenuItem(fmt.Sprintf("Animate multiple with input \"%s\"", (*list)[id].Input), func() {
 				anagrams := make([]string, len(groups[(*list)[id].Input]))
 				for index, fav := range groups[(*list)[id].Input] {
 					anagrams[index] = fav.Anagram
 				}
-				ShowAnimation("Animated anagrams...", (*list)[id].Input, anagrams, MainWindow)
+				ShowMultiAnagramPicker("Animate which anagrams", "animate", anagrams, func(chosen []string) {
+					if len(chosen) > 0 {
+						ShowAnimation("Animated anagrams...", (*list)[id].Input, chosen, MainWindow)
+					}
+				}, MainWindow)
 			})
 			sendToMainMI := fyne.NewMenuItem("Send to main input tab", func() {
 				sendToMainTab((*list)[id])

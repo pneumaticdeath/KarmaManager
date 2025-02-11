@@ -37,6 +37,43 @@ func ShowAnimation(title, startPhrase string, anagrams []string, window fyne.Win
 	})
 }
 
+func ShowMultiAnagramPicker(title, submitlabel string, anagrams []string, callback func([]string), window fyne.Window) {
+	anaChecks := make([]bool, len(anagrams))
+	// anaFormItems := make([]*widget.FormItem, len(anagrams))
+	for index := range anagrams {
+		anaChecks[index] = true
+	}
+	chooseList := widget.NewList(func() int {
+		return len(anaChecks)
+	}, func() fyne.CanvasObject {
+		return widget.NewCheck("***picker***", nil)
+	}, func(id widget.ListItemID, obj fyne.CanvasObject) {
+		check, ok := obj.(*widget.Check)
+		if !ok {
+			return
+		}
+		check.Text = anagrams[id]
+		check.Checked = anaChecks[id]
+		check.OnChanged = func(checked bool) {
+			anaChecks[id] = checked
+		}
+		check.Refresh()
+	})
+
+	d := dialog.NewCustom(title, submitlabel, chooseList, window)
+	d.Resize(fyne.NewSize(300, 500))
+	d.SetOnClosed(func() {
+		chosen := make([]string, 0, len(anagrams))
+		for index, check := range anaChecks {
+			if check {
+				chosen = append(chosen, anagrams[index])
+			}
+		}
+		callback(chosen)
+	})
+	d.Show()
+}
+
 func ShowInterestingWordsList(rs *ResultSet, n int, include func(string), exclude func(string), window fyne.Window) {
 	rs.GetAt(50000) // just to get a little bit of data to work with
 	topN := rs.TopNWords(n)
