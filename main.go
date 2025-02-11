@@ -72,10 +72,11 @@ func ShowMultiAnagramPicker(title, submitlabel, dismisslabel string, anagrams []
 		}
 		callback(chosen)
 	})
+	submitbutton.Importance = widget.HighImportance
 	dismissbutton := widget.NewButton(dismisslabel, func() {
 		d.Hide()
 	})
-	buttons := []fyne.CanvasObject{submitbutton, dismissbutton}
+	buttons := []fyne.CanvasObject{dismissbutton, submitbutton}
 	d.SetButtons(buttons)
 	d.Show()
 }
