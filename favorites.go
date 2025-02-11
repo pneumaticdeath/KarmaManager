@@ -179,7 +179,7 @@ func NewFavoritesList(list *FavoritesSlice, labelFunc func(FavoriteAnagram) stri
 				for index, fav := range groups[(*list)[id].Input] {
 					anagrams[index] = fav.Anagram
 				}
-				ShowMultiAnagramPicker("Animate which anagrams", "animate", anagrams, func(chosen []string) {
+				ShowMultiAnagramPicker("Animate which anagrams", "animate", "cancel", anagrams, func(chosen []string) {
 					if len(chosen) > 0 {
 						ShowAnimation("Animated anagrams...", (*list)[id].Input, chosen, MainWindow)
 					}

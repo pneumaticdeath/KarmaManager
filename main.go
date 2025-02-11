@@ -37,7 +37,7 @@ func ShowAnimation(title, startPhrase string, anagrams []string, window fyne.Win
 	})
 }
 
-func ShowMultiAnagramPicker(title, submitlabel string, anagrams []string, callback func([]string), window fyne.Window) {
+func ShowMultiAnagramPicker(title, submitlabel, dismisslabel string, anagrams []string, callback func([]string), window fyne.Window) {
 	anaChecks := make([]bool, len(anagrams))
 	// anaFormItems := make([]*widget.FormItem, len(anagrams))
 	for index := range anagrams {
@@ -62,7 +62,8 @@ func ShowMultiAnagramPicker(title, submitlabel string, anagrams []string, callba
 
 	d := dialog.NewCustom(title, submitlabel, chooseList, window)
 	d.Resize(fyne.NewSize(300, 500))
-	d.SetOnClosed(func() {
+	submitbutton := widget.NewButton(submitlabel, func() {
+		d.Hide()
 		chosen := make([]string, 0, len(anagrams))
 		for index, check := range anaChecks {
 			if check {
@@ -71,6 +72,11 @@ func ShowMultiAnagramPicker(title, submitlabel string, anagrams []string, callba
 		}
 		callback(chosen)
 	})
+	dismissbutton := widget.NewButton(dismisslabel, func() {
+		d.Hide()
+	})
+	buttons := []fyne.CanvasObject{submitbutton, dismissbutton}
+	d.SetButtons(buttons)
 	d.Show()
 }
 
