@@ -107,7 +107,7 @@ func ShowFavoriteInputEditor(favs *FavoritesSlice, index int, prefs fyne.Prefere
 }
 
 func ShowDeleteFavConfirm(favs *FavoritesSlice, id int, prefs fyne.Preferences, refresh func(), window fyne.Window) {
-	dialog.ShowConfirm("Really delete?", "Are you sure you want to delete this favorite?", func(confirmed bool) {
+	dialog.ShowConfirm("Really delete?", fmt.Sprintf("Really delete \"%s\"?", (*favs)[id].Anagram), func(confirmed bool) {
 		if confirmed {
 			*favs = slices.Delete(*favs, id, id+1)
 			refresh()
