@@ -171,28 +171,15 @@ func NewFavoritesList(list *FavoritesSlice, labelFunc func(FavoriteAnagram) stri
 				}()
 			})
 			animateMI := fyne.NewMenuItem("Animate", func() {
-				ad := NewAnimationDisplay(Icon)
-				cd := dialog.NewCustom("Animated anagram...", "dismiss", ad, MainWindow)
-				cd.Resize(fyne.NewSize(600, 300))
-				cd.Show()
-				ad.AnimateAnagrams((*list)[id].Input, (*list)[id].Anagram)
-				cd.SetOnClosed(func() {
-					ad.Stop()
-				})
+				anagrams := []string{(*list)[id].Anagram}
+				ShowAnimation("Animated anagram...", (*list)[id].Input, anagrams, MainWindow)
 			})
-			multiAnimationMI := fyne.NewMenuItem(fmt.Sprintf("Animate all with input \"%s\"",(*list)[id].Input), func() {
-				ad := NewAnimationDisplay(Icon)
-				cd := dialog.NewCustom("Animated anagrams...", "dismiss", ad, MainWindow)
-				cd.Resize(fyne.NewSize(600,300))
-				cd.Show()
+			multiAnimationMI := fyne.NewMenuItem(fmt.Sprintf("Animate all with input \"%s\"", (*list)[id].Input), func() {
 				anagrams := make([]string, len(groups[(*list)[id].Input]))
 				for index, fav := range groups[(*list)[id].Input] {
 					anagrams[index] = fav.Anagram
 				}
-				ad.AnimateAnagrams((*list)[id].Input, anagrams...)
-				cd.SetOnClosed(func() {
-					ad.Stop()
-				})
+				ShowAnimation("Animated anagrams...", (*list)[id].Input, anagrams, MainWindow)
 			})
 			sendToMainMI := fyne.NewMenuItem("Send to main input tab", func() {
 				sendToMainTab((*list)[id])

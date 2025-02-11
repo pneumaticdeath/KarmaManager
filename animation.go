@@ -24,9 +24,9 @@ var textSize float32 = 20.0
 var glyphSpacing float32 = 1.0
 
 type RuneGlyph struct {
-	Letter           rune
-	StartPos         fyne.Position
-	StepPos          []fyne.Position
+	Letter   rune
+	StartPos fyne.Position
+	StepPos  []fyne.Position
 }
 
 type Animation struct {
@@ -35,18 +35,18 @@ type Animation struct {
 }
 
 func NthRuneIndex(layout []RuneLayoutElement, r rune, n int) int {
-        index := 0
-        foundCount := 0
-        for index < len(layout) {
-                if layout[index].Rune == r {
-                        foundCount += 1
-                        if foundCount == n {
-                                return index
-                        }
-                }
-                index += 1
-        }
-        return -1
+	index := 0
+	foundCount := 0
+	for index < len(layout) {
+		if layout[index].Rune == r {
+			foundCount += 1
+			if foundCount == n {
+				return index
+			}
+		}
+		index += 1
+	}
+	return -1
 }
 
 func NthGlyphIndex(glyphs []RuneGlyph, r rune, n int) int {
@@ -108,7 +108,7 @@ func NewAnimation(input string, anagrams []string, maxRows, maxCols int) (*Anima
 			} else {
 				glyphsUsed = append(glyphsUsed, true)
 				newGlyph := RuneGlyph{element.Rune, offscreenParking, make([]fyne.Position, len(anagrams))}
-				for i := 0; i < index; i+=1 {
+				for i := 0; i < index; i += 1 {
 					newGlyph.StepPos[i] = offscreenParking
 				}
 				newGlyph.StepPos[index] = stepPos
@@ -145,7 +145,7 @@ func NewAnimationDisplay(icon fyne.Resource) *AnimationDisplay {
 	scroll.Direction = container.ScrollNone
 
 	ad := &AnimationDisplay{surface: surface, scroll: scroll, MoveDuration: 3 * time.Second,
-		ColorCycleDuration: 500*time.Millisecond, PauseDuration: 1500*time.Millisecond, Icon: icon,
+		ColorCycleDuration: 500 * time.Millisecond, PauseDuration: 1500 * time.Millisecond, Icon: icon,
 		Badge: "made with KarmaManager"}
 	ad.ExtendBaseWidget(ad)
 	return ad
@@ -155,7 +155,7 @@ func (ad *AnimationDisplay) CreateRenderer() fyne.WidgetRenderer {
 	return widget.NewSimpleRenderer(ad.scroll)
 }
 
-func (ad *AnimationDisplay) AnimateAnagrams(input string, anagrams... string) {
+func (ad *AnimationDisplay) AnimateAnagrams(input string, anagrams ...string) {
 	ad.running = true
 	dispSize := ad.surface.Size()
 	maxCols := int(math.Floor(float64(dispSize.Width / (glyphSize.Width + glyphSpacing))))
@@ -220,7 +220,6 @@ func (ad *AnimationDisplay) AnimateAnagrams(input string, anagrams... string) {
 		time.Sleep(ad.ColorCycleDuration)
 	}
 
-
 	go func() {
 		for ad.running {
 			// Start to first pos
@@ -237,7 +236,7 @@ func (ad *AnimationDisplay) AnimateAnagrams(input string, anagrams... string) {
 			// Now all the steps except the last one
 
 			stepIndex := 0
-			for stepIndex < len(anagrams) - 1 {
+			for stepIndex < len(anagrams)-1 {
 				for glyphIndex, glyph := range animation.Glyphs {
 					text := animElements[glyphIndex]
 					anim := canvas.NewPositionAnimation(glyph.StepPos[stepIndex], glyph.StepPos[stepIndex+1], ad.MoveDuration, text.Move)
@@ -250,7 +249,6 @@ func (ad *AnimationDisplay) AnimateAnagrams(input string, anagrams... string) {
 
 				stepIndex += 1
 			}
-
 
 			for index, glyph := range animation.Glyphs {
 				text := animElements[index]

@@ -26,6 +26,17 @@ var Icon fyne.Resource
 var AppPreferences fyne.Preferences
 var RebuildFavorites func()
 
+func ShowAnimation(title, startPhrase string, anagrams []string, window fyne.Window) {
+	ad := NewAnimationDisplay(Icon)
+	cd := dialog.NewCustom(title, "dismiss", ad, MainWindow)
+	cd.Resize(fyne.NewSize(600, 400))
+	cd.Show()
+	ad.AnimateAnagrams(startPhrase, anagrams...)
+	cd.SetOnClosed(func() {
+		ad.Stop()
+	})
+}
+
 func ShowInterestingWordsList(rs *ResultSet, n int, include func(string), exclude func(string), window fyne.Window) {
 	rs.GetAt(50000) // just to get a little bit of data to work with
 	topN := rs.TopNWords(n)
@@ -295,15 +306,8 @@ func main() {
 				}, MainWindow)
 			})
 			animateMI := fyne.NewMenuItem("Animate", func() {
-				ad := NewAnimationDisplay(App.Metadata().Icon)
-				input, _ := inputdata.Get()
-				cd := dialog.NewCustom("Animated anagram...", "dismiss", ad, MainWindow)
-				cd.Resize(fyne.NewSize(600, 400))
-				cd.Show()
-				ad.AnimateAnagrams(input, text)
-				cd.SetOnClosed(func() {
-					ad.Stop()
-				})
+				input, _ = inputdata.Get()
+				ShowAnimation("Animate anagram...", input, []string{text}, MainWindow)
 			})
 			words := strings.Split(text, " ")
 			includeMIs := make([]*fyne.MenuItem, len(words))
