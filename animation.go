@@ -257,7 +257,7 @@ func (ad *AnimationDisplay) AnimateAnagrams(input string, anagrams ...string) {
 				anim.Start()
 			}
 
-			time.Sleep(ad.MoveDuration + ad.PauseDuration)
+			time.Sleep(ad.MoveDuration)
 
 			colorPulse(green)
 		}
