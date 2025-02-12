@@ -3,6 +3,7 @@ package main
 import (
 	"errors"
 	"fmt"
+	"math/rand/v2"
 	"sort"
 	"strings"
 	"time"
@@ -37,7 +38,7 @@ func ShowAnimation(title, startPhrase string, anagrams []string, window fyne.Win
 	})
 }
 
-func ShowMultiAnagramPicker(title, submitlabel, dismisslabel string, anagrams []string, callback func([]string), window fyne.Window) {
+func ShowMultiAnagramPicker(title, submitlabel, dismisslabel, shufflelabel string, anagrams []string, callback func([]string), window fyne.Window) {
 	anaChecks := make([]bool, len(anagrams))
 	// anaFormItems := make([]*widget.FormItem, len(anagrams))
 	for index := range anagrams {
@@ -73,10 +74,17 @@ func ShowMultiAnagramPicker(title, submitlabel, dismisslabel string, anagrams []
 		callback(chosen)
 	})
 	submitbutton.Importance = widget.HighImportance
+	shufflebutton := widget.NewButton(shufflelabel, func() {
+		rand.Shuffle(len(anagrams), func(i, j int) {
+			anagrams[i], anagrams[j] = anagrams[j], anagrams[i]
+			anaChecks[i], anaChecks[j] = anaChecks[j], anaChecks[i]
+		})
+		d.Refresh()
+	})
 	dismissbutton := widget.NewButton(dismisslabel, func() {
 		d.Hide()
 	})
-	buttons := []fyne.CanvasObject{dismissbutton, submitbutton}
+	buttons := []fyne.CanvasObject{shufflebutton, dismissbutton, submitbutton}
 	d.SetButtons(buttons)
 	d.Show()
 }
