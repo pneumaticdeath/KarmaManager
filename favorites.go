@@ -155,7 +155,7 @@ func NewFavoritesList(list *FavoritesSlice, labelFunc func(FavoriteAnagram) stri
 				pu.Show()
 				go func() {
 					time.Sleep(time.Second)
-					pu.Hide()
+					fyne.Do(pu.Hide)
 				}()
 			})
 			copyBothToCBMI := fyne.NewMenuItem("Copy input and anagram to clipboard", func() {
@@ -167,7 +167,7 @@ func NewFavoritesList(list *FavoritesSlice, labelFunc func(FavoriteAnagram) stri
 				pu.Show()
 				go func() {
 					time.Sleep(time.Second)
-					pu.Hide()
+					fyne.Do(pu.Hide)
 				}()
 			})
 			animateMI := fyne.NewMenuItem("Animate", func() {
