@@ -114,7 +114,7 @@ func findTuples(current string, target *RuneCluster, dict annotatedDict, output 
 		if err != nil {
 			panic(err) // this shouldn't be possible
 		}
-		newDict := dict[index+1:].Filter(newTarget)
+		newDict := dict[index:].Filter(newTarget)
 
 		findTuples(trial, newTarget, newDict, output)
 	}
