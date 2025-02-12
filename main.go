@@ -194,8 +194,8 @@ func main() {
 
 	inputClearButton := widget.NewButtonWithIcon("", theme.ContentClearIcon(), func() {
 		inputdata.Set("")
-		// reset()
-		// reset_search()
+		reset()
+		reset_search()
 	})
 
 	progressBar := widget.NewProgressBar()
@@ -391,11 +391,12 @@ func main() {
 	var selectTab func(int)
 
 	sendToMainTabFunc := func(fav FavoriteAnagram) {
-		reset()
 		inputdata.Set(fav.Input)
+		reset()
+		reset_search()
 		time.Sleep(50 * time.Millisecond)
-		exclusiondata.Set("")
-		inclusiondata.Set(fav.Anagram)
+		// exclusiondata.Set("")
+		// inclusiondata.Set(fav.Anagram)
 		selectTab(0)
 		resultsDisplay.Refresh()
 		inclusionentry.Refresh()
@@ -424,16 +425,11 @@ func main() {
 
 	reset = func() {
 		resultSet.Regenerate()
-		// searchError.Text = ""
-		// lastSearchIndex = -1
-		// lastSearchString = ""
 		resultsDisplay.ScrollToTop()
 		content.Refresh()
 	}
 
 	reset_search = func() {
-		// searchbox.Text = ""
-		// searchbox.Refresh()
 		inclusiondata.Set("")
 		exclusiondata.Set("")
 	}
