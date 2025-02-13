@@ -121,9 +121,9 @@ func ShowInterestingWordsList(rs *ResultSet, n int, include func(string), exclud
 	d := dialog.NewCustom("Interesting words", "dismiss", topList, window)
 	d.Resize(fyne.NewSize(400, 400))
 	closeDialog = func() {
-		d.Hide()
+		fyne.Do(d.Hide)
 	}
-	d.Show()
+	fyne.Do(d.Show)
 }
 
 func main() {
@@ -183,13 +183,10 @@ func main() {
 
 	inputdata := binding.NewString()
 	inputEntry := widget.NewEntryWithData(inputdata)
-	inputEntry.OnSubmitted = func(input string) {
-		reset()
-		reset_search()
-		resultSet.FindAnagrams(input)
-	}
 	inputdata.AddListener(binding.NewDataListener(func() {
-		inputEntry.OnSubmitted(inputEntry.Text)
+		if inputEntry.OnSubmitted != nil {
+			inputEntry.OnSubmitted(inputEntry.Text)
+		}
 	}))
 
 	inputClearButton := widget.NewButtonWithIcon("", theme.ContentClearIcon(), func() {
@@ -202,8 +199,11 @@ func main() {
 	progressBar.Min = 0.0
 	progressBar.Max = 1.0
 	pbCallback := func(current, goal int) {
-		progressBar.SetValue(float64(current) / float64(goal))
-		progressBar.Refresh()
+		// fmt.Printf("Progress %d of %d\n", current, goal)
+		fyne.Do(func() {
+			progressBar.SetValue(float64(current) / float64(goal))
+			progressBar.Refresh()
+		})
 	}
 	resultSet.SetProgressCallback(pbCallback)
 
@@ -231,6 +231,12 @@ func main() {
 		label.Label.Text = fmt.Sprintf("%10d %s", index+1, text)
 		object.Refresh()
 	})
+	inputEntry.OnSubmitted = func(input string) {
+		reset()
+		reset_search()
+		resultSet.FindAnagrams(input)
+		resultsDisplay.Refresh()
+	}
 
 	inclusiondata := binding.NewString()
 	inclusiondata.Set("")
@@ -299,7 +305,9 @@ func main() {
 		}
 	}
 	interestingButton.OnTapped = func() {
-		ShowInterestingWordsList(resultSet, 1000, includeFunc, excludeFunc, MainWindow)
+		go func() {
+			ShowInterestingWordsList(resultSet, 1000, includeFunc, excludeFunc, MainWindow)
+		}()
 	}
 	exclusionlabel := container.New(layout.NewHBoxLayout(), widget.NewLabel("Excluded words"), exclusionclearbutton)
 	bottomcontainer := container.New(layout.NewVBoxLayout(), exclusionlabel, exclusionentry)
