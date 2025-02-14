@@ -10,7 +10,7 @@
         "enabled": true
     },
     {
-        "description": "Offensive words",
+        "description": "Offensive",
         "file": "offensive.json",
         "enabled": false
     }

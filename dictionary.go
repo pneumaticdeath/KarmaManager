@@ -4,6 +4,8 @@ import (
 	"embed"
 	"encoding/json"
 	"strings"
+
+	"fyne.io/fyne/v2"
 )
 
 //go:embed json
@@ -27,8 +29,9 @@ type AddedDictionaryConfig struct {
 }
 
 const (
-	main_dicts_file  = "main-dicts.json"
-	added_dicts_file = "added-dicts.json"
+	main_dicts_file      = "main-dicts.json"
+	added_dicts_file     = "added-dicts.json"
+	privateDictionaryKey = "io.patenaude.karmamanager.private-dictionary"
 )
 
 func NewDictionary(name string) *Dictionary {
@@ -131,4 +134,15 @@ func MergeDictionaries(excluded []string, dicts ...*Dictionary) *Dictionary {
 	result.Words = words
 
 	return result
+}
+
+func GetPrivateDictionary(prefs fyne.Preferences) *Dictionary {
+	private := NewDictionary("Private")
+	private.Words = prefs.StringList(privateDictionaryKey)
+
+	return private
+}
+
+func SavePrivateDictionary(d *Dictionary, prefs fyne.Preferences) {
+	prefs.SetStringList(privateDictionaryKey, d.Words)
 }

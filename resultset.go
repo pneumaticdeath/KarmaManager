@@ -9,6 +9,7 @@ import (
 type ResultSet struct {
 	mainDicts        []*Dictionary
 	addedDicts       []*Dictionary
+	privateDict      *Dictionary
 	input            string
 	normalizedInput  string
 	included         []string
@@ -23,8 +24,8 @@ type ResultSet struct {
 	resultChan       <-chan string
 }
 
-func NewResultSet(mainDicts, addedDicts []*Dictionary, mainDictIndex int) *ResultSet {
-	rs := &ResultSet{mainDicts, addedDicts, "", "", make([]string, 0), make([]string, 0), make(map[string]int), 0, mainDictIndex, make([]string, 0), true, "", nil, nil}
+func NewResultSet(mainDicts, addedDicts []*Dictionary, privateDict *Dictionary, mainDictIndex int) *ResultSet {
+	rs := &ResultSet{mainDicts, addedDicts, privateDict, "", "", make([]string, 0), make([]string, 0), make(map[string]int), 0, mainDictIndex, make([]string, 0), true, "", nil, nil}
 
 	rs.FindAnagrams("")
 	return rs
@@ -52,12 +53,15 @@ func (rs *ResultSet) Regenerate() {
 }
 
 func (rs *ResultSet) CombineDicts() *Dictionary {
-	dicts := make([]*Dictionary, 0, len(rs.addedDicts)+1)
+	dicts := make([]*Dictionary, 0, len(rs.addedDicts)+2)
 	dicts = append(dicts, rs.mainDicts[rs.mainDictIndex])
 	for _, d := range rs.addedDicts {
 		if d.Enabled {
 			dicts = append(dicts, d)
 		}
+	}
+	if rs.privateDict.Enabled {
+		dicts = append(dicts, rs.privateDict)
 	}
 
 	return MergeDictionaries(rs.excluded, dicts...)

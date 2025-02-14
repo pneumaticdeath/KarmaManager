@@ -141,12 +141,14 @@ func main() {
 		panic(err)
 	}
 
+	privateDict := GetPrivateDictionary(AppPreferences)
+
 	var mainDictNames []string = make([]string, len(mainDicts))
 	for i, d := range mainDicts {
 		mainDictNames[i] = d.Name
 	}
 
-	resultSet := NewResultSet(mainDicts, addedDicts, 0)
+	resultSet := NewResultSet(mainDicts, addedDicts, privateDict, 0)
 
 	reset := func() {
 		resultSet.Regenerate()
@@ -168,7 +170,7 @@ func main() {
 	})
 	mainSelect.SetSelectedIndex(0)
 
-	addedChecks := make([]fyne.CanvasObject, len(addedDicts))
+	addedChecks := make([]fyne.CanvasObject, len(addedDicts)+1)
 	for i, ad := range addedDicts {
 		enabled := &ad.Enabled // copy a pointer to an address
 		check := widget.NewCheck(ad.Name, func(checked bool) {
@@ -179,6 +181,13 @@ func main() {
 		check.Checked = ad.Enabled
 		addedChecks[i] = check
 	}
+	privateEnabled := &privateDict.Enabled
+	privateCheck := widget.NewCheck(privateDict.Name, func(checked bool) {
+		*privateEnabled = checked
+		reset()
+		MainWindow.SetTitle(resultSet.CombinedDictName())
+	})
+	addedChecks[len(addedDicts)] = privateCheck
 	addedDictsContainer := container.New(layout.NewHBoxLayout(), addedChecks...)
 
 	inputdata := binding.NewString()
