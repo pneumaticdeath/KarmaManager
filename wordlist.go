@@ -6,7 +6,7 @@ import (
 	"strings"
 
 	"fyne.io/fyne/v2"
-	"fyne.io/fyne/v2/canvas"
+	// "fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/theme"
@@ -16,7 +16,8 @@ import (
 type WordListWidget struct {
 	widget.BaseWidget
 
-	Text         *canvas.Text
+	// Text         *canvas.Text
+	Text         *widget.Label
 	box          *fyne.Container
 	DeleteButton *widget.Button
 	OnDelete     func()
@@ -25,7 +26,8 @@ type WordListWidget struct {
 func NewWordListWidget(text string, delCB func()) *WordListWidget {
 	wlw := &WordListWidget{}
 
-	wlw.Text = canvas.NewText(text, theme.TextColor())
+	wlw.Text = widget.NewLabel(text)
+	// wlw.Text = canvas.NewText(text, theme.TextColor())
 	// wlw.Text.TextStyle = fyne.TextStyle{Monospace: true}
 	// wlw.Text.TextSize = fontSize
 
@@ -36,6 +38,7 @@ func NewWordListWidget(text string, delCB func()) *WordListWidget {
 			wlw.OnDelete()
 		}
 	})
+	wlw.DeleteButton.Importance = widget.LowImportance
 
 	wlw.box = container.NewWithoutLayout()
 	wlw.box.Add(wlw.Text)
@@ -46,10 +49,10 @@ func NewWordListWidget(text string, delCB func()) *WordListWidget {
 	wlw.Text.Resize(textsize)
 
 	if textsize.Height > buttonsize.Height {
-		wlw.DeleteButton.Move(fyne.NewPos(textsize.Width+padding, (textsize.Height-buttonsize.Height)/2.0))
+		wlw.DeleteButton.Move(fyne.NewPos(0, (textsize.Height-buttonsize.Height)/2.0))
+		wlw.Text.Move(fyne.NewPos(buttonsize.Width+padding, 0))
 	} else {
-		wlw.Text.Move(fyne.NewPos(0, (buttonsize.Height-textsize.Height)/2))
-		wlw.DeleteButton.Move(fyne.NewPos(textsize.Width+padding, 0))
+		wlw.Text.Move(fyne.NewPos(buttonsize.Width+padding, (buttonsize.Height-textsize.Height)/2))
 	}
 
 	wlw.ExtendBaseWidget(wlw)
@@ -63,6 +66,7 @@ func (wlw *WordListWidget) CreateRenderer() fyne.WidgetRenderer {
 
 func (wlw *WordListWidget) SetText(text string) {
 	wlw.Text.Text = text
+	wlw.Text.Refresh()
 }
 
 func (wlw *WordListWidget) MinSize() fyne.Size {
