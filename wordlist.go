@@ -80,6 +80,7 @@ type WordList struct {
 
 	list  *widget.List
 	Words []string
+	OnDelete func()
 }
 
 func NewWordList(words []string) *WordList {
@@ -100,6 +101,9 @@ func NewWordList(words []string) *WordList {
 		wlw.SetText(wl.Words[id])
 		wlw.OnDelete = func() {
 			wl.Words = slices.Delete(wl.Words, id, id+1)
+			if wl.OnDelete != nil {
+				wl.OnDelete()
+			}
 			wl.list.Refresh()
 		}
 	})
@@ -113,7 +117,7 @@ func (wl *WordList) CreateRenderer() fyne.WidgetRenderer {
 	return widget.NewSimpleRenderer(wl.list)
 }
 
-func (wl *WordList) ShowAddWord(title, submit, dismiss string, window fyne.Window) {
+func (wl *WordList) ShowAddWord(title, submit, dismiss string, onsubmit func(),  window fyne.Window) {
 	wordEntry := widget.NewEntry()
 	wordEntry.Validator = func(word string) error {
 		if strings.Index(word, " ") != -1 {
@@ -126,8 +130,16 @@ func (wl *WordList) ShowAddWord(title, submit, dismiss string, window fyne.Windo
 		if submitted {
 			wl.Words = append(wl.Words, wordEntry.Text)
 			wl.list.Refresh()
+			if onsubmit != nil {
+				onsubmit()
+			}
 		}
 	}, window)
 	d.Resize(fyne.NewSize(250, 250))
 	d.Show()
+}
+
+func (wl *WordList) Clear() {
+	wl.Words = []string{}
+	wl.Refresh()
 }

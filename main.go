@@ -32,7 +32,7 @@ func ShowPrivateDictSettings(private *Dictionary, window fyne.Window) {
 	d := dialog.NewCustom("Private words", "submit", wl, window)
 	d.Resize(fyne.NewSize(300, 500))
 	addbutton := widget.NewButton("Add", func() {
-		wl.ShowAddWord("Add word", "Add", "Cancel", window)
+		wl.ShowAddWord("Add word", "Add", "Cancel", nil, window)
 	})
 	savebutton := widget.NewButton("Save", func() {
 		d.Hide()
@@ -226,8 +226,8 @@ func main() {
 
 	inputClearButton := widget.NewButtonWithIcon("", theme.ContentClearIcon(), func() {
 		inputdata.Set("")
-		reset()
 		reset_search()
+		reset()
 	})
 
 	progressBar := widget.NewProgressBar()
@@ -267,12 +267,13 @@ func main() {
 		object.Refresh()
 	})
 	inputEntry.OnSubmitted = func(input string) {
-		reset()
 		reset_search()
+		reset()
 		resultSet.FindAnagrams(input)
 		resultsDisplay.Refresh()
 	}
 
+	/*
 	inclusiondata := binding.NewString()
 	inclusiondata.Set("")
 	inclusionentry := widget.NewEntryWithData(inclusiondata)
@@ -299,11 +300,28 @@ func main() {
 		resultSet.Regenerate()
 		resultsDisplay.Refresh()
 	}))
+	*/
+	inclusionwords := NewWordList([]string{})
+	inclusionwords.OnDelete = func() {
+		includestring := strings.Join(inclusionwords.Words, " ")
+		resultSet.SetInclusions([]string{includestring})
+		resultSet.Regenerate()
+		resultsDisplay.Refresh()
+	}
+
+	inclusionaddbutton := widget.NewButtonWithIcon("", theme.ContentAddIcon(), func() {
+		inclusionwords.ShowAddWord("Include word", "Include", "Cancel", func() {
+			includestring := strings.Join(inclusionwords.Words, " ")
+			resultSet.SetInclusions([]string{includestring})
+			resultSet.Regenerate()
+			resultsDisplay.Refresh()
+		}, MainWindow)
+	})
 	inclusionclearbutton := widget.NewButtonWithIcon("", theme.ContentClearIcon(), func() {
-		inclusiondata.Set("")
-		// resultSet.SetInclusions([]string{})
-		// resultSet.Regenerate()
-		// resultsDisplay.Refresh()
+		inclusionwords.Clear()
+		resultSet.SetInclusions([]string{})
+		resultSet.Regenerate()
+		resultsDisplay.Refresh()
 	})
 
 	exclusiondata := binding.NewString()
@@ -322,12 +340,11 @@ func main() {
 	})
 
 	includeFunc := func(word string) {
-		existing, _ := inclusiondata.Get()
-		if existing == "" {
-			inclusiondata.Set(word)
-		} else {
-			inclusiondata.Set(existing + " " + word)
-		}
+		inclusionwords.Words = append(inclusionwords.Words, word)
+		inclusionwords.Refresh()
+		includestring := strings.Join(inclusionwords.Words, " ")
+		resultSet.SetInclusions([]string{includestring})
+		resultSet.Regenerate()
 		resultsDisplay.Refresh()
 	}
 
@@ -344,10 +361,10 @@ func main() {
 			ShowInterestingWordsList(resultSet, 1000, includeFunc, excludeFunc, MainWindow)
 		}()
 	}
-	exclusionlabel := container.New(layout.NewHBoxLayout(), widget.NewLabel("Excluded words"), exclusionclearbutton)
+	exclusionlabel := container.New(layout.NewHBoxLayout(), widget.NewLabel("Exclude"), exclusionclearbutton)
 	bottomcontainer := container.New(layout.NewVBoxLayout(), exclusionlabel, exclusionentry)
-	inclusionlabel := container.New(layout.NewHBoxLayout(), widget.NewLabel("Include phrases"), inclusionclearbutton)
-	controlscontainer := container.NewBorder(inclusionlabel, bottomcontainer, nil, nil, inclusionentry)
+	inclusionlabel := container.New(layout.NewHBoxLayout(), widget.NewLabel("Include"), inclusionaddbutton, inclusionclearbutton)
+	controlscontainer := container.NewBorder(inclusionlabel, bottomcontainer, nil, nil, inclusionwords)
 	mainDisplay := container.New(layout.NewAdaptiveGridLayout(2), resultsDisplay, controlscontainer)
 
 	resultsDisplay.UpdateItem = func(id widget.ListItemID, obj fyne.CanvasObject) {
@@ -435,14 +452,14 @@ func main() {
 
 	sendToMainTabFunc := func(fav FavoriteAnagram) {
 		inputdata.Set(fav.Input)
-		reset()
-		reset_search()
+		// reset()
+		// reset_search()
 		time.Sleep(50 * time.Millisecond)
 		// exclusiondata.Set("")
 		// inclusiondata.Set(fav.Anagram)
 		selectTab(0)
+		// inclusionwords.Clear()
 		resultsDisplay.Refresh()
-		inclusionentry.Refresh()
 	}
 
 	favsList := NewFavoritesList(&favorites, func(fav FavoriteAnagram) string {
@@ -473,7 +490,8 @@ func main() {
 	}
 
 	reset_search = func() {
-		inclusiondata.Set("")
+		inclusionwords.Clear()
+		resultSet.SetInclusions([]string{})
 		exclusiondata.Set("")
 	}
 
