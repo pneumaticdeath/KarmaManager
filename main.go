@@ -27,6 +27,28 @@ var Icon fyne.Resource
 var AppPreferences fyne.Preferences
 var RebuildFavorites func()
 
+func ShowPrivateDictSettings(private *Dictionary, window fyne.Window) {
+	wl := NewWordList(private.Words)
+	d := dialog.NewCustom("Private words", "submit", wl, window)
+	d.Resize(fyne.NewSize(300, 500))
+	addbutton := widget.NewButton("Add", func() {
+		wl.ShowAddWord("Add word", "Add", "Cancel", window)
+	})
+	savebutton := widget.NewButton("Save", func() {
+		d.Hide()
+		private.Words = wl.Words
+		SavePrivateDictionary(private, AppPreferences)
+	})
+	savebutton.Importance = widget.HighImportance
+	dismissbutton := widget.NewButton("Cancel", func() {
+		d.Hide()
+	})
+
+	buttons := []fyne.CanvasObject{dismissbutton, addbutton, savebutton}
+	d.SetButtons(buttons)
+	d.Show()
+}
+
 func ShowAnimation(title, startPhrase string, anagrams []string, window fyne.Window) {
 	ad := NewAnimationDisplay(Icon)
 	cd := dialog.NewCustom(title, "dismiss", ad, MainWindow)
@@ -170,7 +192,7 @@ func main() {
 	})
 	mainSelect.SetSelectedIndex(0)
 
-	addedChecks := make([]fyne.CanvasObject, len(addedDicts)+1)
+	addedChecks := make([]fyne.CanvasObject, len(addedDicts)+2)
 	for i, ad := range addedDicts {
 		enabled := &ad.Enabled // copy a pointer to an address
 		check := widget.NewCheck(ad.Name, func(checked bool) {
@@ -188,6 +210,10 @@ func main() {
 		MainWindow.SetTitle(resultSet.CombinedDictName())
 	})
 	addedChecks[len(addedDicts)] = privateCheck
+	privateDictSettingsButton := widget.NewButtonWithIcon("", theme.SettingsIcon(), func() {
+		ShowPrivateDictSettings(privateDict, MainWindow)
+	})
+	addedChecks[len(addedDicts)+1] = privateDictSettingsButton
 	addedDictsContainer := container.New(layout.NewHBoxLayout(), addedChecks...)
 
 	inputdata := binding.NewString()
