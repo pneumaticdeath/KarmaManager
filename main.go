@@ -209,6 +209,7 @@ func main() {
 		reset()
 		MainWindow.SetTitle(resultSet.CombinedDictName())
 	})
+	privateCheck.Checked = privateDict.Enabled
 	addedChecks[len(addedDicts)] = privateCheck
 	privateDictSettingsButton := widget.NewButtonWithIcon("", theme.SettingsIcon(), func() {
 		ShowPrivateDictSettings(privateDict, MainWindow)
@@ -308,7 +309,6 @@ func main() {
 		resultSet.Regenerate()
 		resultsDisplay.Refresh()
 	}
-
 	inclusionaddbutton := widget.NewButtonWithIcon("", theme.ContentAddIcon(), func() {
 		inclusionwords.ShowAddWord("Include word", "Include", "Cancel", func() {
 			includestring := strings.Join(inclusionwords.Words, " ")
@@ -324,6 +324,7 @@ func main() {
 		resultsDisplay.Refresh()
 	})
 
+	/*
 	exclusiondata := binding.NewString()
 	exclusiondata.AddListener(binding.NewDataListener(func() {
 		exclusions, _ := exclusiondata.Get()
@@ -333,10 +334,24 @@ func main() {
 		resultsDisplay.Refresh()
 	}))
 	exclusionentry := widget.NewEntryWithData(exclusiondata)
+	*/
+	exclusionwords := NewWordList([]string{})
+	SetExclusions := func() {
+		resultSet.SetExclusions(exclusionwords.Words)
+		resultSet.Regenerate()
+		resultsDisplay.Refresh()
+	}
+	exclusionwords.OnDelete = func() {
+		SetExclusions()
+	}
+	exclusionaddbutton := widget.NewButtonWithIcon("", theme.ContentAddIcon(), func() {
+		exclusionwords.ShowAddWord("Exclude what?", "Exclude", "Cancel", func() {
+			SetExclusions()
+		}, MainWindow)
+	})
 	exclusionclearbutton := widget.NewButtonWithIcon("", theme.ContentClearIcon(), func() {
-		exclusiondata.Set("")
-		// resultSet.SetExclusions([]string{})
-		// resultSet.Regenerate()
+		exclusionwords.Clear()
+		SetExclusions()
 	})
 
 	includeFunc := func(word string) {
@@ -349,22 +364,21 @@ func main() {
 	}
 
 	excludeFunc := func(word string) {
-		existing, _ := exclusiondata.Get()
-		if existing == "" {
-			exclusiondata.Set(word)
-		} else {
-			exclusiondata.Set(existing + " " + word)
-		}
+		exclusionwords.Words = append(exclusionwords.Words, word)
+		exclusionwords.Refresh()
+		SetExclusions()
 	}
+
 	interestingButton.OnTapped = func() {
 		go func() {
 			ShowInterestingWordsList(resultSet, 1000, includeFunc, excludeFunc, MainWindow)
 		}()
 	}
-	exclusionlabel := container.New(layout.NewHBoxLayout(), widget.NewLabel("Exclude"), exclusionclearbutton)
-	bottomcontainer := container.New(layout.NewVBoxLayout(), exclusionlabel, exclusionentry)
+	exclusionlabel := container.New(layout.NewHBoxLayout(), widget.NewLabel("Exclude"), exclusionaddbutton, exclusionclearbutton)
+	exclusioncontainer := container.NewBorder(exclusionlabel, nil, nil, nil, exclusionwords)
 	inclusionlabel := container.New(layout.NewHBoxLayout(), widget.NewLabel("Include"), inclusionaddbutton, inclusionclearbutton)
-	controlscontainer := container.NewBorder(inclusionlabel, bottomcontainer, nil, nil, inclusionwords)
+	inclusioncontainer := container.NewBorder(inclusionlabel, nil, nil, nil, inclusionwords)
+	controlscontainer := container.New(layout.NewGridLayout(2), inclusioncontainer, exclusioncontainer)
 	mainDisplay := container.New(layout.NewAdaptiveGridLayout(2), resultsDisplay, controlscontainer)
 
 	resultsDisplay.UpdateItem = func(id widget.ListItemID, obj fyne.CanvasObject) {
@@ -492,7 +506,8 @@ func main() {
 	reset_search = func() {
 		inclusionwords.Clear()
 		resultSet.SetInclusions([]string{})
-		exclusiondata.Set("")
+		exclusionwords.Clear()
+		SetExclusions()
 	}
 
 	MainWindow.Resize(fyne.NewSize(800, 600))

@@ -33,7 +33,7 @@ func NewWordListWidget(text string, delCB func()) *WordListWidget {
 
 	wlw.OnDelete = delCB
 
-	wlw.DeleteButton = widget.NewButtonWithIcon("", theme.ContentClearIcon(), func() {
+	wlw.DeleteButton = widget.NewButtonWithIcon("", theme.ContentRemoveIcon(), func() {
 		if wlw.OnDelete != nil {
 			wlw.OnDelete()
 		}
