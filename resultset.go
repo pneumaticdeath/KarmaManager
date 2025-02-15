@@ -151,7 +151,7 @@ func (c Counts) Swap(i, j int) {
 }
 
 func (c Counts) Less(i, j int) bool {
-	return c[j].Count < c[i].Count
+	return len(c[j].Word)*c[j].Count < len(c[i].Word)*c[i].Count
 }
 
 func (rs *ResultSet) TopNWords(n int) Counts {
