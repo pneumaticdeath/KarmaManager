@@ -15,7 +15,7 @@ import (
 	"fyne.io/fyne/v2/widget"
 )
 
-var fontSize float32 = 20.0
+var fontSize float32 = 32.0
 var padding float32 = 20.0
 
 type WordWidget struct {
