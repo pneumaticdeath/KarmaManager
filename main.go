@@ -416,7 +416,7 @@ func main() {
 			})
 			addToFavsMI := fyne.NewMenuItem("Add to favorites", func() {
 				ShowEditor("Add to favorites", text, func(editted string) {
-					newFav := FavoriteAnagram{resultSet.CombinedDictName(), input, editted}
+					newFav := FavoriteAnagram{resultSet.CombinedDictName(), strings.Trim(input," \r\n\t"), editted}
 					favorites = append(favorites, newFav)
 					RebuildFavorites()
 					SaveFavorites(favorites, App.Preferences())
