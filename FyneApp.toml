@@ -10,5 +10,8 @@ Website = "https://patenaude.io/"
 [LinuxAndBSD]
   GenericName = "Anagram Maker"
   Categories = ["Game"]
-  Comment = "Make Anagramss"
+  Comment = "Make Anagrams"
   Keywords = ["game"]
+
+[Migration]
+  fyneDo = true
