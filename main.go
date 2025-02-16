@@ -333,6 +333,22 @@ func main() {
 	controlscontainer := container.New(layout.NewGridLayout(2), inclusioncontainer, exclusioncontainer)
 	mainDisplay := container.New(layout.NewAdaptiveGridLayout(2), resultsDisplay, controlscontainer)
 
+	scrollPast := func(index int, word string) {
+		index += 1
+		for index < resultSet.Count() {
+			ana, ok := resultSet.GetAt(index)
+			if !ok { // shouldn't be possible
+				return
+			}
+			if strings.Index(ana, word) == -1 {
+				resultsDisplay.ScrollTo(index)
+				return
+			}
+			index += 1
+		}
+		// fall through means failure
+	}
+
 	resultsDisplay.UpdateItem = func(id widget.ListItemID, obj fyne.CanvasObject) {
 		label, ok := obj.(*TapLabel)
 		if !ok {
@@ -390,6 +406,7 @@ func main() {
 			words := strings.Split(text, " ")
 			includeMIs := make([]*fyne.MenuItem, len(words))
 			excludeMIs := make([]*fyne.MenuItem, len(words))
+			scrollPastMIs := make([]*fyne.MenuItem, 0, len(words)-1)
 			for index, word := range words {
 				includeMIs[index] = fyne.NewMenuItem(word, func() {
 					includeFunc(word)
@@ -397,6 +414,11 @@ func main() {
 				excludeMIs[index] = fyne.NewMenuItem(word, func() {
 					excludeFunc(word)
 				})
+				if index >= len(inclusionwords.Words) && index < len(words)-1 {
+					scrollPastMIs = append(scrollPastMIs, fyne.NewMenuItem(word, func() {
+						scrollPast(id, word)
+					}))
+				}
 			}
 			includemenu := fyne.NewMenu("Include", includeMIs...)
 			exclusionmenu := fyne.NewMenu("Exclude", excludeMIs...)
@@ -404,7 +426,16 @@ func main() {
 			includeMI.ChildMenu = includemenu
 			excludeMI := fyne.NewMenuItem("Exclude", nil)
 			excludeMI.ChildMenu = exclusionmenu
-			pumenu := fyne.NewMenu("Pop up", copyAnagramToCBMI, copyBothToCBMI, addToFavsMI, animateMI, includeMI, excludeMI)
+			var pumenu *fyne.Menu
+			if len(scrollPastMIs) > 0 {
+				scrollPastMenu := fyne.NewMenu("Scroll past", scrollPastMIs...)
+				scrollPastMI := fyne.NewMenuItem("Scroll past", nil)
+				scrollPastMI.ChildMenu = scrollPastMenu
+
+				pumenu = fyne.NewMenu("Pop up", copyAnagramToCBMI, copyBothToCBMI, addToFavsMI, animateMI, includeMI, excludeMI, scrollPastMI)
+			} else {
+				pumenu = fyne.NewMenu("Pop up", copyAnagramToCBMI, copyBothToCBMI, addToFavsMI, animateMI, includeMI, excludeMI)
+			}
 			widget.ShowPopUpMenuAtRelativePosition(pumenu, MainWindow.Canvas(), pe.Position, label)
 		}
 		obj.Refresh()
