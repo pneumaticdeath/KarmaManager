@@ -275,25 +275,19 @@ func main() {
 	}
 
 	inclusionwords := NewWordList([]string{})
-	inclusionwords.OnDelete = func() {
+	SetInclusions := func() {
 		includestring := strings.Join(inclusionwords.Words, " ")
 		resultSet.SetInclusions([]string{includestring})
 		resultSet.Regenerate()
 		resultsDisplay.Refresh()
 	}
+	inclusionwords.OnDelete = SetInclusions
 	inclusionaddbutton := widget.NewButtonWithIcon("", theme.ContentAddIcon(), func() {
-		inclusionwords.ShowAddWord("Include word", "Include", "Cancel", func() {
-			includestring := strings.Join(inclusionwords.Words, " ")
-			resultSet.SetInclusions([]string{includestring})
-			resultSet.Regenerate()
-			resultsDisplay.Refresh()
-		}, MainWindow)
+		inclusionwords.ShowAddWord("Include word", "Include", "Cancel", SetInclusions, MainWindow)
 	})
 	inclusionclearbutton := widget.NewButtonWithIcon("", theme.ContentClearIcon(), func() {
 		inclusionwords.Clear()
-		resultSet.SetInclusions([]string{})
-		resultSet.Regenerate()
-		resultsDisplay.Refresh()
+		SetInclusions()
 	})
 
 	exclusionwords := NewWordList([]string{})
@@ -318,10 +312,7 @@ func main() {
 	includeFunc := func(word string) {
 		inclusionwords.Words = append(inclusionwords.Words, word)
 		inclusionwords.Refresh()
-		includestring := strings.Join(inclusionwords.Words, " ")
-		resultSet.SetInclusions([]string{includestring})
-		resultSet.Regenerate()
-		resultsDisplay.Refresh()
+		SetInclusions()
 	}
 
 	excludeFunc := func(word string) {
@@ -430,8 +421,6 @@ func main() {
 		// reset()
 		// reset_search()
 		time.Sleep(50 * time.Millisecond)
-		// exclusiondata.Set("")
-		// inclusiondata.Set(fav.Anagram)
 		selectTab(0)
 		// inclusionwords.Clear()
 		resultsDisplay.Refresh()
@@ -466,6 +455,7 @@ func main() {
 
 	reset_search = func() {
 		inclusionwords.Clear()
+		// not using SetInclusions() because SetExclusions will do the refresh of other fields
 		resultSet.SetInclusions([]string{})
 		exclusionwords.Clear()
 		SetExclusions()
