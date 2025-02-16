@@ -274,34 +274,6 @@ func main() {
 		resultsDisplay.Refresh()
 	}
 
-	/*
-	inclusiondata := binding.NewString()
-	inclusiondata.Set("")
-	inclusionentry := widget.NewEntryWithData(inclusiondata)
-	inclusionentry.MultiLine = true
-	inclusionentry.Validator = func(input string) error {
-		rc := NewRuneCluster(inputEntry.Text)
-		phrases := strings.Split(input, "\n")
-		for index, phrase := range phrases {
-			phraseRC := NewRuneCluster(phrase)
-			if !phraseRC.SubSetOf(rc) {
-				return errors.New(fmt.Sprintf("Line %d not a subset of the input", index+1))
-			}
-		}
-		return nil
-	}
-	inclusiondata.AddListener(binding.NewDataListener(func() {
-		included, err := inclusiondata.Get()
-		if err != nil {
-			dialog.ShowError(err, MainWindow)
-			return
-		}
-		includedphrases := strings.Split(included, "\n")
-		resultSet.SetInclusions(includedphrases)
-		resultSet.Regenerate()
-		resultsDisplay.Refresh()
-	}))
-	*/
 	inclusionwords := NewWordList([]string{})
 	inclusionwords.OnDelete = func() {
 		includestring := strings.Join(inclusionwords.Words, " ")
@@ -324,17 +296,6 @@ func main() {
 		resultsDisplay.Refresh()
 	})
 
-	/*
-	exclusiondata := binding.NewString()
-	exclusiondata.AddListener(binding.NewDataListener(func() {
-		exclusions, _ := exclusiondata.Get()
-		excludedwords := strings.Split(exclusions, " ")
-		resultSet.SetExclusions(excludedwords)
-		resultSet.Regenerate()
-		resultsDisplay.Refresh()
-	}))
-	exclusionentry := widget.NewEntryWithData(exclusiondata)
-	*/
 	exclusionwords := NewWordList([]string{})
 	SetExclusions := func() {
 		resultSet.SetExclusions(exclusionwords.Words)
@@ -416,7 +377,7 @@ func main() {
 			})
 			addToFavsMI := fyne.NewMenuItem("Add to favorites", func() {
 				ShowEditor("Add to favorites", text, func(editted string) {
-					newFav := FavoriteAnagram{resultSet.CombinedDictName(), strings.Trim(input," \r\n\t"), editted}
+					newFav := FavoriteAnagram{resultSet.CombinedDictName(), strings.TrimSpace(input), editted}
 					favorites = append(favorites, newFav)
 					RebuildFavorites()
 					SaveFavorites(favorites, App.Preferences())

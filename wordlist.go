@@ -78,8 +78,8 @@ func (wlw *WordListWidget) MinSize() fyne.Size {
 type WordList struct {
 	widget.BaseWidget
 
-	list  *widget.List
-	Words []string
+	list     *widget.List
+	Words    []string
 	OnDelete func()
 }
 
@@ -117,7 +117,7 @@ func (wl *WordList) CreateRenderer() fyne.WidgetRenderer {
 	return widget.NewSimpleRenderer(wl.list)
 }
 
-func (wl *WordList) ShowAddWord(title, submit, dismiss string, onsubmit func(),  window fyne.Window) {
+func (wl *WordList) ShowAddWord(title, submit, dismiss string, onsubmit func(), window fyne.Window) {
 	wordEntry := widget.NewEntry()
 	wordEntry.Validator = func(word string) error {
 		if strings.Index(word, " ") != -1 {
