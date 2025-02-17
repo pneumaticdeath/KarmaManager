@@ -148,6 +148,19 @@ func ShowInterestingWordsList(rs *ResultSet, n int, include func(string), exclud
 	fyne.Do(d.Show)
 }
 
+func ShowPopUpMessage(message string, duration time.Duration, window fyne.Window) {
+	pulabel := widget.NewLabel(message)
+	pu := widget.NewPopUp(pulabel, window.Canvas())
+	pusize := pu.MinSize()
+	wsize := window.Canvas().Size()
+	pu.Move(fyne.NewPos((wsize.Width-pusize.Width)/2, (wsize.Height-pusize.Height)/2))
+	pu.Show()
+	go func() {
+		time.Sleep(duration)
+		fyne.Do(pu.Hide)
+	}()
+}
+
 func main() {
 	App := app.NewWithID("io.patenaude.karmamanager")
 	MainWindow = App.NewWindow("Karma Manger")
@@ -334,6 +347,10 @@ func main() {
 	mainDisplay := container.New(layout.NewAdaptiveGridLayout(2), resultsDisplay, controlscontainer)
 
 	scrollPast := func(index int, word string) {
+		pbi := widget.NewProgressBarInfinite()
+		pbi.Start()
+		d := dialog.NewCustomWithoutButtons(fmt.Sprintf("Searching for anagram without \"%s\"",word), pbi, MainWindow)
+		fyne.Do(d.Show)
 		i := index + 1
 		for i < resultSet.Count() && i < index + searchlimit {
 			ana, ok := resultSet.GetAt(i)
@@ -342,13 +359,18 @@ func main() {
 			}
 			if strings.Index(ana, word) == -1 {
 				fyne.Do(func() {
-					resultsDisplay.ScrollTo(i)
+					resultsDisplay.ScrollTo(i+5) // hack because otherwise it's hard to spot the location
+					d.Hide()
 				})
 				return
 			}
 			i += 1
 		}
-		fmt.Println("fell through")
+		fyne.Do(d.Hide)
+		fyne.Do(func() {
+			ShowPopUpMessage(fmt.Sprintf("Gave up after looking through %d entries", searchlimit), 3*time.Second, MainWindow)
+		})
+		// fmt.Println("fell through")
 		// fall through means failure
 	}
 
@@ -363,27 +385,11 @@ func main() {
 			input, _ := inputdata.Get()
 			copyAnagramToCBMI := fyne.NewMenuItem("Copy anagram to clipboard", func() {
 				MainWindow.Clipboard().SetContent(text)
-				pulabel := widget.NewLabel("Copied to clipboard")
-				pu := widget.NewPopUp(pulabel, MainWindow.Canvas())
-				wsize := MainWindow.Canvas().Size()
-				pu.Move(fyne.NewPos((wsize.Width)/2, (wsize.Height)/2))
-				pu.Show()
-				go func() {
-					time.Sleep(time.Second)
-					fyne.Do(pu.Hide)
-				}()
+				ShowPopUpMessage("Copied to clipboard", time.Second, MainWindow)
 			})
 			copyBothToCBMI := fyne.NewMenuItem("Copy input and anagram to clipboard", func() {
 				MainWindow.Clipboard().SetContent(fmt.Sprintf("%s->%s", input, text))
-				pulabel := widget.NewLabel("Copied to clipboard")
-				pu := widget.NewPopUp(pulabel, MainWindow.Canvas())
-				wsize := MainWindow.Canvas().Size()
-				pu.Move(fyne.NewPos((wsize.Width)/2, (wsize.Height)/2))
-				pu.Show()
-				go func() {
-					time.Sleep(time.Second)
-					pu.Hide()
-				}()
+				ShowPopUpMessage("Copied to clipboard", time.Second, MainWindow)
 			})
 			addToFavsMI := fyne.NewMenuItem("Add to favorites", func() {
 				ShowEditor("Add to favorites", text, func(editted string) {
@@ -391,15 +397,7 @@ func main() {
 					favorites = append(favorites, newFav)
 					RebuildFavorites()
 					SaveFavorites(favorites, App.Preferences())
-					pulabel := widget.NewLabel("Added to favorites")
-					pu := widget.NewPopUp(pulabel, MainWindow.Canvas())
-					wsize := MainWindow.Canvas().Size()
-					pu.Move(fyne.NewPos((wsize.Width)/2, (wsize.Height)/2))
-					pu.Show()
-					go func() {
-						time.Sleep(time.Second)
-						fyne.Do(pu.Hide)
-					}()
+					ShowPopUpMessage("Added to favorites", time.Second, MainWindow)
 				}, MainWindow)
 			})
 			animateMI := fyne.NewMenuItem("Animate", func() {
