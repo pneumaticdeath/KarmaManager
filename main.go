@@ -19,7 +19,7 @@ import (
 )
 
 const (
-	searchLimit = 200000
+	searchlimit = 50000
 )
 
 var MainWindow fyne.Window
@@ -112,7 +112,7 @@ func ShowMultiAnagramPicker(title, submitlabel, dismisslabel, shufflelabel strin
 }
 
 func ShowInterestingWordsList(rs *ResultSet, n int, include func(string), exclude func(string), window fyne.Window) {
-	rs.GetAt(50000) // just to get a little bit of data to work with
+	rs.GetAt(searchlimit) // just to get a little bit of data to work with
 	topN := rs.TopNWords(n)
 	var closeDialog func()
 	topList := widget.NewList(func() int {
@@ -334,18 +334,21 @@ func main() {
 	mainDisplay := container.New(layout.NewAdaptiveGridLayout(2), resultsDisplay, controlscontainer)
 
 	scrollPast := func(index int, word string) {
-		index += 1
-		for index < resultSet.Count() {
-			ana, ok := resultSet.GetAt(index)
+		i := index + 1
+		for i < resultSet.Count() && i < index + searchlimit {
+			ana, ok := resultSet.GetAt(i)
 			if !ok { // shouldn't be possible
 				return
 			}
 			if strings.Index(ana, word) == -1 {
-				resultsDisplay.ScrollTo(index)
+				fyne.Do(func() {
+					resultsDisplay.ScrollTo(i)
+				})
 				return
 			}
-			index += 1
+			i += 1
 		}
+		fmt.Println("fell through")
 		// fall through means failure
 	}
 
@@ -416,7 +419,7 @@ func main() {
 				})
 				if index >= len(inclusionwords.Words) && index < len(words)-1 {
 					scrollPastMIs = append(scrollPastMIs, fyne.NewMenuItem(word, func() {
-						scrollPast(id, word)
+						go scrollPast(id, word)
 					}))
 				}
 			}
