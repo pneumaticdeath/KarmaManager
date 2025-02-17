@@ -18,10 +18,8 @@ import (
 	"fyne.io/fyne/v2/widget"
 )
 
-const (
-	searchlimit = 50000
-)
-
+var searchtimeout time.Duration = time.Second
+var searchlimit int = 50000
 var MainWindow fyne.Window
 var Icon fyne.Resource
 var AppPreferences fyne.Preferences
@@ -349,29 +347,38 @@ func main() {
 	scrollPast := func(index int, word string) {
 		pbi := widget.NewProgressBarInfinite()
 		pbi.Start()
-		d := dialog.NewCustomWithoutButtons(fmt.Sprintf("Searching for anagram without \"%s\"",word), pbi, MainWindow)
+		d := dialog.NewCustomWithoutButtons(fmt.Sprintf("Searching for anagram without \"%s\"", word), pbi, MainWindow)
 		fyne.Do(d.Show)
+		start := time.Now()
 		i := index + 1
-		for i < resultSet.Count() && i < index + searchlimit {
+		for i < resultSet.Count() && i < index+searchlimit {
 			ana, ok := resultSet.GetAt(i)
 			if !ok { // shouldn't be possible
 				return
 			}
 			if strings.Index(ana, word) == -1 {
 				fyne.Do(func() {
-					resultsDisplay.ScrollTo(i+5) // hack because otherwise it's hard to spot the location
+					resultsDisplay.ScrollTo(i + 5) // hack because otherwise it's hard to spot the location
 					d.Hide()
 				})
 				return
 			}
+			if searchtimeout < time.Since(start) {
+				searchlimit = i - index
+				// fmt.Println("Bailing out after",searchlimit,"tests and",time.Since(start))
+				break
+			}
+			/*
+				if i%100 == 0 {
+					fmt.Printf("%d: %v\n", i, time.Since(start))
+				}
+			*/
 			i += 1
 		}
 		fyne.Do(d.Hide)
 		fyne.Do(func() {
-			ShowPopUpMessage(fmt.Sprintf("Gave up after looking through %d entries", searchlimit), 3*time.Second, MainWindow)
+			ShowPopUpMessage(fmt.Sprintf("Gave up after looking through %d entries in %v", searchlimit, time.Since(start)), 3*time.Second, MainWindow)
 		})
-		// fmt.Println("fell through")
-		// fall through means failure
 	}
 
 	resultsDisplay.UpdateItem = func(id widget.ListItemID, obj fyne.CanvasObject) {

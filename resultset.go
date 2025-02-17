@@ -3,6 +3,7 @@ package main
 import (
 	"sort"
 	"strings"
+	"time"
 	"unicode"
 )
 
@@ -80,6 +81,7 @@ func (rs *ResultSet) FetchNext(count int) {
 		return
 	}
 
+	start := time.Now()
 	fetchCount := 0
 
 	for fetchCount < count && !rs.isDone {
@@ -97,6 +99,10 @@ func (rs *ResultSet) FetchNext(count int) {
 
 				if rs.progressCallback != nil && fetchCount%10 == 0 {
 					rs.progressCallback(fetchCount, count)
+				}
+
+				if time.Since(start) > searchtimeout {
+					break
 				}
 
 			}
