@@ -347,11 +347,15 @@ func main() {
 	scrollPast := func(index int, word string) {
 		pbi := widget.NewProgressBarInfinite()
 		pbi.Start()
-		d := dialog.NewCustomWithoutButtons(fmt.Sprintf("Searching for anagram without \"%s\"", word), pbi, MainWindow)
+		running := true
+		d := dialog.NewCustom(fmt.Sprintf("Searching for anagram without \"%s\"", word), "Cancel", pbi, MainWindow)
+		d.SetOnClosed(func() {
+			running = false
+		})
 		fyne.Do(d.Show)
 		start := time.Now()
 		i := index + 1
-		for i < resultSet.Count() && i < index+searchlimit {
+		for running && i < resultSet.Count() && i < index+searchlimit {
 			ana, ok := resultSet.GetAt(i)
 			if !ok { // shouldn't be possible
 				return
@@ -375,10 +379,12 @@ func main() {
 			*/
 			i += 1
 		}
-		fyne.Do(d.Hide)
-		fyne.Do(func() {
-			ShowPopUpMessage(fmt.Sprintf("Gave up after looking through %d entries in %v", searchlimit, time.Since(start)), 3*time.Second, MainWindow)
-		})
+		if running {
+			fyne.Do(d.Hide)
+			fyne.Do(func() {
+				ShowPopUpMessage(fmt.Sprintf("Gave up after looking through %d entries in %v", searchlimit, time.Since(start)), 3*time.Second, MainWindow)
+			})
+		}
 	}
 
 	resultsDisplay.UpdateItem = func(id widget.ListItemID, obj fyne.CanvasObject) {
