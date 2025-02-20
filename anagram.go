@@ -1,13 +1,14 @@
 package main
 
 import (
+	// "fmt"
 	// "log"
 	"sort"
 	"strings"
 )
 
 type dictPair struct {
-	word    string
+	Word    string
 	cluster *RuneCluster
 }
 
@@ -46,10 +47,10 @@ func (ad annotatedDict) Len() int {
 func (ad annotatedDict) Less(i, j int) bool {
 	// sort first by length (decending) then by alphabet (decending)
 
-	if len(ad[i].word) == len(ad[j].word) {
-		return ad[i].word > ad[j].word
+	if len(ad[i].Word) == len(ad[j].Word) {
+		return ad[i].Word > ad[j].Word
 	}
-	return len(ad[i].word) > len(ad[j].word)
+	return len(ad[i].Word) > len(ad[j].Word)
 }
 
 func FindAnagrams(input string, include []string, dictionary *Dictionary) <-chan string {
@@ -71,10 +72,18 @@ func makeAnagrams(input string, include []string, dictionary *Dictionary, output
 
 	sort.Sort(filtered) // for efficientcy we need ot sort decending by size
 
+	/*
+		fmt.Printf("For input \"%s\" filtered is %d elements\n", input, len(filtered))
+		for _, dp := range filtered[:10] {
+			fmt.Print(dp.Word, " ")
+		}
+		fmt.Println("")
+	*/
+
 	includedDone := 0
 	if len(include) > 0 {
 		for _, phrase := range include {
-			trimmedPhrase := strings.Trim(phrase, " \t\r\n")
+			trimmedPhrase := strings.TrimSpace(phrase)
 			if trimmedPhrase == "" {
 				continue
 			}
@@ -86,6 +95,13 @@ func makeAnagrams(input string, include []string, dictionary *Dictionary, output
 			includedDone += 1
 			newTarget, _ := target.Minus(phraseRC)
 			newFiltered := filtered.Filter(newTarget)
+			/*
+				fmt.Printf("For included phrase \"%s\" filtered is %d elements\n", phrase, len(newFiltered))
+				for _, dp := range newFiltered[:10] {
+					fmt.Print(dp.Word, " ")
+				}
+				fmt.Println("")
+			*/
 			findTuples(trimmedPhrase, newTarget, newFiltered, output)
 		}
 	}
@@ -105,9 +121,9 @@ func findTuples(current string, target *RuneCluster, dict annotatedDict, output 
 	for index, dp := range dict {
 		var trial string
 		if current == "" {
-			trial = dp.word
+			trial = dp.Word
 		} else {
-			trial = current + " " + dp.word
+			trial = current + " " + dp.Word
 		}
 
 		newTarget, err := target.Minus(dp.cluster)
