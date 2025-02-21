@@ -24,6 +24,18 @@ func NewAnnotatedDict(d *Dictionary) annotatedDict {
 	return ad
 }
 
+func FilterAnnotatedDict(input string, d *Dictionary) (annotatedDict, *RuneCluster) {
+	ad := NewAnnotatedDict(d)
+
+	rc := NewRuneCluster(input)
+
+	filtered := ad.Filter(rc)
+
+	sort.Sort(filtered) // for efficientcy we need ot sort decending by size
+
+	return filtered, rc
+}
+
 func (ad annotatedDict) Filter(target *RuneCluster) annotatedDict {
 	retVal := make(annotatedDict, 0, len(ad)/2) // half is probably overly generous
 
@@ -64,21 +76,13 @@ func FindAnagrams(input string, include []string, dictionary *Dictionary) <-chan
 func makeAnagrams(input string, include []string, dictionary *Dictionary, output chan<- string) {
 	defer close(output)
 
-	ad := NewAnnotatedDict(dictionary)
+	filtered, target := FilterAnnotatedDict(input, dictionary)
 
-	target := NewRuneCluster(input)
-
-	filtered := ad.Filter(target)
-
-	sort.Sort(filtered) // for efficientcy we need ot sort decending by size
-
-	/*
-		fmt.Printf("For input \"%s\" filtered is %d elements\n", input, len(filtered))
-		for _, dp := range filtered[:10] {
-			fmt.Print(dp.Word, " ")
-		}
-		fmt.Println("")
-	*/
+	// fmt.Printf("For input \"%s\" filtered is %d elements\n", input, len(filtered))
+	// for _, dp := range filtered[:10] {
+	// 	fmt.Print(dp.Word, " ")
+	// }
+	// fmt.Println("")
 
 	includedDone := 0
 	if len(include) > 0 {
@@ -95,13 +99,13 @@ func makeAnagrams(input string, include []string, dictionary *Dictionary, output
 			includedDone += 1
 			newTarget, _ := target.Minus(phraseRC)
 			newFiltered := filtered.Filter(newTarget)
-			/*
-				fmt.Printf("For included phrase \"%s\" filtered is %d elements\n", phrase, len(newFiltered))
-				for _, dp := range newFiltered[:10] {
-					fmt.Print(dp.Word, " ")
-				}
-				fmt.Println("")
-			*/
+
+			// fmt.Printf("For included phrase \"%s\" filtered is %d elements\n", phrase, len(newFiltered))
+			// for _, dp := range newFiltered[:10] {
+			// 	fmt.Print(dp.Word, " ")
+			// }
+			// fmt.Println("")
+
 			findTuples(trimmedPhrase, newTarget, newFiltered, output)
 		}
 	}
