@@ -5,13 +5,10 @@ Website = "https://patenaude.io/"
   Name = "KarmaManager"
   ID = "io.patenaude.karmamanager"
   Version = "0.1.0"
-  Build = 131
+  Build = 140
 
 [LinuxAndBSD]
   GenericName = "Anagram Maker"
   Categories = ["Game"]
   Comment = "Make Anagrams"
   Keywords = ["game"]
-
-[Migration]
-  fyneDo = true
