@@ -60,7 +60,6 @@ func ShowAnimation(title, startPhrase string, anagrams []string, window fyne.Win
 
 func ShowMultiAnagramPicker(title, submitlabel, dismisslabel, shufflelabel string, anagrams []string, callback func([]string), window fyne.Window) {
 	anaChecks := make([]bool, len(anagrams))
-	// anaFormItems := make([]*widget.FormItem, len(anagrams))
 	for index := range anagrams {
 		anaChecks[index] = true
 	}
@@ -167,7 +166,6 @@ func main() {
 	AppPreferences = App.Preferences()
 
 	favorites := Favorites(App.Preferences())
-	// favInputGroups := MakeGroupedFavorites(favorites)
 
 	mainDicts, addedDicts, err := ReadDictionaries()
 	if err != nil {
@@ -344,49 +342,6 @@ func main() {
 	controlscontainer := container.New(layout.NewGridLayout(2), inclusioncontainer, exclusioncontainer)
 	mainDisplay := container.New(layout.NewAdaptiveGridLayout(2), resultsDisplay, controlscontainer)
 
-	scrollPast := func(index int, word string) {
-		pbi := widget.NewProgressBarInfinite()
-		pbi.Start()
-		running := true
-		d := dialog.NewCustom(fmt.Sprintf("Searching for anagram without \"%s\"", word), "Cancel", pbi, MainWindow)
-		d.SetOnClosed(func() {
-			running = false
-		})
-		fyne.Do(d.Show)
-		start := time.Now()
-		i := index + 1
-		for running && i < resultSet.Count() && i < index+searchlimit {
-			ana, ok := resultSet.GetAt(i)
-			if !ok { // shouldn't be possible
-				return
-			}
-			if strings.Index(ana, word) == -1 {
-				fyne.Do(func() {
-					resultsDisplay.ScrollTo(i + 5) // hack because otherwise it's hard to spot the location
-					d.Hide()
-				})
-				return
-			}
-			if searchtimeout < time.Since(start) {
-				searchlimit = i - index
-				// fmt.Println("Bailing out after",searchlimit,"tests and",time.Since(start))
-				break
-			}
-			/*
-				if i%100 == 0 {
-					fmt.Printf("%d: %v\n", i, time.Since(start))
-				}
-			*/
-			i += 1
-		}
-		if running {
-			fyne.Do(d.Hide)
-			fyne.Do(func() {
-				ShowPopUpMessage(fmt.Sprintf("Gave up after looking through %d entries in %v", searchlimit, time.Since(start)), 3*time.Second, MainWindow)
-			})
-		}
-	}
-
 	resultsDisplay.UpdateItem = func(id widget.ListItemID, obj fyne.CanvasObject) {
 		label, ok := obj.(*TapLabel)
 		if !ok {
@@ -420,7 +375,6 @@ func main() {
 			words := strings.Split(text, " ")
 			includeMIs := make([]*fyne.MenuItem, len(words))
 			excludeMIs := make([]*fyne.MenuItem, len(words))
-			scrollPastMIs := make([]*fyne.MenuItem, 0, len(words)-1)
 			for index, word := range words {
 				includeMIs[index] = fyne.NewMenuItem(word, func() {
 					includeFunc(word)
@@ -428,11 +382,6 @@ func main() {
 				excludeMIs[index] = fyne.NewMenuItem(word, func() {
 					excludeFunc(word)
 				})
-				if index >= len(inclusionwords.Words) && index < len(words)-1 {
-					scrollPastMIs = append(scrollPastMIs, fyne.NewMenuItem(word, func() {
-						go scrollPast(id, word)
-					}))
-				}
 			}
 			includemenu := fyne.NewMenu("Include", includeMIs...)
 			exclusionmenu := fyne.NewMenu("Exclude", excludeMIs...)
@@ -441,24 +390,14 @@ func main() {
 			excludeMI := fyne.NewMenuItem("Exclude", nil)
 			excludeMI.ChildMenu = exclusionmenu
 			var pumenu *fyne.Menu
-			if len(scrollPastMIs) > 0 {
-				scrollPastMenu := fyne.NewMenu("Scroll past", scrollPastMIs...)
-				scrollPastMI := fyne.NewMenuItem("Scroll past", nil)
-				scrollPastMI.ChildMenu = scrollPastMenu
-
-				pumenu = fyne.NewMenu("Pop up", copyAnagramToCBMI, copyBothToCBMI, addToFavsMI, animateMI, includeMI, excludeMI, scrollPastMI)
-			} else {
-				pumenu = fyne.NewMenu("Pop up", copyAnagramToCBMI, copyBothToCBMI, addToFavsMI, animateMI, includeMI, excludeMI)
-			}
+			pumenu = fyne.NewMenu("Pop up", copyAnagramToCBMI, copyBothToCBMI, addToFavsMI, animateMI, includeMI, excludeMI)
 			widget.ShowPopUpMenuAtRelativePosition(pumenu, MainWindow.Canvas(), pe.Position, label)
 		}
 		obj.Refresh()
 	}
 
 	findContent := container.NewBorder(controlBar, nil, nil, nil, mainDisplay)
-	// findContent = container.NewBorder(controlBar, progressBar, nil, nil, mainDisplay)
 
-	// var refreshFavsList func()
 	var selectTab func(int)
 
 	sendToMainTabFunc := func(fav FavoriteAnagram) {
