@@ -22,17 +22,21 @@ func MakeRuneLayout(input string, maxColumns int) ([]RuneLayoutElement, int) {
 			continue
 		}
 
+		// fmt.Println("Max Columns", maxColumns)
 		remainingColumns := maxColumns - col
 		for len(word) >= maxColumns {
-			partial := word[:remainingColumns-1]
-			word = word[remainingColumns-1:]
-			i := 0
-			for i < len(partial) {
-				r := rune(partial[i])
-				layout = append(layout, RuneLayoutElement{r, row, col + i})
-				i += 1
+			// fmt.Println("Remaining cols", remainingColumns)
+			if remainingColumns > 1 {
+				partial := word[:remainingColumns-1]
+				word = word[remainingColumns-1:]
+				i := 0
+				for i < len(partial) {
+					r := rune(partial[i])
+					layout = append(layout, RuneLayoutElement{r, row, col + i})
+					i += 1
+				}
+				layout = append(layout, RuneLayoutElement{'-', row, col + i})
 			}
-			layout = append(layout, RuneLayoutElement{'-', row, col + i})
 			row += 1
 			col = 0
 			remainingColumns = maxColumns
