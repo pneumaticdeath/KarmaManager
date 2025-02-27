@@ -29,9 +29,10 @@ type AddedDictionaryConfig struct {
 }
 
 const (
-	main_dicts_file      = "main-dicts.json"
-	added_dicts_file     = "added-dicts.json"
-	privateDictionaryKey = "io.patenaude.karmamanager.private-dictionary"
+	main_dicts_file         = "main-dicts.json"
+	added_dicts_file        = "added-dicts.json"
+	privateDictionaryKey    = "io.patenaude.karmamanager.private-dictionary"
+	dictionarySelectionsKey = "io.patenaude.karmamanager.dictionary-selections"
 )
 
 func NewDictionary(name string) *Dictionary {
@@ -145,4 +146,12 @@ func GetPrivateDictionary(prefs fyne.Preferences) *Dictionary {
 
 func SavePrivateDictionary(d *Dictionary, prefs fyne.Preferences) {
 	prefs.SetStringList(privateDictionaryKey, d.Words)
+}
+
+func GetDictionarySelections(prefs fyne.Preferences) []string {
+	return prefs.StringList(dictionarySelectionsKey)
+}
+
+func SaveDictionarySelections(dictNames []string, prefs fyne.Preferences) {
+	prefs.SetStringList(dictionarySelectionsKey, dictNames)
 }

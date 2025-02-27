@@ -174,6 +174,20 @@ func main() {
 
 	privateDict := GetPrivateDictionary(AppPreferences)
 
+	selectedDicts := GetDictionarySelections(AppPreferences)
+	mainSelected := ""
+	var remainingDicts []string
+	if len(selectedDicts) > 0 {
+		mainSelected = selectedDicts[0]
+		remainingDicts = selectedDicts[1:]
+	}
+	if len(remainingDicts) > 0 && remainingDicts[len(remainingDicts)-1] == "Private" {
+		privateDict.Enabled = true
+		remainingDicts = remainingDicts[:len(remainingDicts)-1]
+	} else {
+		privateDict.Enabled = false
+	}
+
 	var mainDictNames []string = make([]string, len(mainDicts))
 	for i, d := range mainDicts {
 		mainDictNames[i] = d.Name
@@ -188,18 +202,43 @@ func main() {
 	reset_search := func() {
 	}
 
+	selectedMainIndex := 0
+	for i, n := range mainDictNames {
+		if mainSelected == n {
+			selectedMainIndex = i
+			break
+		}
+	}
+	resultSet.SetMainIndex(selectedMainIndex)
+
+	saveDictSelections := func() {
+		dicts := make([]string, 0, len(addedDicts)+2)
+		dicts = append(dicts, mainDictNames[selectedMainIndex])
+		for _, ad := range addedDicts {
+			if ad.Enabled {
+				dicts = append(dicts, ad.Name)
+			}
+		}
+		if privateDict.Enabled {
+			dicts = append(dicts, "Private")
+		}
+		SaveDictionarySelections(dicts, AppPreferences)
+	}
+
 	mainSelect := widget.NewSelect(mainDictNames, func(dictName string) {
 		for i, n := range mainDictNames {
 			if dictName == n {
+				selectedMainIndex = i
 				resultSet.SetMainIndex(i)
 				reset()
 				MainWindow.SetTitle(resultSet.CombinedDictName())
+				saveDictSelections()
 				return
 			}
 		}
 		dialog.ShowError(errors.New("Can't find selected main dictionary"), MainWindow)
 	})
-	mainSelect.SetSelectedIndex(0)
+	mainSelect.SetSelectedIndex(selectedMainIndex)
 
 	addedChecks := make([]fyne.CanvasObject, len(addedDicts)+2)
 	for i, ad := range addedDicts {
@@ -208,7 +247,15 @@ func main() {
 			*enabled = checked
 			reset()
 			MainWindow.SetTitle(resultSet.CombinedDictName())
+			saveDictSelections()
 		})
+		ad.Enabled = false
+		for _, name := range remainingDicts {
+			if ad.Name == name {
+				ad.Enabled = true
+				break
+			}
+		}
 		check.Checked = ad.Enabled
 		addedChecks[i] = check
 	}
@@ -217,6 +264,7 @@ func main() {
 		*privateEnabled = checked
 		reset()
 		MainWindow.SetTitle(resultSet.CombinedDictName())
+		saveDictSelections()
 	})
 	privateCheck.Checked = privateDict.Enabled
 	addedChecks[len(addedDicts)] = privateCheck
