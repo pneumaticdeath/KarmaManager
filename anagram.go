@@ -1,7 +1,7 @@
 package main
 
 import (
-	// "fmt"
+	"fmt"
 	// "log"
 	"sort"
 	"strings"
@@ -78,7 +78,7 @@ func makeAnagrams(input string, include []string, dictionary *Dictionary, output
 
 	filtered, target := FilterAnnotatedDict(input, dictionary)
 
-	// fmt.Printf("For input \"%s\" filtered is %d elements\n", input, len(filtered))
+	fmt.Printf("For input \"%s\" filtered is %d elements\n", input, len(filtered))
 	// for _, dp := range filtered[:10] {
 	// 	fmt.Print(dp.Word, " ")
 	// }
@@ -100,7 +100,7 @@ func makeAnagrams(input string, include []string, dictionary *Dictionary, output
 			newTarget, _ := target.Minus(phraseRC)
 			newFiltered := filtered.Filter(newTarget)
 
-			// fmt.Printf("For included phrase \"%s\" filtered is %d elements\n", phrase, len(newFiltered))
+			fmt.Printf("For included phrase \"%s\" filtered is %d elements\n", phrase, len(newFiltered))
 			// for _, dp := range newFiltered[:10] {
 			// 	fmt.Print(dp.Word, " ")
 			// }
@@ -114,14 +114,19 @@ func makeAnagrams(input string, include []string, dictionary *Dictionary, output
 	}
 }
 
+var trials int = 0
+
 func findTuples(current string, target *RuneCluster, dict annotatedDict, output chan<- string) {
 	if target.IsEmpty() {
 		if current != "" {
+			fmt.Printf("Found %s after %d trials\n", current, trials)
 			output <- current
 		}
+		trials = 0
 		return
 	}
 
+	trials += 1
 	for index, dp := range dict {
 		var trial string
 		if current == "" {
@@ -135,6 +140,8 @@ func findTuples(current string, target *RuneCluster, dict annotatedDict, output 
 			panic(err) // this shouldn't be possible
 		}
 		newDict := dict[index:].Filter(newTarget)
+
+		// fmt.Printf("working on '%s', %d possibilities left\n", trial, len(newDict))
 
 		findTuples(trial, newTarget, newDict, output)
 	}

@@ -285,7 +285,7 @@ func main() {
 	inputClearButton := widget.NewButtonWithIcon("", theme.ContentClearIcon(), func() {
 		inputdata.Set("")
 		reset_search()
-		reset()
+		// reset()
 	})
 
 	progressBar := widget.NewProgressBar()
@@ -325,8 +325,8 @@ func main() {
 		object.Refresh()
 	})
 	inputEntry.OnSubmitted = func(input string) {
-		reset_search()
-		reset()
+		// reset_search()
+		// reset()
 		resultSet.FindAnagrams(input)
 		resultsDisplay.Refresh()
 	}

@@ -50,7 +50,7 @@ func (rs *ResultSet) Regenerate() {
 	combinedDict := rs.CombineDicts()
 	rs.resultChan = FindAnagrams(rs.input, rs.included, combinedDict)
 	rs.combinedDictName = combinedDict.Name
-	rs.FetchNext(100)
+	rs.FetchNext(50)
 }
 
 func (rs *ResultSet) CombineDicts() *Dictionary {
