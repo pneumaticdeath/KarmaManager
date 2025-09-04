@@ -119,7 +119,7 @@ var trials int = 0
 func findTuples(current string, target *RuneCluster, dict annotatedDict, output chan<- string) {
 	if target.IsEmpty() {
 		if current != "" {
-			fmt.Printf("Found %s after %d trials\n", current, trials)
+			// fmt.Printf("Found %s after %d trials\n", current, trials)
 			output <- current
 		}
 		trials = 0

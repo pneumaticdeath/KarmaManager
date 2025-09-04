@@ -23,15 +23,16 @@ type ResultSet struct {
 	results          []string
 	isDone           bool
 	fetchLock        sync.Mutex
+	fetchTarget      int
 	combinedDictName string
 	progressCallback func(int, int)
 	resultChan       <-chan string
 }
 
 func NewResultSet(mainDicts, addedDicts []*Dictionary, privateDict *Dictionary, mainDictIndex int) *ResultSet {
-	rs := &ResultSet{mainDicts, addedDicts, privateDict, "", "", make([]string, 0), make([]string, 0), make(map[string]int), 0, mainDictIndex, make([]string, 0), true, sync.Mutex{}, "", nil, nil}
+	rs := &ResultSet{mainDicts, addedDicts, privateDict, "", "", make([]string, 0), make([]string, 0), make(map[string]int), 0, mainDictIndex, make([]string, 0), true, sync.Mutex{}, 0, "", nil, nil}
 
-	rs.FindAnagrams("")
+	rs.FindAnagrams("", nil)
 	return rs
 }
 
@@ -39,13 +40,13 @@ func (rs *ResultSet) SetProgressCallback(cb func(int, int)) {
 	rs.progressCallback = cb
 }
 
-func (rs *ResultSet) FindAnagrams(input string) {
+func (rs *ResultSet) FindAnagrams(input string, refreshCallback func()) {
 	rs.input = input
 	rs.normalizedInput = normalize(input)
-	rs.Regenerate()
+	rs.Regenerate(refreshCallback)
 }
 
-func (rs *ResultSet) Regenerate() {
+func (rs *ResultSet) Regenerate(refreshCallback func()) {
 	rs.resultCount = 0
 	rs.wordCount = make(map[string]int)
 	rs.results = make([]string, 0, 110)
@@ -53,7 +54,12 @@ func (rs *ResultSet) Regenerate() {
 	combinedDict := rs.CombineDicts()
 	rs.resultChan = FindAnagrams(rs.input, rs.included, combinedDict)
 	rs.combinedDictName = combinedDict.Name
-	rs.FetchNext(50)
+	go func() {
+		rs.FetchTo(50)
+		if refreshCallback != nil {
+			refreshCallback()
+		}
+	}()
 }
 
 func (rs *ResultSet) CombineDicts() *Dictionary {
@@ -79,22 +85,28 @@ func (rs *ResultSet) SetMainIndex(index int) {
 	rs.mainDictIndex = index
 }
 
-func (rs *ResultSet) FetchNext(count int) {
+func (rs *ResultSet) FetchTo(target int) {
 	if rs.isDone {
 		return
 	}
 
+	if rs.fetchTarget < target {
+		fmt.Printf("New fetch target %d\n", target)
+		rs.fetchTarget = target
+	}
+
 	lockSuccess := rs.fetchLock.TryLock()
 	if !lockSuccess {
+		fmt.Println("Tried to FetchTo() while already locked")
 		return
-		fmt.Println("Tried to FetchNext() while already locked")
 	}
-	defer rs.fetchLock.Unlock()
+	fmt.Println("Acquired lock")
 
-	start := time.Now()
-	fetchCount := 0
+	if rs.progressCallback != nil {
+		rs.progressCallback(rs.resultCount, rs.fetchTarget)
+	}
 
-	for fetchCount < count && !rs.isDone {
+	for !rs.isDone && rs.resultCount < rs.fetchTarget {
 		next, ok := <-rs.resultChan
 		if ok {
 			if normalize(next) != rs.normalizedInput {
@@ -105,24 +117,21 @@ func (rs *ResultSet) FetchNext(count int) {
 				}
 				rs.results = append(rs.results, next)
 				rs.resultCount += 1
-				fetchCount += 1
 
-				if rs.progressCallback != nil && fetchCount%10 == 0 {
-					rs.progressCallback(fetchCount, count)
+				if rs.progressCallback != nil && rs.resultCount%2 == 0 {
+					rs.progressCallback(rs.resultCount, rs.fetchTarget)
 				}
-
-				if time.Since(start) > searchtimeout {
-					break
-				}
-
 			}
 		} else {
+			rs.fetchTarget = rs.resultCount
 			rs.isDone = true
 		}
 	}
 	if rs.progressCallback != nil {
-		rs.progressCallback(count, count)
+		rs.progressCallback(rs.resultCount, rs.fetchTarget)
 	}
+	rs.fetchLock.Unlock()
+	fmt.Printf("Released lock at %d\n", rs.resultCount)
 }
 
 func (rs *ResultSet) IsDone() bool {
@@ -134,9 +143,10 @@ func (rs *ResultSet) Count() int {
 }
 
 func (rs *ResultSet) GetAt(index int) (string, bool) {
+	fmt.Printf("Getting item at %d\n", index)
 	if index > rs.resultCount-10 {
 		go func() {
-			rs.FetchNext(index - rs.resultCount + 10)
+			rs.FetchTo(index + 10)
 		}()
 		for !rs.isDone && index >= rs.resultCount {
 			time.Sleep(time.Millisecond)
@@ -177,6 +187,8 @@ func (c Counts) Less(i, j int) bool {
 }
 
 func (rs *ResultSet) TopNWords(n int) Counts {
+	rs.fetchLock.Lock()
+	defer rs.fetchLock.Unlock()
 	words := make(Counts, 0, len(rs.wordCount))
 	for w, c := range rs.wordCount {
 		words = append(words, WordCount{w, c})

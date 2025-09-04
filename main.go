@@ -109,7 +109,9 @@ func ShowMultiAnagramPicker(title, submitlabel, dismisslabel, shufflelabel strin
 }
 
 func ShowInterestingWordsList(rs *ResultSet, n int, include func(string), exclude func(string), window fyne.Window) {
+	fmt.Printf("Trying to get item at %d\n", searchlimit)
 	rs.GetAt(searchlimit) // just to get a little bit of data to work with
+	// fmt.Println("Found it")
 	topN := rs.TopNWords(n)
 	var closeDialog func()
 	topList := widget.NewList(func() int {
@@ -196,7 +198,7 @@ func main() {
 	resultSet := NewResultSet(mainDicts, addedDicts, privateDict, 0)
 
 	reset := func() {
-		resultSet.Regenerate()
+		resultSet.Regenerate(nil)
 	}
 
 	reset_search := func() {
@@ -320,23 +322,27 @@ func main() {
 		if !ok {
 			return
 		}
-		text, _ := resultSet.GetAt(index)
-		label.Label.Text = fmt.Sprintf("%10d %s", index+1, text)
-		object.Refresh()
+		go func() {
+			text, _ := resultSet.GetAt(index)
+			label.Label.Text = fmt.Sprintf("%10d %s", index+1, text)
+			fyne.Do(object.Refresh)
+		}()
 	})
 	inputEntry.OnSubmitted = func(input string) {
 		// reset_search()
 		// reset()
-		resultSet.FindAnagrams(input)
-		resultsDisplay.Refresh()
+		resultSet.FindAnagrams(input, func() {
+			fyne.Do(resultsDisplay.Refresh)
+		})
 	}
 
 	inclusionwords := NewWordList([]string{})
 	SetInclusions := func() {
 		includestring := strings.Join(inclusionwords.Words, " ")
 		resultSet.SetInclusions([]string{includestring})
-		resultSet.Regenerate()
-		resultsDisplay.Refresh()
+		resultSet.Regenerate(func() {
+			fyne.Do(resultsDisplay.Refresh)
+		})
 	}
 	inclusionwords.OnDelete = SetInclusions
 	inclusionaddbutton := widget.NewButtonWithIcon("", theme.ContentAddIcon(), func() {
@@ -350,8 +356,9 @@ func main() {
 	exclusionwords := NewWordList([]string{})
 	SetExclusions := func() {
 		resultSet.SetExclusions(exclusionwords.Words)
-		resultSet.Regenerate()
-		resultsDisplay.Refresh()
+		resultSet.Regenerate(func() {
+			fyne.Do(resultsDisplay.Refresh)
+		})
 	}
 	exclusionwords.OnDelete = func() {
 		SetExclusions()
@@ -480,8 +487,10 @@ func main() {
 	}
 
 	reset = func() {
-		resultSet.Regenerate()
-		resultsDisplay.ScrollToTop()
+		resultSet.Regenerate(func() {
+			fyne.Do(resultsDisplay.ScrollToTop)
+			fyne.Do(resultsDisplay.Refresh)
+		})
 		content.Refresh()
 	}
 
