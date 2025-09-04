@@ -1,8 +1,10 @@
 package main
 
 import (
+	"fmt"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 	"unicode"
 )
@@ -20,13 +22,14 @@ type ResultSet struct {
 	mainDictIndex    int
 	results          []string
 	isDone           bool
+	fetchLock        sync.Mutex
 	combinedDictName string
 	progressCallback func(int, int)
 	resultChan       <-chan string
 }
 
 func NewResultSet(mainDicts, addedDicts []*Dictionary, privateDict *Dictionary, mainDictIndex int) *ResultSet {
-	rs := &ResultSet{mainDicts, addedDicts, privateDict, "", "", make([]string, 0), make([]string, 0), make(map[string]int), 0, mainDictIndex, make([]string, 0), true, "", nil, nil}
+	rs := &ResultSet{mainDicts, addedDicts, privateDict, "", "", make([]string, 0), make([]string, 0), make(map[string]int), 0, mainDictIndex, make([]string, 0), true, sync.Mutex{}, "", nil, nil}
 
 	rs.FindAnagrams("")
 	return rs
@@ -81,6 +84,13 @@ func (rs *ResultSet) FetchNext(count int) {
 		return
 	}
 
+	lockSuccess := rs.fetchLock.TryLock()
+	if !lockSuccess {
+		return
+		fmt.Println("Tried to FetchNext() while already locked")
+	}
+	defer rs.fetchLock.Unlock()
+
 	start := time.Now()
 	fetchCount := 0
 
@@ -125,10 +135,16 @@ func (rs *ResultSet) Count() int {
 
 func (rs *ResultSet) GetAt(index int) (string, bool) {
 	if index > rs.resultCount-10 {
-		rs.FetchNext(index - rs.resultCount + 10)
-	}
-	if index >= rs.resultCount {
-		return "", false
+		go func() {
+			rs.FetchNext(index - rs.resultCount + 10)
+		}()
+		for !rs.isDone && index >= rs.resultCount {
+			time.Sleep(time.Millisecond)
+		}
+
+		if index >= rs.resultCount {
+			return "", false
+		}
 	}
 	return rs.results[index], true
 }
