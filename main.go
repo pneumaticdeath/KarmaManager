@@ -305,7 +305,7 @@ func main() {
 
 	interestingButton := widget.NewButton("Interesting words", nil)
 
-	workingBar := widget.NewProgressBarInfinite()
+	workingBar := widget.NewActivity()
 	wbStartCallback := func() {
 		fyne.Do(func() {
 			interestingButton.Hide()
