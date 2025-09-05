@@ -109,7 +109,7 @@ func ShowMultiAnagramPicker(title, submitlabel, dismisslabel, shufflelabel strin
 }
 
 func ShowInterestingWordsList(rs *ResultSet, n int, include func(string), exclude func(string), window fyne.Window) {
-	fmt.Printf("Trying to get item at %d\n", searchlimit)
+	// fmt.Printf("Trying to get item at %d\n", searchlimit)
 	rs.GetAt(searchlimit) // just to get a little bit of data to work with
 	// fmt.Println("Found it")
 	topN := rs.TopNWords(n)
@@ -286,6 +286,7 @@ func main() {
 
 	inputClearButton := widget.NewButtonWithIcon("", theme.ContentClearIcon(), func() {
 		inputdata.Set("")
+		time.Sleep(50 * time.Millisecond)
 		reset_search()
 		// reset()
 	})
@@ -304,7 +305,29 @@ func main() {
 
 	interestingButton := widget.NewButton("Interesting words", nil)
 
-	interestBar := container.New(layout.NewGridLayout(2), interestingButton, progressBar)
+	workingBar := widget.NewProgressBarInfinite()
+	wbStartCallback := func() {
+		fyne.Do(func() {
+			interestingButton.Hide()
+			workingBar.Show()
+			workingBar.Start()
+			// workingBar.Refresh()
+		})
+	}
+	wbStopCallback := func() {
+		fyne.Do(func() {
+			workingBar.Stop()
+			workingBar.Hide()
+			interestingButton.Show()
+			// workingBar.Refresh()
+		})
+	}
+	resultSet.SetWorkingStartCallback(wbStartCallback)
+	resultSet.SetWorkingStopCallback(wbStopCallback)
+
+	interestBar := container.New(layout.NewGridLayout(3), workingBar, interestingButton, progressBar)
+	workingBar.Stop()
+	workingBar.Hide()
 
 	inputField := container.NewBorder(nil, nil, nil, inputClearButton, inputEntry)
 	inputBar := container.New(layout.NewAdaptiveGridLayout(2), inputField, interestBar)
@@ -332,7 +355,8 @@ func main() {
 		// reset_search()
 		// reset()
 		resultSet.FindAnagrams(input, func() {
-			fyne.Do(resultsDisplay.Refresh)
+			// This isn't necessary
+			// fyne.Do(resultsDisplay.Refresh)
 		})
 	}
 
@@ -348,10 +372,11 @@ func main() {
 	inclusionaddbutton := widget.NewButtonWithIcon("", theme.ContentAddIcon(), func() {
 		inclusionwords.ShowAddWord("Include word", "Include", "Cancel", SetInclusions, MainWindow)
 	})
-	inclusionclearbutton := widget.NewButtonWithIcon("", theme.ContentClearIcon(), func() {
+	inclusionClearButton := widget.NewButtonWithIcon("", theme.ContentClearIcon(), func() {})
+	inclusionClearButton.OnTapped = func() {
 		inclusionwords.Clear()
 		SetInclusions()
-	})
+	}
 
 	exclusionwords := NewWordList([]string{})
 	SetExclusions := func() {
@@ -368,10 +393,11 @@ func main() {
 			SetExclusions()
 		}, MainWindow)
 	})
-	exclusionclearbutton := widget.NewButtonWithIcon("", theme.ContentClearIcon(), func() {
+	exclusionClearButton := widget.NewButtonWithIcon("", theme.ContentClearIcon(), func() {})
+	exclusionClearButton.OnTapped = func() {
 		exclusionwords.Clear()
 		SetExclusions()
-	})
+	}
 
 	includeFunc := func(word string) {
 		inclusionwords.Words = append(inclusionwords.Words, word)
@@ -390,9 +416,9 @@ func main() {
 			ShowInterestingWordsList(resultSet, 1000, includeFunc, excludeFunc, MainWindow)
 		}()
 	}
-	exclusionlabel := container.New(layout.NewHBoxLayout(), widget.NewLabel("Exclude"), exclusionaddbutton, exclusionclearbutton)
+	exclusionlabel := container.New(layout.NewHBoxLayout(), widget.NewLabel("Exclude"), exclusionaddbutton, exclusionClearButton)
 	exclusioncontainer := container.NewBorder(exclusionlabel, nil, nil, nil, exclusionwords)
-	inclusionlabel := container.New(layout.NewHBoxLayout(), widget.NewLabel("Include"), inclusionaddbutton, inclusionclearbutton)
+	inclusionlabel := container.New(layout.NewHBoxLayout(), widget.NewLabel("Include"), inclusionaddbutton, inclusionClearButton)
 	inclusioncontainer := container.NewBorder(inclusionlabel, nil, nil, nil, inclusionwords)
 	controlscontainer := container.New(layout.NewGridLayout(2), inclusioncontainer, exclusioncontainer)
 	mainDisplay := container.New(layout.NewAdaptiveGridLayout(2), resultsDisplay, controlscontainer)
@@ -495,11 +521,11 @@ func main() {
 	}
 
 	reset_search = func() {
+		// not using SetInclusions() or SetExclusions because they will refresh other fields
 		inclusionwords.Clear()
-		// not using SetInclusions() because SetExclusions will do the refresh of other fields
 		resultSet.SetInclusions([]string{})
 		exclusionwords.Clear()
-		SetExclusions()
+		resultSet.SetExclusions([]string{})
 	}
 
 	MainWindow.Resize(fyne.NewSize(800, 600))

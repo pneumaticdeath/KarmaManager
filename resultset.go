@@ -10,27 +10,29 @@ import (
 )
 
 type ResultSet struct {
-	mainDicts        []*Dictionary
-	addedDicts       []*Dictionary
-	privateDict      *Dictionary
-	input            string
-	normalizedInput  string
-	included         []string
-	excluded         []string
-	wordCount        map[string]int
-	resultCount      int
-	mainDictIndex    int
-	results          []string
-	isDone           bool
-	fetchLock        sync.Mutex
-	fetchTarget      int
-	combinedDictName string
-	progressCallback func(int, int)
-	resultChan       <-chan string
+	mainDicts            []*Dictionary
+	addedDicts           []*Dictionary
+	privateDict          *Dictionary
+	input                string
+	normalizedInput      string
+	included             []string
+	excluded             []string
+	wordCount            map[string]int
+	resultCount          int
+	mainDictIndex        int
+	results              []string
+	isDone               bool
+	fetchLock            sync.Mutex
+	fetchTarget          int
+	combinedDictName     string
+	progressCallback     func(int, int)
+	workingStartCallback func()
+	workingStopCallback  func()
+	resultChan           <-chan string
 }
 
 func NewResultSet(mainDicts, addedDicts []*Dictionary, privateDict *Dictionary, mainDictIndex int) *ResultSet {
-	rs := &ResultSet{mainDicts, addedDicts, privateDict, "", "", make([]string, 0), make([]string, 0), make(map[string]int), 0, mainDictIndex, make([]string, 0), true, sync.Mutex{}, 0, "", nil, nil}
+	rs := &ResultSet{mainDicts, addedDicts, privateDict, "", "", make([]string, 0), make([]string, 0), make(map[string]int), 0, mainDictIndex, make([]string, 0), true, sync.Mutex{}, 0, "", nil, nil, nil, nil}
 
 	rs.FindAnagrams("", nil)
 	return rs
@@ -38,6 +40,14 @@ func NewResultSet(mainDicts, addedDicts []*Dictionary, privateDict *Dictionary, 
 
 func (rs *ResultSet) SetProgressCallback(cb func(int, int)) {
 	rs.progressCallback = cb
+}
+
+func (rs *ResultSet) SetWorkingStartCallback(cb func()) {
+	rs.workingStartCallback = cb
+}
+
+func (rs *ResultSet) SetWorkingStopCallback(cb func()) {
+	rs.workingStopCallback = cb
 }
 
 func (rs *ResultSet) FindAnagrams(input string, refreshCallback func()) {
@@ -55,7 +65,7 @@ func (rs *ResultSet) Regenerate(refreshCallback func()) {
 	rs.resultChan = FindAnagrams(rs.input, rs.included, combinedDict)
 	rs.combinedDictName = combinedDict.Name
 	go func() {
-		rs.FetchTo(50)
+		rs.FetchTo(25)
 		if refreshCallback != nil {
 			refreshCallback()
 		}
@@ -102,6 +112,10 @@ func (rs *ResultSet) FetchTo(target int) {
 	}
 	fmt.Println("Acquired lock")
 
+	if rs.workingStartCallback != nil {
+		rs.workingStartCallback()
+	}
+
 	if rs.progressCallback != nil {
 		rs.progressCallback(rs.resultCount, rs.fetchTarget)
 	}
@@ -130,6 +144,11 @@ func (rs *ResultSet) FetchTo(target int) {
 	if rs.progressCallback != nil {
 		rs.progressCallback(rs.resultCount, rs.fetchTarget)
 	}
+
+	if rs.workingStopCallback != nil {
+		rs.workingStopCallback()
+	}
+
 	rs.fetchLock.Unlock()
 	fmt.Printf("Released lock at %d\n", rs.resultCount)
 }

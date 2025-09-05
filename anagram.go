@@ -100,7 +100,7 @@ func makeAnagrams(input string, include []string, dictionary *Dictionary, output
 			newTarget, _ := target.Minus(phraseRC)
 			newFiltered := filtered.Filter(newTarget)
 
-			fmt.Printf("For included phrase \"%s\" filtered is %d elements\n", phrase, len(newFiltered))
+			// fmt.Printf("For included phrase \"%s\" filtered is %d elements\n", phrase, len(newFiltered))
 			// for _, dp := range newFiltered[:10] {
 			// 	fmt.Print(dp.Word, " ")
 			// }
