@@ -58,6 +58,7 @@ func (rs *ResultSet) FindAnagrams(input string, refreshCallback func()) {
 
 func (rs *ResultSet) Regenerate(refreshCallback func()) {
 	rs.resultCount = 0
+	rs.fetchTarget = 0
 	rs.wordCount = make(map[string]int)
 	rs.results = make([]string, 0, 110)
 	rs.isDone = false
