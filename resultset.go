@@ -24,6 +24,8 @@ type ResultSet struct {
 	isDone               bool
 	fetchLock            sync.Mutex
 	fetchTarget          int
+	inFetch              bool
+	abortFlag            bool
 	combinedDictName     string
 	progressCallback     func(int, int)
 	workingStartCallback func()
@@ -32,7 +34,7 @@ type ResultSet struct {
 }
 
 func NewResultSet(mainDicts, addedDicts []*Dictionary, privateDict *Dictionary, mainDictIndex int) *ResultSet {
-	rs := &ResultSet{mainDicts, addedDicts, privateDict, "", "", make([]string, 0), make([]string, 0), make(map[string]int), 0, mainDictIndex, make([]string, 0), true, sync.Mutex{}, 0, "", nil, nil, nil, nil}
+	rs := &ResultSet{mainDicts, addedDicts, privateDict, "", "", make([]string, 0), make([]string, 0), make(map[string]int), 0, mainDictIndex, make([]string, 0), true, sync.Mutex{}, 0, false, false, "", nil, nil, nil, nil}
 
 	rs.FindAnagrams("", nil)
 	return rs
@@ -56,6 +58,16 @@ func (rs *ResultSet) FindAnagrams(input string, refreshCallback func()) {
 	rs.Regenerate(refreshCallback)
 }
 
+func (rs *ResultSet) Abort() {
+	if rs.inFetch {
+		fmt.Println("Aborting in-process FetchTo()")
+		rs.abortFlag = true
+		for rs.abortFlag {
+			time.Sleep(time.Millisecond * 100)
+		}
+	}
+}
+
 func (rs *ResultSet) Regenerate(refreshCallback func()) {
 	rs.resultCount = 0
 	rs.fetchTarget = 0
@@ -63,9 +75,10 @@ func (rs *ResultSet) Regenerate(refreshCallback func()) {
 	rs.results = make([]string, 0, 110)
 	rs.isDone = false
 	combinedDict := rs.CombineDicts()
-	rs.resultChan = FindAnagrams(rs.input, rs.included, combinedDict)
-	rs.combinedDictName = combinedDict.Name
 	go func() {
+		rs.Abort()
+		rs.resultChan = FindAnagrams(rs.input, rs.included, combinedDict)
+		rs.combinedDictName = combinedDict.Name
 		rs.FetchTo(25)
 		if refreshCallback != nil {
 			refreshCallback()
@@ -112,6 +125,7 @@ func (rs *ResultSet) FetchTo(target int) {
 		return
 	}
 	fmt.Println("Acquired lock")
+	rs.inFetch = true
 
 	if rs.workingStartCallback != nil {
 		rs.workingStartCallback()
@@ -123,6 +137,11 @@ func (rs *ResultSet) FetchTo(target int) {
 
 	for !rs.isDone && rs.resultCount < rs.fetchTarget {
 		next, ok := <-rs.resultChan
+		if rs.abortFlag {
+			fmt.Println("FetchTo() aborted")
+			rs.abortFlag = false
+			break
+		}
 		if ok {
 			if normalize(next) != rs.normalizedInput {
 				for _, word := range strings.Split(next, " ") {
@@ -150,6 +169,7 @@ func (rs *ResultSet) FetchTo(target int) {
 		rs.workingStopCallback()
 	}
 
+	rs.inFetch = false
 	rs.fetchLock.Unlock()
 	fmt.Printf("Released lock at %d\n", rs.resultCount)
 }
