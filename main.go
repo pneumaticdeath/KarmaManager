@@ -308,7 +308,7 @@ func main() {
 	workingBar := widget.NewActivity()
 	wbStartCallback := func() {
 		fyne.Do(func() {
-			interestingButton.Hide()
+			interestingButton.Disable()
 			workingBar.Show()
 			workingBar.Start()
 			// workingBar.Refresh()
@@ -318,19 +318,20 @@ func main() {
 		fyne.Do(func() {
 			workingBar.Stop()
 			workingBar.Hide()
-			interestingButton.Show()
+			interestingButton.Enable()
 			// workingBar.Refresh()
 		})
 	}
 	resultSet.SetWorkingStartCallback(wbStartCallback)
 	resultSet.SetWorkingStopCallback(wbStopCallback)
 
-	interestBar := container.New(layout.NewGridLayout(3), workingBar, interestingButton, progressBar)
+	interestBar := container.New(layout.NewGridLayout(2), interestingButton, progressBar)
+	rightSideBar := container.NewBorder(nil, nil, nil, workingBar, interestBar)
 	workingBar.Stop()
 	workingBar.Hide()
 
 	inputField := container.NewBorder(nil, nil, nil, inputClearButton, inputEntry)
-	inputBar := container.New(layout.NewAdaptiveGridLayout(2), inputField, interestBar)
+	inputBar := container.New(layout.NewAdaptiveGridLayout(2), inputField, rightSideBar)
 
 	dictionaryBar := container.New(layout.NewAdaptiveGridLayout(2), mainSelect, addedDictsContainer)
 
