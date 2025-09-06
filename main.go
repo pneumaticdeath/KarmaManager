@@ -139,7 +139,7 @@ func ShowInterestingWordsList(rs *ResultSet, n int, include func(string), exclud
 
 		label.Refresh()
 	})
-	d := dialog.NewCustom("Interesting words", "dismiss", topList, window)
+	d := dialog.NewCustom(fmt.Sprintf("Interesting words in %d results", rs.Count()), "dismiss", topList, window)
 	d.Resize(fyne.NewSize(400, 400))
 	closeDialog = func() {
 		fyne.Do(d.Hide)
@@ -353,11 +353,10 @@ func main() {
 		}()
 	})
 	inputEntry.OnSubmitted = func(input string) {
-		// reset_search()
+		reset_search()
 		// reset()
 		resultSet.FindAnagrams(input, func() {
-			// This isn't necessary
-			// fyne.Do(resultsDisplay.Refresh)
+			fyne.Do(resultsDisplay.Refresh)
 		})
 	}
 
