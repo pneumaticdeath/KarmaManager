@@ -219,6 +219,21 @@ func (ad *AnimationDisplay) AnimateAnagrams(input string, anagrams ...string) {
 	}
 
 	go func() {
+		for glyphIndex, glyph := range animation.Glyphs {
+			text := animElements[glyphIndex]
+			anim := canvas.NewPositionAnimation(fyne.NewPos(0, 0), glyph.StartPos, ad.MoveDuration, func(pos fyne.Position) {
+				text.Move(pos)
+				if ad.CaptureCallback != nil {
+					ad.CaptureCallback()
+				}
+			})
+			anim.Start()
+		}
+
+		time.Sleep(ad.MoveDuration)
+
+		colorPulse(green)
+
 		for ad.running {
 			// Start to first pos
 			for glyphIndex, glyph := range animation.Glyphs {
