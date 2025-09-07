@@ -10,6 +10,7 @@ import (
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/app"
+	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/data/binding"
 	"fyne.io/fyne/v2/dialog"
@@ -504,7 +505,21 @@ func main() {
 		favsList.Refresh()
 	}
 
-	content := container.NewAppTabs(container.NewTabItem("Find", findContent), container.NewTabItem("Favorites", favsContent))
+	iconImage := canvas.NewImageFromResource(Icon)
+	iconImage.SetMinSize(fyne.NewSize(128, 128))
+	iconImage.FillMode = canvas.ImageFillContain
+
+	aboutContent := container.New(layout.NewVBoxLayout(), layout.NewSpacer(), iconImage,
+		container.New(layout.NewHBoxLayout(), layout.NewSpacer(), widget.NewLabel(App.Metadata().Name), layout.NewSpacer()),
+		container.New(layout.NewHBoxLayout(), layout.NewSpacer(), widget.NewLabel("Copyright 2025"), layout.NewSpacer()),
+		container.New(layout.NewHBoxLayout(), layout.NewSpacer(), widget.NewLabel("by Mitch Patenaude"), layout.NewSpacer()),
+		container.New(layout.NewHBoxLayout(), layout.NewSpacer(), widget.NewLabel(fmt.Sprintf("Version %s (build %d)", App.Metadata().Version, App.Metadata().Build)), layout.NewSpacer()),
+		layout.NewSpacer())
+
+	content := container.NewAppTabs(
+		container.NewTabItem("Find", findContent),
+		container.NewTabItem("Favorites", favsContent),
+		container.NewTabItem("About", aboutContent))
 
 	MainWindow.SetContent(content)
 
