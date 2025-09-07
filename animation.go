@@ -116,16 +116,13 @@ func NewAnimation(input string, anagrams []string, maxRows, maxCols int) (*Anima
 type AnimationDisplay struct {
 	widget.BaseWidget
 
-	surface            *fyne.Container
-	scroll             *container.Scroll
-	MoveDuration       time.Duration
-	ColorCycleDuration time.Duration
-	PauseDuration      time.Duration
-	Icon               fyne.Resource
-	Badge              string
-	CaptureCallback    func()
-	CycleCallback      func()
-	running            bool
+	surface *fyne.Container
+	scroll  *container.Scroll
+	Icon            fyne.Resource
+	Badge           string
+	CaptureCallback func()
+	CycleCallback   func()
+	running         bool
 }
 
 func NewAnimationDisplay(icon fyne.Resource) *AnimationDisplay {
@@ -133,9 +130,7 @@ func NewAnimationDisplay(icon fyne.Resource) *AnimationDisplay {
 	scroll := container.NewScroll(surface)
 	scroll.Direction = container.ScrollNone
 
-	ad := &AnimationDisplay{surface: surface, scroll: scroll, MoveDuration: 1000 * time.Millisecond,
-		ColorCycleDuration: 500 * time.Millisecond, PauseDuration: 1500 * time.Millisecond, Icon: icon,
-		Badge: "made with KarmaManager"}
+	ad := &AnimationDisplay{surface: surface, scroll: scroll, Icon: icon, Badge: "made with KarmaManager"}
 	ad.ExtendBaseWidget(ad)
 	return ad
 }
@@ -166,9 +161,6 @@ func (ad *AnimationDisplay) AnimateAnagrams(input string, anagrams ...string) {
 	badge.Move(badgePos)
 	badge.Resize(badge.MinSize())
 
-	purple := color.NRGBA{R: 192, B: 192, A: 255}
-	green := color.NRGBA{G: 192, A: 255}
-
 	style := fyne.TextStyle{Monospace: true}
 
 	animation, err := NewAnimation(input, anagrams, maxRows, maxCols)
@@ -188,7 +180,7 @@ func (ad *AnimationDisplay) AnimateAnagrams(input string, anagrams ...string) {
 
 	colorPulse := func(c color.Color) {
 		for _, text := range animElements {
-			anim := canvas.NewColorRGBAAnimation(theme.TextColor(), c, ad.ColorCycleDuration, func(newColor color.Color) {
+			anim := canvas.NewColorRGBAAnimation(theme.TextColor(), c, Config.PulseDuration(), func(newColor color.Color) {
 				text.Color = newColor
 				text.Refresh()
 				if ad.CaptureCallback != nil {
@@ -199,12 +191,12 @@ func (ad *AnimationDisplay) AnimateAnagrams(input string, anagrams ...string) {
 			anim.Start()
 		}
 
-		time.Sleep(ad.ColorCycleDuration)
+		time.Sleep(Config.PulseDuration())
 
-		time.Sleep(ad.PauseDuration)
+		time.Sleep(Config.PauseDuration())
 
 		for _, text := range animElements {
-			anim := canvas.NewColorRGBAAnimation(c, theme.TextColor(), ad.ColorCycleDuration, func(newColor color.Color) {
+			anim := canvas.NewColorRGBAAnimation(c, theme.TextColor(), Config.PulseDuration(), func(newColor color.Color) {
 				text.Color = newColor
 				text.Refresh()
 				if ad.CaptureCallback != nil {
@@ -215,13 +207,13 @@ func (ad *AnimationDisplay) AnimateAnagrams(input string, anagrams ...string) {
 			anim.Start()
 		}
 
-		time.Sleep(ad.ColorCycleDuration)
+		time.Sleep(Config.PulseDuration())
 	}
 
 	go func() {
 		for glyphIndex, glyph := range animation.Glyphs {
 			text := animElements[glyphIndex]
-			anim := canvas.NewPositionAnimation(fyne.NewPos(0, 0), glyph.StartPos, ad.MoveDuration, func(pos fyne.Position) {
+			anim := canvas.NewPositionAnimation(fyne.NewPos(0, 0), glyph.StartPos, Config.MoveDuration(), func(pos fyne.Position) {
 				text.Move(pos)
 				if ad.CaptureCallback != nil {
 					ad.CaptureCallback()
@@ -230,15 +222,15 @@ func (ad *AnimationDisplay) AnimateAnagrams(input string, anagrams ...string) {
 			anim.Start()
 		}
 
-		time.Sleep(ad.MoveDuration)
+		time.Sleep(Config.MoveDuration())
 
-		colorPulse(green)
+		colorPulse(Config.InputPulseColor())
 
 		for ad.running {
 			// Start to first pos
 			for glyphIndex, glyph := range animation.Glyphs {
 				text := animElements[glyphIndex]
-				anim := canvas.NewPositionAnimation(glyph.StartPos, glyph.StepPos[0], ad.MoveDuration, func(pos fyne.Position) {
+				anim := canvas.NewPositionAnimation(glyph.StartPos, glyph.StepPos[0], Config.MoveDuration(), func(pos fyne.Position) {
 					text.Move(pos)
 					// fmt.Printf("Move %c to %v\n", glyph.Letter, pos)
 					if ad.CaptureCallback != nil {
@@ -248,9 +240,9 @@ func (ad *AnimationDisplay) AnimateAnagrams(input string, anagrams ...string) {
 				anim.Start()
 			}
 
-			time.Sleep(ad.MoveDuration)
+			time.Sleep(Config.MoveDuration())
 
-			colorPulse(purple)
+			colorPulse(Config.AnagramPulseColor())
 
 			// Now all the steps except the last one
 
@@ -258,7 +250,7 @@ func (ad *AnimationDisplay) AnimateAnagrams(input string, anagrams ...string) {
 			for stepIndex < len(anagrams)-1 {
 				for glyphIndex, glyph := range animation.Glyphs {
 					text := animElements[glyphIndex]
-					anim := canvas.NewPositionAnimation(glyph.StepPos[stepIndex], glyph.StepPos[stepIndex+1], ad.MoveDuration, func(pos fyne.Position) {
+					anim := canvas.NewPositionAnimation(glyph.StepPos[stepIndex], glyph.StepPos[stepIndex+1], Config.MoveDuration(), func(pos fyne.Position) {
 						text.Move(pos)
 						if ad.CaptureCallback != nil {
 							ad.CaptureCallback()
@@ -268,16 +260,16 @@ func (ad *AnimationDisplay) AnimateAnagrams(input string, anagrams ...string) {
 					anim.Start()
 				}
 
-				time.Sleep(ad.MoveDuration)
+				time.Sleep(Config.MoveDuration())
 
-				colorPulse(purple)
+				colorPulse(Config.AnagramPulseColor())
 
 				stepIndex += 1
 			}
 
 			for index, glyph := range animation.Glyphs {
 				text := animElements[index]
-				anim := canvas.NewPositionAnimation(glyph.StepPos[stepIndex], glyph.StartPos, ad.MoveDuration, func(pos fyne.Position) {
+				anim := canvas.NewPositionAnimation(glyph.StepPos[stepIndex], glyph.StartPos, Config.MoveDuration(), func(pos fyne.Position) {
 					text.Move(pos)
 					if ad.CaptureCallback != nil {
 						ad.CaptureCallback()
@@ -287,9 +279,9 @@ func (ad *AnimationDisplay) AnimateAnagrams(input string, anagrams ...string) {
 				anim.Start()
 			}
 
-			time.Sleep(ad.MoveDuration)
+			time.Sleep(Config.MoveDuration())
 
-			colorPulse(green)
+			colorPulse(Config.InputPulseColor())
 			// fmt.Println("Cycle completed")
 			if ad.CycleCallback != nil {
 				ad.CycleCallback()

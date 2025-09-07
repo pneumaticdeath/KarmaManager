@@ -165,6 +165,8 @@ func main() {
 	App := app.NewWithID("io.patenaude.karmamanager")
 	MainWindow = App.NewWindow("Karma Manger")
 
+	InitConfig(App)
+
 	Icon = App.Metadata().Icon
 	AppPreferences = App.Preferences()
 
@@ -509,7 +511,12 @@ func main() {
 	iconImage.SetMinSize(fyne.NewSize(128, 128))
 	iconImage.FillMode = canvas.ImageFillContain
 
-	aboutContent := container.New(layout.NewVBoxLayout(), layout.NewSpacer(), iconImage,
+	preferencesButton := widget.NewButtonWithIcon("", theme.SettingsIcon(), Config.ShowPreferencesDialog)
+
+	aboutContent := container.New(layout.NewVBoxLayout(),
+		container.New(layout.NewHBoxLayout(), layout.NewSpacer(), preferencesButton),
+		layout.NewSpacer(),
+		iconImage,
 		container.New(layout.NewHBoxLayout(), layout.NewSpacer(), widget.NewLabel(App.Metadata().Name), layout.NewSpacer()),
 		container.New(layout.NewHBoxLayout(), layout.NewSpacer(), widget.NewLabel("Copyright 2025"), layout.NewSpacer()),
 		container.New(layout.NewHBoxLayout(), layout.NewSpacer(), widget.NewLabel("by Mitch Patenaude"), layout.NewSpacer()),
