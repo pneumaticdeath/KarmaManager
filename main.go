@@ -437,7 +437,7 @@ func main() {
 				ShowPopUpMessage("Copied to clipboard", time.Second, MainWindow)
 			})
 			copyBothToCBMI := fyne.NewMenuItem("Copy input and anagram to clipboard", func() {
-				MainWindow.Clipboard().SetContent(fmt.Sprintf("%s->%s", input, text))
+				MainWindow.Clipboard().SetContent(fmt.Sprintf("%s ↔️ %s", input, text))
 				ShowPopUpMessage("Copied to clipboard", time.Second, MainWindow)
 			})
 			addToFavsMI := fyne.NewMenuItem("Add to favorites", func() {
@@ -492,7 +492,7 @@ func main() {
 	}
 
 	favsList := NewFavoritesList(&favorites, func(fav FavoriteAnagram) string {
-		return fmt.Sprintf("%s -> %s", fav.Input, fav.Anagram)
+		return fmt.Sprintf("%s ↔️ %s", fav.Input, fav.Anagram)
 	}, sendToMainTabFunc)
 
 	// favsContent := container.New(layout.NewAdaptiveGridLayout(1), favsList)

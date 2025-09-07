@@ -160,7 +160,7 @@ func NewFavoritesList(list *FavoritesSlice, labelFunc func(FavoriteAnagram) stri
 				}()
 			})
 			copyBothToCBMI := fyne.NewMenuItem("Copy input and anagram to clipboard", func() {
-				MainWindow.Clipboard().SetContent(fmt.Sprintf("%s->%s", (*list)[id].Input, (*list)[id].Anagram))
+				MainWindow.Clipboard().SetContent(fmt.Sprintf("%s ↔️ %s", (*list)[id].Input, (*list)[id].Anagram))
 				pulabel := widget.NewLabel("Copied to clipboard")
 				pu := widget.NewPopUp(pulabel, MainWindow.Canvas())
 				wsize := MainWindow.Canvas().Size()
