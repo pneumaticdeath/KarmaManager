@@ -133,7 +133,7 @@ func NewAnimationDisplay(icon fyne.Resource) *AnimationDisplay {
 	scroll := container.NewScroll(surface)
 	scroll.Direction = container.ScrollNone
 
-	ad := &AnimationDisplay{surface: surface, scroll: scroll, MoveDuration: 3 * time.Second,
+	ad := &AnimationDisplay{surface: surface, scroll: scroll, MoveDuration: 1000 * time.Millisecond,
 		ColorCycleDuration: 500 * time.Millisecond, PauseDuration: 1500 * time.Millisecond, Icon: icon,
 		Badge: "made with KarmaManager"}
 	ad.ExtendBaseWidget(ad)
