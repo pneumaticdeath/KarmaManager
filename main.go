@@ -504,6 +504,8 @@ func main() {
 
 	RebuildFavorites = func() {
 		sort.Sort(favorites)
+		favsList.RegenGroups()
+		favsList.MakeAnagramList()
 		favsList.Refresh()
 	}
 

@@ -9,7 +9,9 @@ import (
 	"time"
 
 	"fyne.io/fyne/v2"
+	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/dialog"
+	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/widget"
 )
 
@@ -117,8 +119,6 @@ func ShowDeleteFavConfirm(favs *FavoritesSlice, id int, prefs fyne.Preferences, 
 	}, window)
 }
 
-type GroupedFavorites map[string]FavoritesSlice
-
 func MakeGroupedFavorites(favs FavoritesSlice) GroupedFavorites {
 	groups := make(map[string]FavoritesSlice)
 
@@ -138,27 +138,30 @@ func MakeGroupedFavorites(favs FavoritesSlice) GroupedFavorites {
 type FavoritesList struct {
 	widget.BaseWidget
 
-	baseList FavoritesSlice
+	baseList    *FavoritesSlice
 	GroupedList GroupedFavorites
-	surface *fyne.Container
-	labelFunc func(FavoriteAnagram) string
-	sendToMainTab func(FavoriteAnagram)
-	listOfInputs *widget.Select
-	listOfAnagrams *widget.List
-	source *FavoritesSlice
+	// SelectedInput  string
+	selectedList   FavoritesSlice
+	surface        *fyne.Container
+	labelFunc      func(FavoriteAnagram) string
+	sendToMainTab  func(FavoriteAnagram)
+	inputSelectBar *fyne.Container
+	listOfInputs   *widget.Select
+	AnagramDisplay *widget.List
+	source         *FavoritesSlice
 }
 
-func NewFavoritesList(list *FavoritesSlice, labelFunc func(FavoriteAnagram) string, sendToMainTab func(FavoriteAnagram)) *FavoritetsList {
+func NewFavoritesList(list *FavoritesSlice, labelFunc func(FavoriteAnagram) string, sendToMainTab func(FavoriteAnagram)) *FavoritesList {
 	fl := &FavoritesList{}
 
 	fl.baseList = list
 	fl.labelFunc = labelFunc
-	fl.SetToMainTab = sendToMainTab
+	fl.sendToMainTab = sendToMainTab
 
 	fl.RegenGroups()
+	fl.MakeAnagramList()
 
-	input_select_bar := container.New(layout.NewHBoxLayout(1), fl.listOfInputs)
-	fl.surface = container.NewBorder(input_select_bar, nil, nil, nil, fl.listOfAnagrams)
+	fl.surface = container.NewBorder(fl.inputSelectBar, nil, nil, nil, fl.AnagramDisplay)
 
 	fl.ExtendBaseWidget(fl)
 
@@ -166,11 +169,17 @@ func NewFavoritesList(list *FavoritesSlice, labelFunc func(FavoriteAnagram) stri
 }
 
 func (fl *FavoritesList) CreateRenderer() fyne.WidgetRenderer {
-	widget.NewSimpleRenderer(fl.surface)
+	return widget.NewSimpleRenderer(fl.surface)
 }
 
+/* 
+func (fl *FavoritesList) Refresh() {
+	fl.surface.Refresh()
+}
+*/
+
 func (fl *FavoritesList) RegenGroups() {
-	fl.GroupedList = MakeGroupedFavorites(fl.baseList)
+	fl.GroupedList = MakeGroupedFavorites(*fl.baseList)
 
 	inputList := make([]string, 0, len(fl.GroupedList))
 
@@ -178,97 +187,119 @@ func (fl *FavoritesList) RegenGroups() {
 		inputList = append(inputList, input)
 	}
 
-	fl.listOfInputs = widget.NewSelect(inputList), func(selected string) { 
-		fl.SelectedInput = selected
-		fl.MakeAnagramList()
+	sort.Strings(inputList)
+
+	// fl.MakeAnagramList()
+
+	fl.listOfInputs = widget.NewSelect(inputList, func(selected string) {
+		fl.selectedList = fl.GroupedList[selected]
+		fmt.Printf("Selected \"%s\" (%d elements)\n", selected, len(fl.selectedList))
+		go func() {
+			time.Sleep(10 * time.Millisecond)
+			fyne.Do(fl.AnagramDisplay.Refresh)
+		}()
 	})
 
-	fl.MakeAnagramList()
+	fl.inputSelectBar = container.New(layout.NewHBoxLayout(), fl.listOfInputs)
+
 }
-	
+
+func (fl *FavoritesList) findGlobalID(selectedListID int) int {
+	selectedFavorite := fl.selectedList[selectedListID]
+	for globalID, globalFavorite := range *(fl.baseList) {
+		if selectedFavorite.Dictionaries == globalFavorite.Dictionaries && selectedFavorite.Input == globalFavorite.Input && selectedFavorite.Anagram == globalFavorite.Anagram {
+			return globalID
+		}
+	}
+	fmt.Println("Couldn't find global id")
+	return -1
+}
+
 func (fl *FavoritesList) MakeAnagramList() {
-	_, present := fl.GroupedFavorites[fl.SelectedInput]
-
-	list := fl.GroupedList[fl.SelectedInput]
-
-	if present {
-		fl.listOfAnagrams := widget.NewList(func() int {
-			return len(*list)
-		}, func() fyne.CanvasObject {
-			return NewTapLabel("Fav")
-		}, func(id widget.ListItemID, obj fyne.CanvasObject) {
-			label, ok := obj.(*TapLabel)
-			if !ok {
-				return
-			}
-			label.Label.Text = fl.labelFunc((*list)[id])
-			label.Label.Alignment = fyne.TextAlignCenter
-			label.OnTapped = func(pe *fyne.PointEvent) {
-				copyAnagramToCBMI := fyne.NewMenuItem("Copy anagram to clipboard", func() {
-					MainWindow.Clipboard().SetContent((*list)[id].Anagram)
-					pulabel := widget.NewLabel("Copied to clipboard")
-					pu := widget.NewPopUp(pulabel, MainWindow.Canvas())
-					wsize := MainWindow.Canvas().Size()
-					pu.Move(fyne.NewPos((wsize.Width)/2, (wsize.Height)/2))
-					pu.Show()
-					go func() {
-						time.Sleep(time.Second)
-						fyne.Do(pu.Hide)
-					}()
-				})
-				copyBothToCBMI := fyne.NewMenuItem("Copy input and anagram to clipboard", func() {
-					MainWindow.Clipboard().SetContent(fmt.Sprintf("%s ↔️ %s", (*list)[id].Input, (*list)[id].Anagram))
-					pulabel := widget.NewLabel("Copied to clipboard")
-					pu := widget.NewPopUp(pulabel, MainWindow.Canvas())
-					wsize := MainWindow.Canvas().Size()
-					pu.Move(fyne.NewPos((wsize.Width)/2, (wsize.Height)/2))
-					pu.Show()
-					go func() {
-						time.Sleep(time.Second)
-						fyne.Do(pu.Hide)
-					}()
-				})
-				animateMI := fyne.NewMenuItem("Animate", func() {
-					anagrams := []string{(*list)[id].Anagram}
-					ShowAnimation("Animated anagram...", (*list)[id].Input, anagrams, MainWindow)
-				})
-				/* 
-				multiAnimationMI := fyne.NewMenuItem(fmt.Sprintf("Animate multiple with input \"%s\"", (*list)[id].Input), func() {
-					anagrams := make([]string, len(groups[(*list)[id].Input]))
-					for index, fav := range groups[(*list)[id].Input] {
+	// fmt.Printf("Building list of %d elements for input \"%s\"\n", len(fl.selectedList), fl.SelectedInput)
+	fl.AnagramDisplay = widget.NewList(func() int {
+		return len(fl.selectedList)
+	}, func() fyne.CanvasObject {
+		return NewTapLabel("Fav")
+	}, func(id widget.ListItemID, obj fyne.CanvasObject) {
+		label, ok := obj.(*TapLabel)
+		if !ok {
+			return
+		}
+		label.Label.Text = fl.labelFunc(fl.selectedList[id])
+		label.Label.Alignment = fyne.TextAlignCenter
+		label.OnTapped = func(pe *fyne.PointEvent) {
+			copyAnagramToCBMI := fyne.NewMenuItem("Copy anagram to clipboard", func() {
+				MainWindow.Clipboard().SetContent(fl.selectedList[id].Anagram)
+				pulabel := widget.NewLabel("Copied to clipboard")
+				pu := widget.NewPopUp(pulabel, MainWindow.Canvas())
+				wsize := MainWindow.Canvas().Size()
+				pu.Move(fyne.NewPos((wsize.Width)/2, (wsize.Height)/2))
+				pu.Show()
+				go func() {
+					time.Sleep(time.Second)
+					fyne.Do(pu.Hide)
+				}()
+			})
+			copyBothToCBMI := fyne.NewMenuItem("Copy input and anagram to clipboard", func() {
+				MainWindow.Clipboard().SetContent(fmt.Sprintf("%s ↔️ %s", fl.selectedList[id].Input, fl.selectedList[id].Anagram))
+				pulabel := widget.NewLabel("Copied to clipboard")
+				pu := widget.NewPopUp(pulabel, MainWindow.Canvas())
+				wsize := MainWindow.Canvas().Size()
+				pu.Move(fyne.NewPos((wsize.Width)/2, (wsize.Height)/2))
+				pu.Show()
+				go func() {
+					time.Sleep(time.Second)
+					fyne.Do(pu.Hide)
+				}()
+			})
+			animateMI := fyne.NewMenuItem("Animate", func() {
+				anagrams := []string{fl.selectedList[id].Anagram}
+				ShowAnimation("Animated anagram...", fl.selectedList[id].Input, anagrams, MainWindow)
+			})
+			/*
+				multiAnimationMI := fyne.NewMenuItem(fmt.Sprintf("Animate multiple with input \"%s\"", fl.selectedList[id].Input), func() {
+					anagrams := make([]string, len(groups[fl.selectedList[id].Input]))
+					for index, fav := range groups[fl.selectedList[id].Input] {
 						anagrams[index] = fav.Anagram
 					}
 					ShowMultiAnagramPicker("Animate which anagrams", "animate", "cancel", "shuffle", anagrams, func(chosen []string) {
 						if len(chosen) > 0 {
-							ShowAnimation("Animated anagrams...", (*list)[id].Input, chosen, MainWindow)
+							ShowAnimation("Animated anagrams...", fl.selectedList[id].Input, chosen, MainWindow)
 						}
 					}, MainWindow)
 				})
-				*/
-				sendToMainMI := fyne.NewMenuItem("Send to main input tab", func() {
-					fl.sendToMainTab((*list)[id])
-				})
-				editAnagramMI := fyne.NewMenuItem("Edit Anagram", func() {
-					ShowFavoriteAnagramEditor(list, id, AppPreferences, RebuildFavorites, MainWindow)
-				})
-				editInputMI := fyne.NewMenuItem("Edit Input", func() {
-					ShowFavoriteInputEditor(list, id, AppPreferences, RebuildFavorites, MainWindow)
-					fl.RegenGroups()
-					fl.ListOfAnagrams.Refresh()
-				})
-				deleteMI := fyne.NewMenuItem("Delete", func() {
-					ShowDeleteFavConfirm(list, id, AppPreferences, RebuildFavorites, MainWindow)
-					fl.ListOfAnagrams.Refresh()
-				})
-				pumenu := fyne.NewMenu("Pop up", copyAnagramToCBMI, copyBothToCBMI, animateMI, sendToMainMI, editInputMI, editAnagramMI, deleteMI)
-				widget.ShowPopUpMenuAtRelativePosition(pumenu, MainWindow.Canvas(), pe.Position, label)
-			}
-	
-			label.Refresh()
-		})
-	} else {
+			*/
+			sendToMainMI := fyne.NewMenuItem("Send to main input tab", func() {
+				fl.sendToMainTab(fl.selectedList[id])
+			})
+			editAnagramMI := fyne.NewMenuItem("Edit Anagram", func() {
+				globalID := fl.findGlobalID(id)
+				ShowFavoriteAnagramEditor(fl.baseList, globalID, AppPreferences, RebuildFavorites, MainWindow)
+				// fl.AnagramDisplay.Refresh()
+			})
+			editInputMI := fyne.NewMenuItem("Edit Input", func() {
+				globalID := fl.findGlobalID(id)
+				ShowFavoriteInputEditor(fl.baseList, globalID, AppPreferences, RebuildFavorites, MainWindow)
+				// fl.RegenGroups()
+				// fl.AnagramDisplay.Refresh()
+			})
+			deleteMI := fyne.NewMenuItem("Delete", func() {
+				globalID := fl.findGlobalID(id)
+				ShowDeleteFavConfirm(fl.baseList, globalID, AppPreferences, RebuildFavorites, MainWindow)
+				fl.AnagramDisplay.Refresh()
+			})
+			pumenu := fyne.NewMenu("Pop up", copyAnagramToCBMI, copyBothToCBMI, animateMI, sendToMainMI, editInputMI, editAnagramMI, deleteMI)
+			widget.ShowPopUpMenuAtRelativePosition(pumenu, MainWindow.Canvas(), pe.Position, label)
+		}
+
+		label.Refresh()
+	})
+	fl.AnagramDisplay.Refresh()
+	/* } else {
+		fmt.Printf("Can't build list for input \"%s\"\n", fl.SelectedInput)
 		// blank list?
-		fl.ListOfAnagrams = widget.NewList(func() { return 0 }, func() fyne.CanvasObject, func(_ widget.ListItemID, _ fyne.CanvasObject) {})
-	}
+		fl.AnagramDisplay = widget.NewList(func() int { return 0 }, func() fyne.CanvasObject { return NewTapLabel("Foo") }, func(_ widget.ListItemID, _ fyne.CanvasObject) {})
+	} */
 
 }
