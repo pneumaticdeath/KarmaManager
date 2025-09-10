@@ -116,8 +116,8 @@ func NewAnimation(input string, anagrams []string, maxRows, maxCols int) (*Anima
 type AnimationDisplay struct {
 	widget.BaseWidget
 
-	surface *fyne.Container
-	scroll  *container.Scroll
+	surface         *fyne.Container
+	scroll          *container.Scroll
 	Icon            fyne.Resource
 	Badge           string
 	CaptureCallback func()
