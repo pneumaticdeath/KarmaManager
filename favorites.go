@@ -140,28 +140,74 @@ type FavoritesList struct {
 
 	baseList    *FavoritesSlice
 	GroupedList GroupedFavorites
-	// SelectedInput  string
-	selectedInput  string
-	surface        *fyne.Container
-	labelFunc      func(FavoriteAnagram) string
-	sendToMainTab  func(FavoriteAnagram)
-	inputSelectBar *fyne.Container
-	listOfInputs   *widget.Select
-	AnagramDisplay *widget.List
-	source         *FavoritesSlice
+	selectedInput       string
+	surface             *fyne.Container
+	labelFunc           func(FavoriteAnagram) string
+	sendToMainTab       func(string)
+	inputSelectBar      *fyne.Container
+	multiAnimateButton  *widget.Button
+	sendToMainTabButton *widget.Button
+	listOfInputs        *widget.Select
+	AnagramDisplay      *widget.List
 }
 
-func NewFavoritesList(list *FavoritesSlice, labelFunc func(FavoriteAnagram) string, sendToMainTab func(FavoriteAnagram)) *FavoritesList {
+func NewFavoritesList(list *FavoritesSlice, labelFunc func(FavoriteAnagram) string, sendToMainTab func(string)) *FavoritesList {
 	fl := &FavoritesList{}
 
 	fl.baseList = list
 	fl.labelFunc = labelFunc
 	fl.sendToMainTab = sendToMainTab
 
+	refresh := func() {}
+
+	fl.listOfInputs = widget.NewSelect([]string{}, func(selected string) {
+		fl.selectedInput = selected
+		fmt.Printf("Selected \"%s\" (%d elements)\n", selected, len(fl.GroupedList[fl.selectedInput]))
+		if len(fl.GroupedList[fl.selectedInput]) > 1 {
+			fl.multiAnimateButton.Enable()
+		} else {
+			fl.multiAnimateButton.Disable()
+		}
+
+		go func() {
+			time.Sleep(10 * time.Millisecond)
+			fyne.Do(fl.AnagramDisplay.Refresh)
+		}()
+		refresh()
+	})
+
+	fl.multiAnimateButton = widget.NewButton("Animate multiple", func() {
+		if len(fl.GroupedList[fl.selectedInput]) > 1 {
+			anagrams := make([]string, len(fl.GroupedList[fl.selectedInput]))
+			for index, fav := range fl.GroupedList[fl.selectedInput] {
+				anagrams[index] = fav.Anagram
+			}
+			ShowMultiAnagramPicker("Animate which anagrams", "animate", "cancel", "shuffle", anagrams, func(chosen []string) {
+				if len(chosen) > 0 {
+					ShowAnimation("Animated anagrams...", fl.selectedInput, chosen, MainWindow)
+				}
+			}, MainWindow)
+
+		}
+	})
+	fl.multiAnimateButton.Disable()
+
+	fl.sendToMainTabButton = widget.NewButton("Send input to main tab", func() {
+		fl.sendToMainTab(fl.selectedInput)
+	})
+
+	fl.inputSelectBar = container.New(layout.NewHBoxLayout(), fl.listOfInputs, fl.multiAnimateButton, fl.sendToMainTabButton)
+
 	fl.RegenGroups()
 	fl.MakeAnagramList()
 
 	fl.surface = container.NewBorder(fl.inputSelectBar, nil, nil, nil, fl.AnagramDisplay)
+
+	refresh = func() {
+		// fl.AnagramDisplay.Refresh()
+		// don't know why the above doesn't do it....
+		fl.surface.Refresh()
+	}
 
 	fl.ExtendBaseWidget(fl)
 
@@ -172,11 +218,9 @@ func (fl *FavoritesList) CreateRenderer() fyne.WidgetRenderer {
 	return widget.NewSimpleRenderer(fl.surface)
 }
 
-/*
 func (fl *FavoritesList) Refresh() {
 	fl.surface.Refresh()
 }
-*/
 
 func (fl *FavoritesList) RegenGroups() {
 	fl.GroupedList = MakeGroupedFavorites(*fl.baseList)
@@ -189,20 +233,15 @@ func (fl *FavoritesList) RegenGroups() {
 
 	sort.Strings(inputList)
 
-	// fl.MakeAnagramList()
+	if len(fl.GroupedList[fl.selectedInput]) > 1 {
+		fl.multiAnimateButton.Enable()
+	} else {
+		fl.multiAnimateButton.Disable()
+	}
 
-	fl.listOfInputs = widget.NewSelect(inputList, func(selected string) {
-		fl.selectedInput = selected
-		// fl.selectedList = fl.GroupedList[selected]
-		fmt.Printf("Selected \"%s\" (%d elements)\n", selected, len(fl.GroupedList[fl.selectedInput]))
-		go func() {
-			time.Sleep(10 * time.Millisecond)
-			fyne.Do(fl.AnagramDisplay.Refresh)
-		}()
-	})
-
-	fl.inputSelectBar = container.New(layout.NewHBoxLayout(), fl.listOfInputs)
-
+	fl.listOfInputs.Options = inputList
+	fl.listOfInputs.Refresh()
+	fl.inputSelectBar.Refresh()
 }
 
 func (fl *FavoritesList) findGlobalID(selectedListID int) int {
@@ -270,8 +309,8 @@ func (fl *FavoritesList) MakeAnagramList() {
 					}, MainWindow)
 				})
 			*/
-			sendToMainMI := fyne.NewMenuItem("Send to main input tab", func() {
-				fl.sendToMainTab(fl.GroupedList[fl.selectedInput][id])
+			sendToMainMI := fyne.NewMenuItem("Send anagram to main input tab", func() {
+				fl.sendToMainTab(fl.GroupedList[fl.selectedInput][id].Anagram)
 			})
 			editAnagramMI := fyne.NewMenuItem("Edit Anagram", func() {
 				globalID := fl.findGlobalID(id)
@@ -281,13 +320,13 @@ func (fl *FavoritesList) MakeAnagramList() {
 			editInputMI := fyne.NewMenuItem("Edit Input", func() {
 				globalID := fl.findGlobalID(id)
 				ShowFavoriteInputEditor(fl.baseList, globalID, AppPreferences, RebuildFavorites, MainWindow)
-				// fl.RegenGroups()
+				fl.RegenGroups()
 				// fl.AnagramDisplay.Refresh()
 			})
 			deleteMI := fyne.NewMenuItem("Delete", func() {
 				globalID := fl.findGlobalID(id)
 				ShowDeleteFavConfirm(fl.baseList, globalID, AppPreferences, RebuildFavorites, MainWindow)
-				fl.AnagramDisplay.Refresh()
+				// fl.AnagramDisplay.Refresh()
 			})
 			pumenu := fyne.NewMenu("Pop up", copyAnagramToCBMI, copyBothToCBMI, animateMI, sendToMainMI, editInputMI, editAnagramMI, deleteMI)
 			widget.ShowPopUpMenuAtRelativePosition(pumenu, MainWindow.Canvas(), pe.Position, label)

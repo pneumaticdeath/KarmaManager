@@ -484,8 +484,8 @@ func main() {
 
 	var selectTab func(int)
 
-	sendToMainTabFunc := func(fav FavoriteAnagram) {
-		inputdata.Set(fav.Input)
+	sendToMainTabFunc := func(input string) {
+		inputdata.Set(input)
 		// reset()
 		// reset_search()
 		time.Sleep(50 * time.Millisecond)
@@ -495,7 +495,7 @@ func main() {
 	}
 
 	favsList := NewFavoritesList(&favorites, func(fav FavoriteAnagram) string {
-		return fmt.Sprintf("%s ↔️ %s", fav.Input, fav.Anagram)
+		return fmt.Sprintf("%s", fav.Anagram)
 	}, sendToMainTabFunc)
 
 	// favsContent := container.New(layout.NewAdaptiveGridLayout(1), favsList)
