@@ -12,6 +12,7 @@ import (
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/layout"
+	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 )
 
@@ -138,8 +139,8 @@ func MakeGroupedFavorites(favs FavoritesSlice) GroupedFavorites {
 type FavoritesList struct {
 	widget.BaseWidget
 
-	baseList    *FavoritesSlice
-	GroupedList GroupedFavorites
+	baseList            *FavoritesSlice
+	GroupedList         GroupedFavorites
 	selectedInput       string
 	surface             *fyne.Container
 	labelFunc           func(FavoriteAnagram) string
@@ -192,11 +193,15 @@ func NewFavoritesList(list *FavoritesSlice, labelFunc func(FavoriteAnagram) stri
 	})
 	fl.multiAnimateButton.Disable()
 
+	preferencesButton := widget.NewButtonWithIcon("", theme.SettingsIcon(), Config.ShowPreferencesDialog)
+
+	animateBar := container.NewBorder(nil, nil, nil, preferencesButton, fl.multiAnimateButton)
+
 	fl.sendToMainTabButton = widget.NewButton("Send to main", func() {
 		fl.sendToMainTab(fl.selectedInput)
 	})
 
-	fl.inputSelectBar = container.New(layout.NewHBoxLayout(), fl.listOfInputs, fl.multiAnimateButton, fl.sendToMainTabButton)
+	fl.inputSelectBar = container.New(layout.NewAdaptiveGridLayout(3), fl.listOfInputs, animateBar, fl.sendToMainTabButton)
 
 	fl.RegenGroups()
 	fl.MakeAnagramList()

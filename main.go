@@ -505,18 +505,13 @@ func main() {
 	RebuildFavorites = func() {
 		sort.Sort(favorites)
 		favsList.RegenGroups()
-		favsList.MakeAnagramList()
-		favsList.Refresh()
 	}
 
 	iconImage := canvas.NewImageFromResource(Icon)
 	iconImage.SetMinSize(fyne.NewSize(128, 128))
 	iconImage.FillMode = canvas.ImageFillContain
 
-	preferencesButton := widget.NewButtonWithIcon("", theme.SettingsIcon(), Config.ShowPreferencesDialog)
-
 	aboutContent := container.New(layout.NewVBoxLayout(),
-		container.New(layout.NewHBoxLayout(), layout.NewSpacer(), preferencesButton),
 		layout.NewSpacer(),
 		iconImage,
 		container.New(layout.NewHBoxLayout(), layout.NewSpacer(), widget.NewLabel(App.Metadata().Name), layout.NewSpacer()),
