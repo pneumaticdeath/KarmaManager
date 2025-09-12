@@ -4,8 +4,8 @@
         "file": "full-dict.json"
     },
     {
-        "description": "Simplified dictionary",
-        "file": "simple-dict.json"
+        "description": "Standard dictionary",
+        "file": "standard-dict.json"
     },
     {
         "description": "Basic words only",
