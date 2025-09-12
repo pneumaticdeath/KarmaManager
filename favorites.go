@@ -192,7 +192,7 @@ func NewFavoritesList(list *FavoritesSlice, labelFunc func(FavoriteAnagram) stri
 	})
 	fl.multiAnimateButton.Disable()
 
-	fl.sendToMainTabButton = widget.NewButton("Send input to main tab", func() {
+	fl.sendToMainTabButton = widget.NewButton("Send to main", func() {
 		fl.sendToMainTab(fl.selectedInput)
 	})
 
