@@ -273,7 +273,7 @@ func main() {
 	})
 	privateCheck.Checked = privateDict.Enabled
 	addedChecks[len(addedDicts)] = privateCheck
-	privateDictSettingsButton := widget.NewButtonWithIcon("", theme.SettingsIcon(), func() {
+	privateDictSettingsButton := widget.NewButtonWithIcon("", theme.DocumentCreateIcon(), func() {
 		ShowPrivateDictSettings(privateDict, MainWindow)
 	})
 	addedChecks[len(addedDicts)+1] = privateDictSettingsButton
@@ -505,6 +505,7 @@ func main() {
 	RebuildFavorites = func() {
 		sort.Sort(favorites)
 		favsList.RegenGroups()
+		favsList.Refresh()
 	}
 
 	iconImage := canvas.NewImageFromResource(Icon)
