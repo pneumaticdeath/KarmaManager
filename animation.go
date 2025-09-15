@@ -22,7 +22,7 @@ import (
 	"fyne.io/fyne/v2/widget"
 )
 
-var glyphSize fyne.Size = fyne.NewSize(20, 20)
+var glyphSize fyne.Size = fyne.NewSize(15, 20)
 var textSize float32 = 20.0
 var glyphSpacing float32 = 1.0
 
