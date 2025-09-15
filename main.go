@@ -111,7 +111,7 @@ func ShowMultiAnagramPicker(title, submitlabel, dismisslabel, shufflelabel strin
 
 func ShowInterestingWordsList(rs *ResultSet, n int, include func(string), exclude func(string), window fyne.Window) {
 	// fmt.Printf("Trying to get item at %d\n", searchlimit)
-	rs.GetAt(searchlimit) // just to get a little bit of data to work with
+	rs.GetAt(searchlimit - 10) // just to get a little bit of data to work with
 	// fmt.Println("Found it")
 	topN := rs.TopNWords(n)
 	var closeDialog func()
@@ -352,7 +352,6 @@ func main() {
 		go func() {
 			text, _ := resultSet.GetAt(index)
 			label.Label.Text = fmt.Sprintf("%10d %s", index+1, text)
-			fyne.Do(object.Refresh)
 		}()
 	})
 	inputEntry.OnSubmitted = func(input string) {
@@ -368,7 +367,9 @@ func main() {
 		includestring := strings.Join(inclusionwords.Words, " ")
 		resultSet.SetInclusions([]string{includestring})
 		resultSet.Regenerate(func() {
-			fyne.Do(resultsDisplay.Refresh)
+			/*
+				fyne.Do(resultsDisplay.Refresh)
+			*/
 		})
 	}
 	inclusionwords.OnDelete = SetInclusions
