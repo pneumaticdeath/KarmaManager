@@ -146,7 +146,7 @@ func (rs *ResultSet) FetchTo(target int) {
 			if normalize(next) != rs.normalizedInput {
 				for _, word := range strings.Split(next, " ") {
 					if word != "" {
-						rs.wordCount[strings.ToLower(word)] += 1
+						rs.wordCount[word] += 1
 					}
 				}
 				rs.results = append(rs.results, next)

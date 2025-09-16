@@ -367,9 +367,7 @@ func main() {
 		includestring := strings.Join(inclusionwords.Words, " ")
 		resultSet.SetInclusions([]string{includestring})
 		resultSet.Regenerate(func() {
-			/*
-				fyne.Do(resultsDisplay.Refresh)
-			*/
+			// fyne.Do(resultsDisplay.Refresh)
 		})
 	}
 	inclusionwords.OnDelete = SetInclusions
