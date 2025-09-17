@@ -493,9 +493,7 @@ func main() {
 		resultsDisplay.Refresh()
 	}
 
-	favsList := NewFavoritesList(&favorites, func(fav FavoriteAnagram) string {
-		return fmt.Sprintf("%s", fav.Anagram)
-	}, sendToMainTabFunc)
+	favsList := NewFavoritesDisplay(&favorites, sendToMainTabFunc)
 
 	// favsContent := container.New(layout.NewAdaptiveGridLayout(1), favsList)
 
