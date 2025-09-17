@@ -309,7 +309,9 @@ func (fd *FavoritesDisplay) RegenGroups() {
 	for input, _ := range fd.groupedList {
 		inputs = append(inputs, input)
 	}
-	sort.Strings(inputs)
+	sort.Slice(inputs, func(i, j int) bool {
+		return strings.ToLower(inputs[i]) < strings.ToLower(inputs[j])
+	})
 
 	opened := make(map[string]bool)
 	if fd.accordion != nil {
