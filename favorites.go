@@ -157,7 +157,7 @@ func NewFavoritesAccList(title string, baseList, this *FavoritesSlice, sendToMai
 
 	fal.MultiAnimateButton = widget.NewButton("Animate all", func() {
 		if len(*this) > 1 {
-			fmt.Printf("Making multi anim dialog for %s\n", title)
+			// fmt.Printf("Making multi anim dialog for %s\n", title)
 			anagrams := make([]string, len(*this))
 			for index, fav := range *this {
 				anagrams[index] = fav.Anagram
@@ -258,7 +258,7 @@ func (fal *FavoritesAccList) MinSize() fyne.Size {
 	bbsize := fal.buttonbar.MinSize()
 	lsize := fal.list.MinSize()
 	length := min(fal.listSize, 5)
-	return fyne.NewSize(max(bbsize.Width, lsize.Width), bbsize.Height + float32(length) * (lsize.Height + 5.0))
+	return fyne.NewSize(max(bbsize.Width, lsize.Width), bbsize.Height+float32(length)*(lsize.Height+5.0))
 }
 
 func (fal *FavoritesAccList) findGlobalID(selectedFavorite FavoriteAnagram) int {

@@ -1,7 +1,7 @@
 package main
 
 import (
-	"fmt"
+	// "fmt"
 	// "log"
 	"sort"
 	"strings"
@@ -78,7 +78,7 @@ func makeAnagrams(input string, include []string, dictionary *Dictionary, output
 
 	filtered, target := FilterAnnotatedDict(input, dictionary)
 
-	fmt.Printf("For input \"%s\" filtered is %d elements\n", input, len(filtered))
+	// fmt.Printf("For input \"%s\" filtered is %d elements\n", input, len(filtered))
 	// for _, dp := range filtered[:10] {
 	// 	fmt.Print(dp.Word, " ")
 	// }
