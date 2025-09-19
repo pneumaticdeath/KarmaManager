@@ -119,6 +119,7 @@ func (wl *WordList) CreateRenderer() fyne.WidgetRenderer {
 
 func (wl *WordList) ShowAddWord(title, submit, dismiss string, onsubmit func(), window fyne.Window) {
 	wordEntry := widget.NewEntry()
+	wordEntry.SetPlaceHolder("Word")
 	wordEntry.Validator = func(word string) error {
 		if strings.Index(word, " ") != -1 {
 			return errors.New("Must not contain spaces")
