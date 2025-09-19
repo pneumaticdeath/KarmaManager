@@ -281,6 +281,7 @@ func main() {
 
 	inputdata := binding.NewString()
 	inputEntry := widget.NewEntryWithData(inputdata)
+	inputEntry.SetPlaceHolder("What are we anagramming?")
 	inputdata.AddListener(binding.NewDataListener(func() {
 		if inputEntry.OnSubmitted != nil {
 			inputEntry.OnSubmitted(inputEntry.Text)
