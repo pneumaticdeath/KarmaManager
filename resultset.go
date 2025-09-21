@@ -183,6 +183,10 @@ func (rs *ResultSet) Count() int {
 	return rs.resultCount
 }
 
+func (rs *ResultSet) IsEmpty() bool {
+	return rs.resultCount == 0 && rs.isDone
+}
+
 func (rs *ResultSet) GetAt(index int) (string, bool) {
 	log.Printf("Getting item at %d\n", index)
 	if index > rs.resultCount-10 {
@@ -192,12 +196,13 @@ func (rs *ResultSet) GetAt(index int) (string, bool) {
 		for !rs.isDone && index >= rs.resultCount {
 			time.Sleep(time.Millisecond)
 		}
-
-		if index >= rs.resultCount {
-			return "", false
-		}
 	}
-	return rs.results[index], true
+
+	if index < rs.resultCount {
+		return rs.results[index], true
+	} else {
+		return "", false
+	}
 }
 
 func (rs *ResultSet) SetInclusions(phrases []string) {

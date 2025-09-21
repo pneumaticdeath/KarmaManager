@@ -344,18 +344,14 @@ func main() {
 	controlBar := container.New(layout.NewVBoxLayout(), inputBar, dictionaryBar)
 
 	resultsDisplay := widget.NewList(func() int { // list length
+		if resultSet.IsEmpty() {
+			return 1 // So we get the "No results" label if the list is empty
+		}
 		return resultSet.Count()
 	}, func() fyne.CanvasObject { // Make new entry
 		return NewTapLabel("Foo")
 	}, func(index int, object fyne.CanvasObject) { // Update entry
-		label, ok := object.(*TapLabel)
-		if !ok {
-			return
-		}
-		go func() {
-			text, _ := resultSet.GetAt(index)
-			label.Label.Text = fmt.Sprintf("%10d %s", index+1, text)
-		}()
+		return // to be replaced later
 	})
 	inputEntry.OnSubmitted = func(input string) {
 		reset_search()
@@ -439,51 +435,56 @@ func main() {
 		if !ok {
 			return
 		}
-		text, _ := resultSet.GetAt(id)
-		label.Label.Text = fmt.Sprintf("%10d %s", id+1, text)
-		label.OnTapped = func(pe *fyne.PointEvent) {
-			input, _ := inputdata.Get()
-			copyAnagramToCBMI := fyne.NewMenuItem("Copy anagram to clipboard", func() {
-				MainWindow.Clipboard().SetContent(text)
-				ShowPopUpMessage("Copied to clipboard", time.Second, MainWindow)
-			})
-			copyBothToCBMI := fyne.NewMenuItem("Copy input and anagram to clipboard", func() {
-				MainWindow.Clipboard().SetContent(fmt.Sprintf("%s ↔️ %s", input, text))
-				ShowPopUpMessage("Copied to clipboard", time.Second, MainWindow)
-			})
-			addToFavsMI := fyne.NewMenuItem("Add to favorites", func() {
-				ShowEditor("Add to favorites", text, func(editted string) {
-					newFav := FavoriteAnagram{resultSet.CombinedDictName(), strings.TrimSpace(input), editted}
-					favorites = append(favorites, newFav)
-					RebuildFavorites()
-					SaveFavorites(favorites, App.Preferences())
-					ShowPopUpMessage("Added to favorites", time.Second, MainWindow)
-				}, MainWindow)
-			})
-			animateMI := fyne.NewMenuItem("Animate", func() {
-				input, _ = inputdata.Get()
-				ShowAnimation("Animate anagram...", input, []string{text}, MainWindow)
-			})
-			words := strings.Split(text, " ")
-			includeMIs := make([]*fyne.MenuItem, len(words))
-			excludeMIs := make([]*fyne.MenuItem, len(words))
-			for index, word := range words {
-				includeMIs[index] = fyne.NewMenuItem(word, func() {
-					includeFunc(word)
+		text, text_ok := resultSet.GetAt(id)
+		if text_ok {
+			label.Label.Text = fmt.Sprintf("%10d %s", id+1, text)
+			label.OnTapped = func(pe *fyne.PointEvent) {
+				input, _ := inputdata.Get()
+				copyAnagramToCBMI := fyne.NewMenuItem("Copy anagram to clipboard", func() {
+					MainWindow.Clipboard().SetContent(text)
+					ShowPopUpMessage("Copied to clipboard", time.Second, MainWindow)
 				})
-				excludeMIs[index] = fyne.NewMenuItem(word, func() {
-					excludeFunc(word)
+				copyBothToCBMI := fyne.NewMenuItem("Copy input and anagram to clipboard", func() {
+					MainWindow.Clipboard().SetContent(fmt.Sprintf("%s ↔️ %s", input, text))
+					ShowPopUpMessage("Copied to clipboard", time.Second, MainWindow)
 				})
+				addToFavsMI := fyne.NewMenuItem("Add to favorites", func() {
+					ShowEditor("Add to favorites", text, func(editted string) {
+						newFav := FavoriteAnagram{resultSet.CombinedDictName(), strings.TrimSpace(input), editted}
+						favorites = append(favorites, newFav)
+						RebuildFavorites()
+						SaveFavorites(favorites, App.Preferences())
+						ShowPopUpMessage("Added to favorites", time.Second, MainWindow)
+					}, MainWindow)
+				})
+				animateMI := fyne.NewMenuItem("Animate", func() {
+					input, _ = inputdata.Get()
+					ShowAnimation("Animate anagram...", input, []string{text}, MainWindow)
+				})
+				words := strings.Split(text, " ")
+				includeMIs := make([]*fyne.MenuItem, len(words))
+				excludeMIs := make([]*fyne.MenuItem, len(words))
+				for index, word := range words {
+					includeMIs[index] = fyne.NewMenuItem(word, func() {
+						includeFunc(word)
+					})
+					excludeMIs[index] = fyne.NewMenuItem(word, func() {
+						excludeFunc(word)
+					})
+				}
+				includemenu := fyne.NewMenu("Include", includeMIs...)
+				exclusionmenu := fyne.NewMenu("Exclude", excludeMIs...)
+				includeMI := fyne.NewMenuItem("Include", nil)
+				includeMI.ChildMenu = includemenu
+				excludeMI := fyne.NewMenuItem("Exclude", nil)
+				excludeMI.ChildMenu = exclusionmenu
+				var pumenu *fyne.Menu
+				pumenu = fyne.NewMenu("Pop up", copyAnagramToCBMI, copyBothToCBMI, addToFavsMI, animateMI, includeMI, excludeMI)
+				widget.ShowPopUpMenuAtRelativePosition(pumenu, MainWindow.Canvas(), pe.Position, label)
 			}
-			includemenu := fyne.NewMenu("Include", includeMIs...)
-			exclusionmenu := fyne.NewMenu("Exclude", excludeMIs...)
-			includeMI := fyne.NewMenuItem("Include", nil)
-			includeMI.ChildMenu = includemenu
-			excludeMI := fyne.NewMenuItem("Exclude", nil)
-			excludeMI.ChildMenu = exclusionmenu
-			var pumenu *fyne.Menu
-			pumenu = fyne.NewMenu("Pop up", copyAnagramToCBMI, copyBothToCBMI, addToFavsMI, animateMI, includeMI, excludeMI)
-			widget.ShowPopUpMenuAtRelativePosition(pumenu, MainWindow.Canvas(), pe.Position, label)
+		} else {
+			label.Label.Text = "       No results!"
+			label.Label.TextStyle = fyne.TextStyle{Italic: true}
 		}
 		obj.Refresh()
 	}
