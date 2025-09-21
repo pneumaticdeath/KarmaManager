@@ -368,7 +368,11 @@ func main() {
 	inclusionwords := NewWordList([]string{})
 	SetInclusions := func() {
 		includestring := strings.Join(inclusionwords.Words, " ")
-		resultSet.SetInclusions([]string{includestring})
+		if includestring != "" {
+			resultSet.SetInclusions([]string{includestring})
+		} else {
+			resultSet.SetInclusions([]string{})
+		}
 		resultSet.Regenerate(func() {
 			fyne.Do(resultsDisplay.ScrollToTop)
 			// fyne.Do(resultsDisplay.Refresh)
