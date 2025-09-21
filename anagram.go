@@ -2,7 +2,7 @@ package main
 
 import (
 	// "fmt"
-	// "log"
+	"log"
 	"sort"
 	"strings"
 )
@@ -84,16 +84,16 @@ func makeAnagrams(input string, include []string, dictionary *Dictionary, output
 	// }
 	// fmt.Println("")
 
-	includedDone := 0
 	if len(include) > 0 {
+		includedDone := 0
 		for _, phrase := range include {
 			trimmedPhrase := strings.TrimSpace(phrase)
 			if trimmedPhrase == "" {
 				continue
 			}
-			phraseRC := NewRuneCluster(phrase)
+			phraseRC := NewRuneCluster(trimmedPhrase)
 			if !phraseRC.SubSetOf(target) {
-				// log.Println("Phrase \"" + phrase + "\" not a subset of input")
+				log.Println("Phrase \"" + trimmedPhrase + "\" not a subset of input")
 				continue
 			}
 			includedDone += 1
@@ -108,13 +108,16 @@ func makeAnagrams(input string, include []string, dictionary *Dictionary, output
 
 			findTuples(trimmedPhrase, newTarget, newFiltered, output)
 		}
-	}
-	if includedDone == 0 {
+		if includedDone == 0 {
+			log.Println("Can't make anything with these included phrases")
+		}
+	} else {
 		findTuples("", target, filtered, output)
 	}
 }
 
 var trials int = 0
+var pruneCount int = 0
 
 func findTuples(current string, target *RuneCluster, dict annotatedDict, output chan<- string) {
 	if target.IsEmpty() {
@@ -127,6 +130,21 @@ func findTuples(current string, target *RuneCluster, dict annotatedDict, output 
 	}
 
 	trials += 1
+
+	totalCounts := NewRuneCluster("")
+	for _, dp := range dict {
+		totalCounts.Add(dp.cluster)
+	}
+	if len(dict) == 0 || !target.SubSetOf(totalCounts) { // Then this branch can't yield results
+		if len(dict) >= 10 {
+			log.Printf("Pruning significant impossible branch \"%s\" with %d words left after %d tivial prunes\n", current, len(dict), pruneCount)
+			pruneCount = 0
+		} else {
+			pruneCount += 1
+		}
+		return
+	}
+
 	for index, dp := range dict {
 		var trial string
 		if current == "" {
