@@ -137,7 +137,7 @@ func findTuples(current string, target *RuneCluster, dict annotatedDict, output 
 	}
 	if len(dict) == 0 || !target.SubSetOf(totalCounts) { // Then this branch can't yield results
 		if len(dict) >= 10 {
-			log.Printf("Pruning significant impossible branch \"%s\" with %d words left after %d tivial prunes\n", current, len(dict), pruneCount)
+			// log.Printf("Pruning significant impossible branch \"%s\" with %d words left after %d tivial prunes\n", current, len(dict), pruneCount)
 			pruneCount = 0
 		} else {
 			pruneCount += 1
