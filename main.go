@@ -451,6 +451,23 @@ func main() {
 				addToFavsMI := fyne.NewMenuItem("Add to favorites", func() {
 					ShowEditor("Add to favorites", text, func(editted string) {
 						newFav := FavoriteAnagram{resultSet.CombinedDictName(), strings.TrimSpace(input), editted}
+						newInputNormalized := Normalize(newFav.Input)
+						newAnagramNormalized := Normalize(newFav.Anagram)
+						for _, existing := range favorites {
+							if newInputNormalized == Normalize(existing.Input) && newAnagramNormalized == Normalize(existing.Anagram) {
+								dialog.ShowConfirm("Duplicate detected", fmt.Sprintf("Looks similar to \"%s\".  Add anyway?", existing.Anagram), func(addAnyway bool) {
+									if addAnyway {
+										favorites = append(favorites, newFav)
+										RebuildFavorites()
+										SaveFavorites(favorites, App.Preferences())
+										ShowPopUpMessage("Added to favorites", time.Second, MainWindow)
+									} else {
+										ShowPopUpMessage("Not adding duplicate", time.Second, MainWindow)
+									}
+								}, MainWindow)
+								return
+							}
+						}
 						favorites = append(favorites, newFav)
 						RebuildFavorites()
 						SaveFavorites(favorites, App.Preferences())

@@ -55,7 +55,7 @@ func (rs *ResultSet) SetWorkingStopCallback(cb func()) {
 
 func (rs *ResultSet) FindAnagrams(input string, refreshCallback func()) {
 	rs.input = input
-	rs.normalizedInput = normalize(input)
+	rs.normalizedInput = Normalize(input)
 	rs.Regenerate(refreshCallback)
 }
 
@@ -144,7 +144,7 @@ func (rs *ResultSet) FetchTo(target int) {
 			break
 		}
 		if ok {
-			if normalize(next) != rs.normalizedInput {
+			if Normalize(next) != rs.normalizedInput {
 				for _, word := range strings.Split(next, " ") {
 					if word != "" {
 						rs.wordCount[word] += 1
@@ -249,7 +249,7 @@ func (rs *ResultSet) TopNWords(n int) Counts {
 	}
 }
 
-func normalize(str string) string {
+func Normalize(str string) string {
 	b := strings.Builder{}
 	for _, c := range strings.Trim(str, " ") {
 		r := rune(c)
