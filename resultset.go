@@ -2,6 +2,7 @@ package main
 
 import (
 	// "fmt"
+	"log"
 	"sort"
 	"strings"
 	"sync"
@@ -60,7 +61,7 @@ func (rs *ResultSet) FindAnagrams(input string, refreshCallback func()) {
 
 func (rs *ResultSet) Abort() {
 	if rs.inFetch {
-		// fmt.Println("Aborting in-process FetchTo()")
+		log.Println("Aborting in-process FetchTo()")
 		rs.abortFlag = true
 		for rs.abortFlag {
 			time.Sleep(time.Millisecond * 100)
@@ -115,16 +116,16 @@ func (rs *ResultSet) FetchTo(target int) {
 	}
 
 	if rs.fetchTarget < target {
-		// fmt.Printf("New fetch target %d\n", target)
+		log.Printf("New fetch target %d\n", target)
 		rs.fetchTarget = target
 	}
 
 	lockSuccess := rs.fetchLock.TryLock()
 	if !lockSuccess {
-		// fmt.Println("Tried to FetchTo() while already locked")
+		log.Println("Tried to FetchTo() while already locked")
 		return
 	}
-	// fmt.Println("Acquired lock")
+	log.Println("Acquired lock")
 	rs.inFetch = true
 
 	if rs.workingStartCallback != nil {
@@ -138,7 +139,7 @@ func (rs *ResultSet) FetchTo(target int) {
 	for !rs.isDone && rs.resultCount < rs.fetchTarget {
 		next, ok := <-rs.resultChan
 		if rs.abortFlag {
-			// fmt.Println("FetchTo() aborted")
+			log.Println("FetchTo() aborted")
 			rs.abortFlag = false
 			break
 		}
@@ -171,7 +172,7 @@ func (rs *ResultSet) FetchTo(target int) {
 
 	rs.inFetch = false
 	rs.fetchLock.Unlock()
-	// fmt.Printf("Released lock at %d\n", rs.resultCount)
+	log.Printf("Released lock at %d\n", rs.resultCount)
 }
 
 func (rs *ResultSet) IsDone() bool {
@@ -183,7 +184,7 @@ func (rs *ResultSet) Count() int {
 }
 
 func (rs *ResultSet) GetAt(index int) (string, bool) {
-	// fmt.Printf("Getting item at %d\n", index)
+	log.Printf("Getting item at %d\n", index)
 	if index > rs.resultCount-10 {
 		go func() {
 			rs.FetchTo(index + 10)

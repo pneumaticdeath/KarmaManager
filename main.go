@@ -3,6 +3,7 @@ package main
 import (
 	"errors"
 	"fmt"
+	"log"
 	"math/rand/v2"
 	"sort"
 	"strings"
@@ -162,6 +163,7 @@ func ShowPopUpMessage(message string, duration time.Duration, window fyne.Window
 }
 
 func main() {
+	log.SetFlags(log.Ldate | log.Ltime | log.Lmicroseconds | log.Lshortfile)
 	App := app.NewWithID("io.patenaude.karmamanager")
 	MainWindow = App.NewWindow("Karma Manger")
 
@@ -368,7 +370,8 @@ func main() {
 		includestring := strings.Join(inclusionwords.Words, " ")
 		resultSet.SetInclusions([]string{includestring})
 		resultSet.Regenerate(func() {
-			fyne.Do(resultsDisplay.Refresh)
+			fyne.Do(resultsDisplay.ScrollToTop)
+			// fyne.Do(resultsDisplay.Refresh)
 		})
 	}
 	inclusionwords.OnDelete = SetInclusions
@@ -385,7 +388,8 @@ func main() {
 	SetExclusions := func() {
 		resultSet.SetExclusions(exclusionwords.Words)
 		resultSet.Regenerate(func() {
-			fyne.Do(resultsDisplay.Refresh)
+			fyne.Do(resultsDisplay.ScrollToTop)
+			// fyne.Do(resultsDisplay.Refresh)
 		})
 	}
 	exclusionwords.OnDelete = func() {
@@ -533,8 +537,8 @@ func main() {
 
 	reset = func() {
 		resultSet.Regenerate(func() {
+			fyne.Do(resultsDisplay.Refresh)
 			fyne.Do(resultsDisplay.ScrollToTop)
-			// fyne.Do(resultsDisplay.Refresh)
 		})
 		content.Refresh()
 	}
