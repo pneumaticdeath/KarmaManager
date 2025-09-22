@@ -4,3 +4,4 @@ fyne-cross
 .env
 wasm
 .DS_Store
+preferences.json
