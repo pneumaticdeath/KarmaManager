@@ -161,7 +161,7 @@ func NewFavoritesAccList(title string, baseList, this *FavoritesSlice, sendToMai
 
 	fal.listSize = len(*this)
 
-	fal.MultiAnimateButton = widget.NewButton("Animate all", func() {
+	fal.MultiAnimateButton = widget.NewButton("Animate many", func() {
 		if len(*this) > 1 {
 			// fmt.Printf("Making multi anim dialog for %s\n", title)
 			anagrams := make([]string, len(*this))
