@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"log"
 	// "image/gif"
 	"slices"
 	"sort"
@@ -98,10 +99,15 @@ func ShowFavoriteAnagramEditor(favs *FavoritesSlice, index int, prefs fyne.Prefe
 
 func ShowFavoriteInputEditor(favs *FavoritesSlice, index int, prefs fyne.Preferences, refresh func(), window fyne.Window) {
 	fav := (*favs)[index]
+	oldInput := fav.Input
 	ShowEditor("Edit input phrase", fav.Input, func(newInput string) {
-		if fav.Input != newInput {
-			fav.Input = newInput
-			(*favs)[index] = fav
+		if newInput != oldInput {
+			for f_index, f := range *favs {	
+				if f.Input == oldInput{
+					f.Input = newInput
+					(*favs)[f_index] = f
+				}
+			}
 			if refresh != nil {
 				refresh()
 			}
@@ -175,7 +181,15 @@ func NewFavoritesAccList(title string, baseList, this *FavoritesSlice, sendToMai
 		sendToMain(title)
 	})
 
-	fal.buttonbar = container.New(layout.NewGridLayout(2), fal.MultiAnimateButton, sendToMainButton)
+	editInputButton := widget.NewButton("Edit input", func() {
+		if len(*this) > 0 {
+			ShowFavoriteInputEditor(fal.baseSlice, fal.findGlobalID((*this)[0]), AppPreferences, RebuildFavorites, MainWindow)
+		} else {
+			log.Panicln("FavoritesAccList: trying to edit input on a 0 length list")
+		}
+	})
+
+	fal.buttonbar = container.New(layout.NewGridLayout(3), fal.MultiAnimateButton, sendToMainButton, editInputButton)
 
 	fal.list = widget.NewList(func() int {
 		return len(*this)
@@ -189,7 +203,7 @@ func NewFavoritesAccList(title string, baseList, this *FavoritesSlice, sendToMai
 		label.Label.Text = (*this)[id].Anagram
 		label.Label.Alignment = fyne.TextAlignCenter
 		label.OnTapped = func(pe *fyne.PointEvent) {
-			copyAnagramToCBMI := fyne.NewMenuItem("Copy anagram to clipboard", func() {
+			copyAnagramMI := fyne.NewMenuItem("Copy anagram to clipboard", func() {
 				MainWindow.Clipboard().SetContent((*this)[id].Anagram)
 				pulabel := widget.NewLabel("Copied to clipboard")
 				pu := widget.NewPopUp(pulabel, MainWindow.Canvas())
@@ -201,7 +215,7 @@ func NewFavoritesAccList(title string, baseList, this *FavoritesSlice, sendToMai
 					fyne.Do(pu.Hide)
 				}()
 			})
-			copyBothToCBMI := fyne.NewMenuItem("Copy input and anagram to clipboard", func() {
+			copyBothMI := fyne.NewMenuItem("Copy input and anagram to clipboard", func() {
 				MainWindow.Clipboard().SetContent(fmt.Sprintf("%s ↔️ %s", (*this)[id].Input, (*this)[id].Anagram))
 				pulabel := widget.NewLabel("Copied to clipboard")
 				pu := widget.NewPopUp(pulabel, MainWindow.Canvas())
@@ -220,23 +234,15 @@ func NewFavoritesAccList(title string, baseList, this *FavoritesSlice, sendToMai
 			sendToMainMI := fyne.NewMenuItem("Send anagram to main input tab", func() {
 				sendToMain((*this)[id].Anagram)
 			})
-			editAnagramMI := fyne.NewMenuItem("Edit Anagram", func() {
+			editMI := fyne.NewMenuItem("Edit", func() {
 				globalID := fal.findGlobalID((*this)[id])
 				ShowFavoriteAnagramEditor(fal.baseSlice, globalID, AppPreferences, RebuildFavorites, MainWindow)
-				// fl.anagramDisplay.Refresh()
-			})
-			editInputMI := fyne.NewMenuItem("Edit Input", func() {
-				globalID := fal.findGlobalID((*this)[id])
-				ShowFavoriteInputEditor(fal.baseSlice, globalID, AppPreferences, RebuildFavorites, MainWindow)
-				// fal.RegenGroups()
-				// fl.anagramDisplay.Refresh()
 			})
 			deleteMI := fyne.NewMenuItem("Delete", func() {
 				globalID := fal.findGlobalID((*this)[id])
 				ShowDeleteFavConfirm(fal.baseSlice, globalID, AppPreferences, RebuildFavorites, MainWindow)
-				// fl.anagramDisplay.Refresh()
 			})
-			pumenu := fyne.NewMenu("Pop up", copyAnagramToCBMI, copyBothToCBMI, animateMI, sendToMainMI, editInputMI, editAnagramMI, deleteMI)
+			pumenu := fyne.NewMenu("Pop up", copyAnagramMI, copyBothMI, animateMI, sendToMainMI, editMI, deleteMI)
 			widget.ShowPopUpMenuAtRelativePosition(pumenu, MainWindow.Canvas(), pe.Position, label)
 		}
 
