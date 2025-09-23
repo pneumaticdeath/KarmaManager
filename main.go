@@ -370,8 +370,8 @@ func main() {
 			resultSet.SetInclusions([]string{})
 		}
 		resultSet.Regenerate(func() {
+			fyne.Do(resultsDisplay.Refresh)
 			fyne.Do(resultsDisplay.ScrollToTop)
-			// fyne.Do(resultsDisplay.Refresh)
 		})
 	}
 	inclusionwords.OnDelete = SetInclusions
@@ -388,8 +388,8 @@ func main() {
 	SetExclusions := func() {
 		resultSet.SetExclusions(exclusionwords.Words)
 		resultSet.Regenerate(func() {
+			fyne.Do(resultsDisplay.Refresh)
 			fyne.Do(resultsDisplay.ScrollToTop)
-			// fyne.Do(resultsDisplay.Refresh)
 		})
 	}
 	exclusionwords.OnDelete = func() {
