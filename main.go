@@ -438,6 +438,7 @@ func main() {
 		text, text_ok := resultSet.GetAt(id)
 		if text_ok {
 			label.Label.Text = fmt.Sprintf("%10d %s", id+1, text)
+			label.Label.TextStyle = fyne.TextStyle{Italic: false}
 			label.OnTapped = func(pe *fyne.PointEvent) {
 				input, _ := inputdata.Get()
 				copyAnagramToCBMI := fyne.NewMenuItem("Copy anagram to clipboard", func() {
