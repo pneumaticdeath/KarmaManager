@@ -177,7 +177,7 @@ func NewFavoritesAccList(title string, baseList, this *FavoritesSlice, sendToMai
 		}
 	})
 
-	sendToMainButton := widget.NewButton("Send to main tab", func() {
+	sendToMainButton := widget.NewButton("Send to Find tab", func() {
 		sendToMain(title)
 	})
 
@@ -231,7 +231,7 @@ func NewFavoritesAccList(title string, baseList, this *FavoritesSlice, sendToMai
 				anagrams := []string{(*this)[id].Anagram}
 				ShowAnimation("Animated anagram...", (*this)[id].Input, anagrams, MainWindow)
 			})
-			sendToMainMI := fyne.NewMenuItem("Send anagram to main input tab", func() {
+			sendToMainMI := fyne.NewMenuItem("Send anagram to Find tab", func() {
 				sendToMain((*this)[id].Anagram)
 			})
 			editMI := fyne.NewMenuItem("Edit", func() {
