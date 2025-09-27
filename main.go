@@ -21,7 +21,7 @@ import (
 )
 
 var searchtimeout time.Duration = time.Second
-var searchlimit int = 50000
+var searchlimit int = 100000
 var MainWindow fyne.Window
 var Icon fyne.Resource
 var AppPreferences fyne.Preferences
@@ -232,21 +232,6 @@ func main() {
 		SaveDictionarySelections(dicts, AppPreferences)
 	}
 
-	mainSelect := widget.NewSelect(mainDictNames, func(dictName string) {
-		for i, n := range mainDictNames {
-			if dictName == n {
-				selectedMainIndex = i
-				resultSet.SetMainIndex(i)
-				reset()
-				MainWindow.SetTitle(resultSet.CombinedDictName())
-				saveDictSelections()
-				return
-			}
-		}
-		dialog.ShowError(errors.New("Can't find selected main dictionary"), MainWindow)
-	})
-	mainSelect.SetSelectedIndex(selectedMainIndex)
-
 	addedChecks := make([]fyne.CanvasObject, len(addedDicts)+2)
 	for i, ad := range addedDicts {
 		enabled := &ad.Enabled // copy a pointer to an address
@@ -259,6 +244,7 @@ func main() {
 		ad.Enabled = false
 		for _, name := range remainingDicts {
 			if ad.Name == name {
+				// log.Printf("Enabling added dictionary %s\n", name)
 				ad.Enabled = true
 				break
 			}
@@ -280,6 +266,21 @@ func main() {
 	})
 	addedChecks[len(addedDicts)+1] = privateDictSettingsButton
 	addedDictsContainer := container.New(layout.NewHBoxLayout(), addedChecks...)
+
+	mainSelect := widget.NewSelect(mainDictNames, func(dictName string) {
+		for i, n := range mainDictNames {
+			if dictName == n {
+				selectedMainIndex = i
+				resultSet.SetMainIndex(i)
+				reset()
+				MainWindow.SetTitle(resultSet.CombinedDictName())
+				saveDictSelections()
+				return
+			}
+		}
+		dialog.ShowError(errors.New("Can't find selected main dictionary"), MainWindow)
+	})
+	mainSelect.SetSelectedIndex(selectedMainIndex)
 
 	inputdata := binding.NewString()
 	inputEntry := widget.NewEntryWithData(inputdata)

@@ -3,6 +3,7 @@ package main
 import (
 	"embed"
 	"encoding/json"
+	// "log"
 	"strings"
 
 	"fyne.io/fyne/v2"
@@ -149,9 +150,22 @@ func SavePrivateDictionary(d *Dictionary, prefs fyne.Preferences) {
 }
 
 func GetDictionarySelections(prefs fyne.Preferences) []string {
-	return prefs.StringList(dictionarySelectionsKey)
+	retval := prefs.StringList(dictionarySelectionsKey)
+	/*
+		log.Println("Getting Dictionary Selections: ")
+		for _, dname := range retval {
+			log.Println("  " + dname)
+		}
+	*/
+	return retval
 }
 
 func SaveDictionarySelections(dictNames []string, prefs fyne.Preferences) {
+	/*
+		log.Println("Saving Dictionary Selections:")
+		for _, dname := range dictNames {
+			log.Println("  " + dname)
+		}
+	*/
 	prefs.SetStringList(dictionarySelectionsKey, dictNames)
 }

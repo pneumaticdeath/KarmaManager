@@ -1,0 +1,9 @@
+# Changed in v0.5.0
+* when there aren't results, it now diplays "No Results" rather than just a blank list
+* placeholder text on input fields
+* detects and confirm addition of duplicate favorites
+* significant speed improvement, especially with difficult inputs
+* increased "interesting words" search limit to 100,000 rather than 50,000
+* renamed references from "Main" tab to "Find" tab
+* fixed bug with dictionary selection preservation
+* fixed some of the display refresh logic

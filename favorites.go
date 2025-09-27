@@ -102,8 +102,8 @@ func ShowFavoriteInputEditor(favs *FavoritesSlice, index int, prefs fyne.Prefere
 	oldInput := fav.Input
 	ShowEditor("Edit input phrase", fav.Input, func(newInput string) {
 		if newInput != oldInput {
-			for f_index, f := range *favs {	
-				if f.Input == oldInput{
+			for f_index, f := range *favs {
+				if f.Input == oldInput {
 					f.Input = newInput
 					(*favs)[f_index] = f
 				}
