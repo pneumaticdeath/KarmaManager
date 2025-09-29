@@ -322,7 +322,13 @@ func (fd *FavoritesDisplay) RegenGroups() {
 	opened := make(map[string]bool)
 	if fd.accordion != nil {
 		for _, ai := range fd.accordion.Items {
-			opened[ai.Title] = ai.Open
+			title := ai.Title
+			li := strings.LastIndex(title, " (")
+			if li >= 0 {
+				opened[title[:li]] = ai.Open
+			} else {
+				opened[title] = ai.Open
+			}
 		}
 	}
 
