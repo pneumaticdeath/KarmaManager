@@ -1,20 +1,9 @@
-#!/bin/bash -e 
- 
-# for os in darwin windows linux
+#!/bin/bash -e
+
 for os in windows linux
 do
 	fyne-cross ${os} --pull --arch=*
 done
-
-# fyne-cross --pull android
-#
-# # Hack to deal with a bug in the android cross 
-# # compile container.
-# if ! grep -q 'LinuxAndBSD' FyneApp.toml ; then
-#	cat linux-block.toml >> FyneApp.toml
-# fi
-
-# fyne package --target web
 
 mkdir -p fyne-cross/packages || true
 
@@ -28,6 +17,7 @@ do
 	cp ${dir}/KarmaManager.tar.xz fyne-cross/packages/KarmaManager_$(basename ${dir} | sed -e 's/-/_/').tar.xz
 done
 
+# no need for fyne-cross, because it has a bug in newer cross compiles
 fyne package --target darwin
 
 zipfile="KarmaManager_darwin-arm64.zip"
