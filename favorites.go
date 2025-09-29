@@ -342,7 +342,7 @@ func (fd *FavoritesDisplay) RegenGroups() {
 			fal.MultiAnimateButton.Disable()
 		}
 
-		ai := widget.NewAccordionItem(fmt.Sprintf("%s (%d)",input,len(fd.groupedList[input])), fal)
+		ai := widget.NewAccordionItem(fmt.Sprintf("%s (%d)", input, len(fd.groupedList[input])), fal)
 		ai.Open = opened[input]
 		accordionItemList = append(accordionItemList, ai)
 	}
