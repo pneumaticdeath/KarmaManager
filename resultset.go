@@ -10,32 +10,47 @@ import (
 	"unicode"
 )
 
+type RSState struct {
+	input            string
+	normalizedInput  string
+	included         []string
+	excluded         []string
+	wordCount        map[string]int
+	resultCount      int
+	results          []string
+	isDone           bool
+	combinedDictName string
+	resultChan       <-chan string
+}
+
+func NewRSState() *RSState {
+	state := &RSState{}
+	state.included = make([]string, 0)
+	state.excluded = make([]string, 0)
+	state.wordCount = make(map[string]int)
+	state.results = make([]string, 0, 25)
+
+	return state
+}
+
 type ResultSet struct {
 	mainDicts            []*Dictionary
 	addedDicts           []*Dictionary
 	privateDict          *Dictionary
-	input                string
-	normalizedInput      string
-	included             []string
-	excluded             []string
-	wordCount            map[string]int
-	resultCount          int
+	state                *RSState
+	cached               []*RSState
 	mainDictIndex        int
-	results              []string
-	isDone               bool
 	fetchLock            sync.Mutex
 	fetchTarget          int
 	inFetch              bool
 	abortFlag            bool
-	combinedDictName     string
 	progressCallback     func(int, int)
 	workingStartCallback func()
 	workingStopCallback  func()
-	resultChan           <-chan string
 }
 
 func NewResultSet(mainDicts, addedDicts []*Dictionary, privateDict *Dictionary, mainDictIndex int) *ResultSet {
-	rs := &ResultSet{mainDicts, addedDicts, privateDict, "", "", make([]string, 0), make([]string, 0), make(map[string]int), 0, mainDictIndex, make([]string, 0), true, sync.Mutex{}, 0, false, false, "", nil, nil, nil, nil}
+	rs := &ResultSet{mainDicts, addedDicts, privateDict, NewRSState(), make([]*RSState, 0), mainDictIndex, sync.Mutex{}, 0, false, false, nil, nil, nil}
 
 	rs.FindAnagrams("", nil)
 	return rs
@@ -54,8 +69,8 @@ func (rs *ResultSet) SetWorkingStopCallback(cb func()) {
 }
 
 func (rs *ResultSet) FindAnagrams(input string, refreshCallback func()) {
-	rs.input = input
-	rs.normalizedInput = Normalize(input)
+	rs.state.input = input
+	rs.state.normalizedInput = Normalize(input)
 	rs.Regenerate(refreshCallback)
 }
 
@@ -70,16 +85,16 @@ func (rs *ResultSet) Abort() {
 }
 
 func (rs *ResultSet) Regenerate(refreshCallback func()) {
-	rs.resultCount = 0
+	rs.state.resultCount = 0
 	rs.fetchTarget = 0
-	rs.wordCount = make(map[string]int)
-	rs.results = make([]string, 0, 110)
-	rs.isDone = false
+	rs.state.wordCount = make(map[string]int)
+	rs.state.results = make([]string, 0, 110)
+	rs.state.isDone = false
 	combinedDict := rs.CombineDicts()
 	go func() {
 		rs.Abort()
-		rs.resultChan = FindAnagrams(rs.input, rs.included, combinedDict)
-		rs.combinedDictName = combinedDict.Name
+		rs.state.resultChan = FindAnagrams(rs.state.input, rs.state.included, combinedDict)
+		rs.state.combinedDictName = combinedDict.Name
 		rs.FetchTo(25)
 		if refreshCallback != nil {
 			refreshCallback()
@@ -99,11 +114,11 @@ func (rs *ResultSet) CombineDicts() *Dictionary {
 		dicts = append(dicts, rs.privateDict)
 	}
 
-	return MergeDictionaries(rs.excluded, dicts...)
+	return MergeDictionaries(rs.state.excluded, dicts...)
 }
 
 func (rs *ResultSet) CombinedDictName() string {
-	return rs.combinedDictName
+	return rs.state.combinedDictName
 }
 
 func (rs *ResultSet) SetMainIndex(index int) {
@@ -111,7 +126,7 @@ func (rs *ResultSet) SetMainIndex(index int) {
 }
 
 func (rs *ResultSet) FetchTo(target int) {
-	if rs.isDone {
+	if rs.state.isDone {
 		return
 	}
 
@@ -133,37 +148,37 @@ func (rs *ResultSet) FetchTo(target int) {
 	}
 
 	if rs.progressCallback != nil {
-		rs.progressCallback(rs.resultCount, rs.fetchTarget)
+		rs.progressCallback(rs.state.resultCount, rs.fetchTarget)
 	}
 
-	for !rs.isDone && rs.resultCount < rs.fetchTarget {
-		next, ok := <-rs.resultChan
+	for !rs.state.isDone && rs.state.resultCount < rs.fetchTarget {
+		next, ok := <-rs.state.resultChan
 		if rs.abortFlag {
 			log.Println("FetchTo() aborted")
 			rs.abortFlag = false
 			break
 		}
 		if ok {
-			if Normalize(next) != rs.normalizedInput {
+			if Normalize(next) != rs.state.normalizedInput {
 				for _, word := range strings.Split(next, " ") {
 					if word != "" {
-						rs.wordCount[word] += 1
+						rs.state.wordCount[word] += 1
 					}
 				}
-				rs.results = append(rs.results, next)
-				rs.resultCount += 1
+				rs.state.results = append(rs.state.results, next)
+				rs.state.resultCount += 1
 
-				if rs.progressCallback != nil && rs.resultCount%2 == 0 {
-					rs.progressCallback(rs.resultCount, rs.fetchTarget)
+				if rs.progressCallback != nil && rs.state.resultCount%2 == 0 {
+					rs.progressCallback(rs.state.resultCount, rs.fetchTarget)
 				}
 			}
 		} else {
-			rs.fetchTarget = rs.resultCount
-			rs.isDone = true
+			rs.fetchTarget = rs.state.resultCount
+			rs.state.isDone = true
 		}
 	}
 	if rs.progressCallback != nil {
-		rs.progressCallback(rs.resultCount, rs.fetchTarget)
+		rs.progressCallback(rs.state.resultCount, rs.fetchTarget)
 	}
 
 	if rs.workingStopCallback != nil {
@@ -172,45 +187,45 @@ func (rs *ResultSet) FetchTo(target int) {
 
 	rs.inFetch = false
 	rs.fetchLock.Unlock()
-	log.Printf("Released lock at %d\n", rs.resultCount)
+	log.Printf("Released lock at %d\n", rs.state.resultCount)
 }
 
 func (rs *ResultSet) IsDone() bool {
-	return rs.isDone
+	return rs.state.isDone
 }
 
 func (rs *ResultSet) Count() int {
-	return rs.resultCount
+	return rs.state.resultCount
 }
 
 func (rs *ResultSet) IsEmpty() bool {
-	return rs.resultCount == 0 && rs.isDone
+	return rs.state.resultCount == 0 && rs.state.isDone
 }
 
 func (rs *ResultSet) GetAt(index int) (string, bool) {
 	log.Printf("Getting item at %d\n", index)
-	if index > rs.resultCount-10 {
+	if index > rs.state.resultCount-10 {
 		go func() {
 			rs.FetchTo(index + 10)
 		}()
-		for !rs.isDone && index >= rs.resultCount {
+		for !rs.state.isDone && index >= rs.state.resultCount {
 			time.Sleep(time.Millisecond)
 		}
 	}
 
-	if index < rs.resultCount {
-		return rs.results[index], true
+	if index < rs.state.resultCount {
+		return rs.state.results[index], true
 	} else {
 		return "", false
 	}
 }
 
 func (rs *ResultSet) SetInclusions(phrases []string) {
-	rs.included = phrases
+	rs.state.included = phrases
 }
 
 func (rs *ResultSet) SetExclusions(words []string) {
-	rs.excluded = words
+	rs.state.excluded = words
 }
 
 type WordCount struct {
@@ -235,8 +250,8 @@ func (c Counts) Less(i, j int) bool {
 func (rs *ResultSet) TopNWords(n int) Counts {
 	rs.fetchLock.Lock()
 	defer rs.fetchLock.Unlock()
-	words := make(Counts, 0, len(rs.wordCount))
-	for w, c := range rs.wordCount {
+	words := make(Counts, 0, len(rs.state.wordCount))
+	for w, c := range rs.state.wordCount {
 		words = append(words, WordCount{w, c})
 	}
 

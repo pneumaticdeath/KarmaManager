@@ -118,14 +118,14 @@ func MergeDictionaries(excluded []string, dicts ...*Dictionary) *Dictionary {
 
 	knownWords := make(map[string]bool)
 	for _, word := range excluded {
-		knownWords[word] = true
+		knownWords[strings.ToLower(word)] = true
 	} // if they're already "known" they won't be added again
 
 	for _, d := range dicts {
 		names = append(names, d.Name)
 		for _, word := range d.Words {
-			if !knownWords[word] {
-				knownWords[word] = true
+			if !knownWords[strings.ToLower(word)] {
+				knownWords[strings.ToLower(word)] = true
 				length += 1
 				words = append(words, word)
 			}
