@@ -202,10 +202,6 @@ func main() {
 
 	resultSet := NewResultSet(mainDicts, addedDicts, privateDict, 0)
 
-	reset := func() {
-		resultSet.Regenerate(nil)
-	}
-
 	reset_search := func() {
 	}
 
@@ -237,7 +233,7 @@ func main() {
 		enabled := &ad.Enabled // copy a pointer to an address
 		check := widget.NewCheck(ad.Name, func(checked bool) {
 			*enabled = checked
-			reset()
+			resultSet.RebuildDictionaries()
 			MainWindow.SetTitle(resultSet.CombinedDictName())
 			saveDictSelections()
 		})
@@ -255,7 +251,7 @@ func main() {
 	privateEnabled := &privateDict.Enabled
 	privateCheck := widget.NewCheck(privateDict.Name, func(checked bool) {
 		*privateEnabled = checked
-		reset()
+		resultSet.RebuildDictionaries()
 		MainWindow.SetTitle(resultSet.CombinedDictName())
 		saveDictSelections()
 	})
@@ -272,7 +268,6 @@ func main() {
 			if dictName == n {
 				selectedMainIndex = i
 				resultSet.SetMainIndex(i)
-				reset()
 				MainWindow.SetTitle(resultSet.CombinedDictName())
 				saveDictSelections()
 				return
@@ -295,14 +290,12 @@ func main() {
 		inputdata.Set("")
 		time.Sleep(50 * time.Millisecond)
 		reset_search()
-		// reset()
 	})
 
 	progressBar := widget.NewProgressBar()
 	progressBar.Min = 0.0
 	progressBar.Max = 1.0
 	pbCallback := func(current, goal int) {
-		// fmt.Printf("Progress %d of %d\n", current, goal)
 		fyne.Do(func() {
 			progressBar.SetValue(float64(current) / float64(goal))
 			progressBar.Refresh()
@@ -318,7 +311,6 @@ func main() {
 			interestingButton.Disable()
 			workingBar.Show()
 			workingBar.Start()
-			// workingBar.Refresh()
 		})
 	}
 	wbStopCallback := func() {
@@ -326,7 +318,6 @@ func main() {
 			workingBar.Stop()
 			workingBar.Hide()
 			interestingButton.Enable()
-			// workingBar.Refresh()
 		})
 	}
 	resultSet.SetWorkingStartCallback(wbStartCallback)
@@ -356,10 +347,7 @@ func main() {
 	})
 	inputEntry.OnSubmitted = func(input string) {
 		reset_search()
-		// reset()
-		resultSet.FindAnagrams(input, func() {
-			fyne.Do(resultsDisplay.Refresh)
-		})
+		resultSet.FindAnagrams(input)
 	}
 
 	inclusionwords := NewWordList([]string{})
@@ -370,10 +358,6 @@ func main() {
 		} else {
 			resultSet.SetInclusions([]string{})
 		}
-		resultSet.Regenerate(func() {
-			fyne.Do(resultsDisplay.Refresh)
-			fyne.Do(resultsDisplay.ScrollToTop)
-		})
 	}
 	inclusionwords.OnDelete = SetInclusions
 	inclusionaddbutton := widget.NewButtonWithIcon("", theme.ContentAddIcon(), func() {
@@ -388,10 +372,6 @@ func main() {
 	exclusionwords := NewWordList([]string{})
 	SetExclusions := func() {
 		resultSet.SetExclusions(exclusionwords.Words)
-		resultSet.Regenerate(func() {
-			fyne.Do(resultsDisplay.Refresh)
-			fyne.Do(resultsDisplay.ScrollToTop)
-		})
 	}
 	exclusionwords.OnDelete = func() {
 		SetExclusions()
@@ -520,17 +500,12 @@ func main() {
 
 	sendToMainTabFunc := func(input string) {
 		inputdata.Set(input)
-		// reset()
-		// reset_search()
 		time.Sleep(50 * time.Millisecond)
 		selectTab(0)
-		// inclusionwords.Clear()
 		resultsDisplay.Refresh()
 	}
 
 	favsList := NewFavoritesDisplay(&favorites, sendToMainTabFunc)
-
-	// favsContent := container.New(layout.NewAdaptiveGridLayout(1), favsList)
 
 	favsContent := favsList
 
@@ -565,13 +540,10 @@ func main() {
 		content.SelectTabIndex(index)
 	}
 
-	reset = func() {
-		resultSet.Regenerate(func() {
-			fyne.Do(resultsDisplay.Refresh)
-			fyne.Do(resultsDisplay.ScrollToTop)
-		})
-		content.Refresh()
-	}
+	resultSet.SetRefreshCallback(func() {
+		fyne.Do(resultsDisplay.Refresh)
+		fyne.Do(resultsDisplay.ScrollToTop)
+	})
 
 	reset_search = func() {
 		// not using SetInclusions() or SetExclusions because they will refresh other fields

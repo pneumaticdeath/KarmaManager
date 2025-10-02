@@ -25,6 +25,10 @@ func NewAnnotatedDict(d *Dictionary) annotatedDict {
 }
 
 func FilterAnnotatedDict(input string, d *Dictionary) (annotatedDict, *RuneCluster) {
+	if d == nil {
+		log.Panicln("Got null dictionary for input ", input)
+	}
+
 	ad := NewAnnotatedDict(d)
 
 	rc := NewRuneCluster(input)
@@ -74,7 +78,14 @@ func FindAnagrams(input string, include []string, dictionary *Dictionary) <-chan
 }
 
 func makeAnagrams(input string, include []string, dictionary *Dictionary, output chan<- string) {
-	defer close(output)
+	defer func() {
+		log.Println("Closing output channel for ", input)
+		close(output)
+	}()
+
+	if strings.TrimSpace(input) == "" {
+		return
+	}
 
 	filtered, target := FilterAnnotatedDict(input, dictionary)
 
