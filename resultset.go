@@ -287,7 +287,7 @@ func (rs *ResultSet) FetchTo(target int) {
 				rs.state.results = append(rs.state.results, next)
 				rs.state.resultCount += 1
 
-				if rs.progressCallback != nil && rs.state.resultCount%2 == 0 {
+				if rs.progressCallback != nil && rs.state.resultCount%100 == 0 {
 					rs.progressCallback(rs.state.resultCount, rs.fetchTarget)
 				}
 			}
