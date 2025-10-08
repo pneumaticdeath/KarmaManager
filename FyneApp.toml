@@ -5,7 +5,7 @@ Website = "https://patenaude.io/"
   Name = "KarmaManager"
   ID = "io.patenaude.karmamanager"
   Version = "0.6.0"
-  Build = 263
+  Build = 264
 
 [LinuxAndBSD]
   GenericName = "Anagram Maker"
