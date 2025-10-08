@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"fyne.io/fyne/v2"
+	"fyne.io/fyne/v2/canvas"
 )
 
 type RuneLayoutElement struct {
@@ -67,7 +68,7 @@ func MakeRuneLayout(input string, maxColumns int) ([]RuneLayoutElement, int) {
 	}
 }
 
-func LayoutWordWidgets(wordWidgets []*WordWidget, padding, rowHeight float32, dispSize fyne.Size) {
+func LayoutAndAnimateWordWidgets(wordWidgets []*WordWidget, padding, rowHeight float32, dispSize fyne.Size) {
 	row := 0
 	column := 0
 	min_x := padding
@@ -88,10 +89,12 @@ func LayoutWordWidgets(wordWidgets []*WordWidget, padding, rowHeight float32, di
 
 		pos := fyne.NewPos(x, y)
 		// fmt.Printf("Moving glyph %d to %v\n", index, pos)
-		word.Move(pos)
+		// word.Move(pos)
+		anim := canvas.NewPositionAnimation(word.Position(), pos, canvas.DurationStandard, word.Move)
 		word.Resize(word.MinSize())
 		word.Row = row
 		word.Column = column
+		anim.Start()
 
 		x += word.MinSize().Width + padding
 

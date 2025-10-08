@@ -22,6 +22,7 @@ type WordWidget struct {
 	widget.BaseWidget
 
 	Index       int
+	Word        string
 	Text        *canvas.Text
 	Row, Column int
 	box         *fyne.Container
@@ -33,12 +34,16 @@ type WordWidget struct {
 	OnTapped    func()
 }
 
-func NewWordWidget(index int, word string, drop func(int, fyne.Position), tap func()) *WordWidget {
-	ww := &WordWidget{Index: index, dropfunc: drop, OnTapped: tap}
+func NewWordWidget(index int, word string, drop func(int, fyne.Position), tap func(int)) *WordWidget {
+	ww := &WordWidget{Index: index, Word: word, dropfunc: drop}
 
-	ww.Text = canvas.NewText(word, theme.TextColor())
+	ww.Text = canvas.NewText(ww.Word, theme.TextColor())
 	ww.Text.TextStyle = fyne.TextStyle{Monospace: true}
 	ww.Text.TextSize = fontSize
+
+	ww.OnTapped = func() {
+		tap(ww.Index)
+	}
 
 	ww.Row, ww.Column = -1, -1
 
@@ -55,6 +60,10 @@ func NewWordWidget(index int, word string, drop func(int, fyne.Position), tap fu
 
 	ww.ExtendBaseWidget(ww)
 	return ww
+}
+
+func (ww *WordWidget) ResetSize() {
+	ww.outline.Resize(fyne.NewSize(ww.Text.MinSize().Width+10, ww.Text.MinSize().Height+10))
 }
 
 func (ww *WordWidget) CreateRenderer() fyne.WidgetRenderer {
@@ -131,11 +140,9 @@ func (ef *EditField) CreateRenderer() fyne.WidgetRenderer {
 func (ef *EditField) Initialize() {
 	ef.widgets = make([]*WordWidget, len(ef.Words))
 
-	ef.surface.RemoveAll()
+	// ef.surface.RemoveAll()
 	for index, word := range ef.Words {
-		widget := NewWordWidget(index, word, ef.DropCallback, func() {
-			ef.ShowWordEdit(index)
-		})
+		widget := NewWordWidget(index, word, ef.DropCallback, ef.ShowWordEdit)
 
 		ef.surface.Add(widget)
 		if widget.MinSize().Height > ef.wordheight {
@@ -143,7 +150,7 @@ func (ef *EditField) Initialize() {
 		}
 		ef.widgets[index] = widget
 	}
-	LayoutWordWidgets(ef.widgets, padding, ef.wordheight+padding, ef.surface.Size())
+	LayoutAndAnimateWordWidgets(ef.widgets, padding, ef.wordheight+padding, ef.surface.Size())
 
 	ef.surface.Refresh()
 }
@@ -163,7 +170,11 @@ func (ef *EditField) ShowWordEdit(index int) {
 			word := entry.Text
 			if word != ef.Words[index] {
 				ef.Words[index] = word
-				ef.Initialize()
+				ef.widgets[index].Word = word
+				ef.widgets[index].Text.Text = word
+				ef.widgets[index].ResetSize()
+				LayoutAndAnimateWordWidgets(ef.widgets, padding, ef.wordheight+padding, ef.surface.Size())
+				// ef.Initialize()
 			}
 		}
 	}, ef.window)
@@ -198,14 +209,26 @@ func (ef *EditField) DropCallback(index int, initialPos fyne.Position) {
 	if targetIndex >= len(ef.widgets) && index != len(ef.widgets)-1 {
 		ef.Words = append(ef.Words, ef.Words[index])
 		ef.Words = slices.Delete(ef.Words, index, index+1)
+		ef.widgets = append(ef.widgets, ef.widgets[index])
+		ef.widgets = slices.Delete(ef.widgets, index, index+1)
 	} else if targetIndex > index {
 		ef.Words = slices.Insert(ef.Words, targetIndex, ef.Words[index])
 		ef.Words = slices.Delete(ef.Words, index, index+1)
+		ef.widgets = slices.Insert(ef.widgets, targetIndex, ef.widgets[index])
+		ef.widgets = slices.Delete(ef.widgets, index, index+1)
 	} else if targetIndex < index {
 		word := ef.Words[index]
+		widget := ef.widgets[index]
 		ef.Words = slices.Delete(ef.Words, index, index+1)
 		ef.Words = slices.Insert(ef.Words, targetIndex, word)
+		ef.widgets = slices.Delete(ef.widgets, index, index+1)
+		ef.widgets = slices.Insert(ef.widgets, targetIndex, widget)
 	}
 
-	ef.Initialize()
+	for index, widget := range ef.widgets {
+		widget.Index = index
+	}
+
+	LayoutAndAnimateWordWidgets(ef.widgets, padding, ef.wordheight+padding, ef.surface.Size())
+	// ef.Initialize()
 }
