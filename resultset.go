@@ -347,6 +347,7 @@ func (rs *ResultSet) SetExclusions(words []string) {
 type WordCount struct {
 	Word  string
 	Count int
+	metric int
 }
 
 type Counts []WordCount
@@ -360,7 +361,7 @@ func (c Counts) Swap(i, j int) {
 }
 
 func (c Counts) Less(i, j int) bool {
-	return len(c[j].Word)*len(c[j].Word)*c[j].Count < len(c[i].Word)*len(c[i].Word)*c[i].Count
+	return c[j].metric < c[i].metric
 }
 
 func (rs *ResultSet) TopNWords(n int) Counts {
@@ -368,7 +369,7 @@ func (rs *ResultSet) TopNWords(n int) Counts {
 	defer rs.fetchLock.Unlock()
 	words := make(Counts, 0, len(rs.state.wordCount))
 	for w, c := range rs.state.wordCount {
-		words = append(words, WordCount{w, c})
+		words = append(words, WordCount{w, c, len(w)*len(w)*c})
 	}
 
 	sort.Sort(words)
