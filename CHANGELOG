@@ -1,3 +1,9 @@
+# Changed in v0.7.0
+* editor now animates changes 
+
+# Changed in v0.6.0
+* results for a given state are now cached
+
 # Changed in v0.5.0
 * when there aren't results, it now diplays "No Results" rather than just a blank list
 * placeholder text on input fields
