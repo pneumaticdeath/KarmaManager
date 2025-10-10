@@ -106,7 +106,7 @@ func (rs *ResultSet) setState(input string, included, excluded []string, combDic
 
 	for _, cachedState := range rs.cached {
 		if cachedState.input == input && cachedState.combinedDictName == combDictName && cmpStringSlices(cachedState.included, included) && cmpStringSlices(cachedState.excluded, excluded) {
-			log.Println("Using cached RSState ", cachedState.input)
+			log.Println("Using cached RSState", cachedState.input, "with", cachedState.resultCount, "results")
 			cachedState.lastUsed = time.Now()
 			rs.state = cachedState
 			if rs.refreshCallback != nil {
