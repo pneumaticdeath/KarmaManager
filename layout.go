@@ -51,6 +51,9 @@ func MakeRuneLayout(input string, maxColumns int) ([]RuneLayoutElement, int) {
 		i := 0
 		for i < len(word) {
 			r := rune(word[i])
+			if r == '_' {
+				r = ' '
+			}
 			layout = append(layout, RuneLayoutElement{r, row, col + i})
 			i += 1
 		}

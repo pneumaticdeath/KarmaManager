@@ -278,7 +278,7 @@ func (rs *ResultSet) FetchTo(target int) {
 		}
 		if ok {
 			// log.Println("Got anagram ", next)
-			if Normalize(next) != rs.state.normalizedInput {
+			if Normalize(UnmarkSpaces(next)) != rs.state.normalizedInput {
 				for _, word := range strings.Split(next, " ") {
 					if word != "" {
 						rs.state.wordCount[word] += 1
@@ -345,8 +345,8 @@ func (rs *ResultSet) SetExclusions(words []string) {
 }
 
 type WordCount struct {
-	Word  string
-	Count int
+	Word   string
+	Count  int
 	metric int
 }
 
@@ -369,7 +369,7 @@ func (rs *ResultSet) TopNWords(n int) Counts {
 	defer rs.fetchLock.Unlock()
 	words := make(Counts, 0, len(rs.state.wordCount))
 	for w, c := range rs.state.wordCount {
-		words = append(words, WordCount{w, c, len(w)*len(w)*c})
+		words = append(words, WordCount{w, c, len(w) * len(w) * c})
 	}
 
 	sort.Sort(words)

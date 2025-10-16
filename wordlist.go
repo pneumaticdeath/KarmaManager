@@ -1,9 +1,9 @@
 package main
 
 import (
-	"errors"
+	// "errors"
 	"slices"
-	"strings"
+	// "strings"
 
 	"fyne.io/fyne/v2"
 	// "fyne.io/fyne/v2/canvas"
@@ -98,7 +98,7 @@ func NewWordList(words []string) *WordList {
 			return
 		}
 
-		wlw.SetText(wl.Words[id])
+		wlw.SetText(UnmarkSpaces(wl.Words[id]))
 		wlw.OnDelete = func() {
 			wl.Words = slices.Delete(wl.Words, id, id+1)
 			if wl.OnDelete != nil {
@@ -120,16 +120,10 @@ func (wl *WordList) CreateRenderer() fyne.WidgetRenderer {
 func (wl *WordList) ShowAddWord(title, submit, dismiss string, onsubmit func(), window fyne.Window) {
 	wordEntry := widget.NewEntry()
 	wordEntry.SetPlaceHolder("Word")
-	wordEntry.Validator = func(word string) error {
-		if strings.Index(word, " ") != -1 {
-			return errors.New("Must not contain spaces")
-		}
-		return nil
-	}
 	items := []*widget.FormItem{widget.NewFormItem("", wordEntry)}
 	d := dialog.NewForm(title, submit, dismiss, items, func(submitted bool) {
 		if submitted {
-			wl.Words = append(wl.Words, wordEntry.Text)
+			wl.Words = append(wl.Words, MarkSpaces(wordEntry.Text))
 			wl.list.Refresh()
 			if onsubmit != nil {
 				onsubmit()

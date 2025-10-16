@@ -200,11 +200,11 @@ func NewFavoritesAccList(title string, baseList, this *FavoritesSlice, sendToMai
 		if !ok {
 			return
 		}
-		label.Label.Text = (*this)[id].Anagram
+		label.Label.Text = UnmarkSpaces((*this)[id].Anagram)
 		label.Label.Alignment = fyne.TextAlignCenter
 		label.OnTapped = func(pe *fyne.PointEvent) {
 			copyAnagramMI := fyne.NewMenuItem("Copy anagram to clipboard", func() {
-				MainWindow.Clipboard().SetContent((*this)[id].Anagram)
+				MainWindow.Clipboard().SetContent(UnmarkSpaces((*this)[id].Anagram))
 				pulabel := widget.NewLabel("Copied to clipboard")
 				pu := widget.NewPopUp(pulabel, MainWindow.Canvas())
 				wsize := MainWindow.Canvas().Size()
@@ -216,7 +216,7 @@ func NewFavoritesAccList(title string, baseList, this *FavoritesSlice, sendToMai
 				}()
 			})
 			copyBothMI := fyne.NewMenuItem("Copy input and anagram to clipboard", func() {
-				MainWindow.Clipboard().SetContent(fmt.Sprintf("%s ↔️ %s", (*this)[id].Input, (*this)[id].Anagram))
+				MainWindow.Clipboard().SetContent(fmt.Sprintf("%s ↔️ %s", (*this)[id].Input, UnmarkSpaces((*this)[id].Anagram)))
 				pulabel := widget.NewLabel("Copied to clipboard")
 				pu := widget.NewPopUp(pulabel, MainWindow.Canvas())
 				wsize := MainWindow.Canvas().Size()

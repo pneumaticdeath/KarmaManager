@@ -12,6 +12,8 @@ import (
 //go:embed json
 var jsonFS embed.FS
 
+const nonSeperable = false
+
 type Dictionary struct {
 	Name    string
 	Words   []string
@@ -46,6 +48,9 @@ func ParseDictionary(name string, jsondata []byte) (*Dictionary, error) {
 
 	err := json.Unmarshal(jsondata, &(d.Words))
 	if err == nil {
+		for index, word := range d.Words {
+			d.Words[index] = MarkSpaces(word)
+		}
 		return d, err
 	}
 	return nil, err
@@ -109,6 +114,22 @@ func ReadDictionaries() ([]*Dictionary, []*Dictionary, error) {
 	}
 
 	return mainDicts, addedDicts, nil
+}
+
+func MarkSpaces(input string) string {
+	if nonSeperable {
+		return strings.ReplaceAll(input, " ", "_")
+	} else {
+		return input
+	}
+}
+
+func UnmarkSpaces(input string) string {
+	if nonSeperable {
+		return strings.ReplaceAll(input, "_", " ")
+	} else {
+		return input
+	}
 }
 
 func MergeDictionaries(excluded []string, dicts ...*Dictionary) *Dictionary {

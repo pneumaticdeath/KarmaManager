@@ -74,7 +74,7 @@ func ShowMultiAnagramPicker(title, submitlabel, dismisslabel, shufflelabel strin
 		if !ok {
 			return
 		}
-		check.Text = anagrams[id]
+		check.Text = UnmarkSpaces(anagrams[id])
 		check.Checked = anaChecks[id]
 		check.OnChanged = func(checked bool) {
 			anaChecks[id] = checked
@@ -125,7 +125,7 @@ func ShowInterestingWordsList(rs *ResultSet, n int, include func(string), exclud
 		if !ok {
 			return
 		}
-		label.Label.Text = fmt.Sprintf("%s %d", topN[id].Word, topN[id].Count)
+		label.Label.Text = fmt.Sprintf("%s %d", UnmarkSpaces(topN[id].Word), topN[id].Count)
 		label.OnTapped = func(pe *fyne.PointEvent) {
 			includeMI := fyne.NewMenuItem("Include", func() {
 				include(topN[id].Word)
@@ -418,16 +418,16 @@ func main() {
 		}
 		text, text_ok := resultSet.GetAt(id)
 		if text_ok {
-			label.Label.Text = fmt.Sprintf("%10d %s", id+1, text)
+			label.Label.Text = fmt.Sprintf("%10d %s", id+1, UnmarkSpaces(text))
 			label.Label.TextStyle = fyne.TextStyle{Italic: false}
 			label.OnTapped = func(pe *fyne.PointEvent) {
 				input, _ := inputdata.Get()
 				copyAnagramToCBMI := fyne.NewMenuItem("Copy anagram to clipboard", func() {
-					MainWindow.Clipboard().SetContent(text)
+					MainWindow.Clipboard().SetContent(UnmarkSpaces(text))
 					ShowPopUpMessage("Copied to clipboard", time.Second, MainWindow)
 				})
 				copyBothToCBMI := fyne.NewMenuItem("Copy input and anagram to clipboard", func() {
-					MainWindow.Clipboard().SetContent(fmt.Sprintf("%s ↔️ %s", input, text))
+					MainWindow.Clipboard().SetContent(fmt.Sprintf("%s ↔️ %s", input, UnmarkSpaces(text)))
 					ShowPopUpMessage("Copied to clipboard", time.Second, MainWindow)
 				})
 				addToFavsMI := fyne.NewMenuItem("Add to favorites", func() {
@@ -470,10 +470,10 @@ func main() {
 				includeMIs := make([]*fyne.MenuItem, len(words))
 				excludeMIs := make([]*fyne.MenuItem, len(words))
 				for index, word := range words {
-					includeMIs[index] = fyne.NewMenuItem(word, func() {
+					includeMIs[index] = fyne.NewMenuItem(UnmarkSpaces(word), func() {
 						includeFunc(word)
 					})
-					excludeMIs[index] = fyne.NewMenuItem(word, func() {
+					excludeMIs[index] = fyne.NewMenuItem(UnmarkSpaces(word), func() {
 						excludeFunc(word)
 					})
 				}

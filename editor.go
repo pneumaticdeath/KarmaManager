@@ -37,7 +37,7 @@ type WordWidget struct {
 func NewWordWidget(index int, word string, drop func(int, fyne.Position), tap func(int)) *WordWidget {
 	ww := &WordWidget{Index: index, Word: word, dropfunc: drop}
 
-	ww.Text = canvas.NewText(ww.Word, theme.TextColor())
+	ww.Text = canvas.NewText(UnmarkSpaces(ww.Word), theme.TextColor())
 	ww.Text.TextStyle = fyne.TextStyle{Monospace: true}
 	ww.Text.TextSize = fontSize
 
@@ -171,7 +171,7 @@ func (ef *EditField) ShowWordEdit(index int) {
 			if word != ef.Words[index] {
 				ef.Words[index] = word
 				ef.widgets[index].Word = word
-				ef.widgets[index].Text.Text = word
+				ef.widgets[index].Text.Text = UnmarkSpaces(word)
 				ef.widgets[index].ResetSize()
 				LayoutAndAnimateWordWidgets(ef.widgets, padding, ef.wordheight+padding, ef.surface.Size())
 				// ef.Initialize()
