@@ -116,13 +116,14 @@ func NewAnimation(input string, anagrams []string, maxRows, maxCols int) (*Anima
 type AnimationDisplay struct {
 	widget.BaseWidget
 
-	surface         *fyne.Container
-	scroll          *container.Scroll
-	Icon            fyne.Resource
-	Badge           string
-	CaptureCallback func()
-	CycleCallback   func()
-	running         bool
+	surface          *fyne.Container
+	scroll           *container.Scroll
+	Icon             fyne.Resource
+	Badge            string
+	CaptureCallback  func()
+	CycleCallback    func()
+	FinishedCallback func()
+	running          bool
 }
 
 func NewAnimationDisplay(icon fyne.Resource) *AnimationDisplay {
@@ -287,6 +288,23 @@ func (ad *AnimationDisplay) AnimateAnagrams(input string, anagrams ...string) {
 				ad.CycleCallback()
 			}
 		}
+
+		for glyphIndex, glyph := range animation.Glyphs {
+			text := animElements[glyphIndex]
+			anim := canvas.NewPositionAnimation(glyph.StartPos, fyne.NewPos(0, 0), Config.MoveDuration(), func(pos fyne.Position) {
+				text.Move(pos)
+				if ad.CaptureCallback != nil {
+					ad.CaptureCallback()
+				}
+			})
+			anim.Start()
+		}
+
+		time.Sleep(Config.MoveDuration())
+
+		if ad.FinishedCallback != nil {
+			ad.FinishedCallback()
+		}
 	}()
 }
 
@@ -295,7 +313,7 @@ func (ad *AnimationDisplay) Stop() {
 }
 
 func (ad *AnimationDisplay) Tapped(pe *fyne.PointEvent) {
-	// nothing for now
+	ad.Stop()
 }
 
 func (ad *AnimationDisplay) Clear() {

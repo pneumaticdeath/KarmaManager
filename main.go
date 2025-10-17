@@ -54,6 +54,9 @@ func ShowAnimation(title, startPhrase string, anagrams []string, window fyne.Win
 	cd := dialog.NewCustom(title, "dismiss", ad, MainWindow)
 	cd.Resize(fyne.NewSize(600, 400))
 	cd.Show()
+	ad.FinishedCallback = func() {
+		fyne.Do(cd.Hide)
+	}
 	ad.AnimateAnagrams(startPhrase, anagrams...)
 	cd.SetOnClosed(func() {
 		ad.Stop()
