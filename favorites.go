@@ -167,7 +167,7 @@ func NewFavoritesAccList(title string, baseList, this *FavoritesSlice, sendToMai
 			for index, fav := range *this {
 				anagrams[index] = fav.Anagram
 			}
-			ShowMultiAnagramPicker("Animate which anagrams", "animate", "cancel", "shuffle", anagrams, func(chosen []string) {
+			ShowMultiPicker("Animate which anagrams", "animate", "cancel", "shuffle", anagrams, func(chosen []string) {
 				if len(chosen) > 0 {
 					ShowAnimation("Animated anagrams...", title, chosen, MainWindow)
 				}
@@ -296,7 +296,23 @@ func NewFavoritesDisplay(list *FavoritesSlice, sendToMain func(string)) *Favorit
 
 	preferencesButton := widget.NewButtonWithIcon("Animation Settings", theme.SettingsIcon(), Config.ShowPreferencesDialog)
 
-	fd.surface = container.NewBorder(preferencesButton, nil, nil, nil, container.NewVScroll(fd.accordion))
+	multiInputAnimationButton := widget.NewButton("Multi Input Animaiton", func() {
+		inputs := make([]string, len(fd.groupedList))
+		index := 0
+		for input, _ := range fd.groupedList {
+			inputs[index] = input
+			index += 1
+		}
+		sort.Strings(inputs)
+		ShowMultiPicker("Animate which inputs", "animate", "cancel", "shuffle", inputs, func(chosen []string) {
+			if len(chosen) > 0 {
+				ShowMultiInputAnimation("Animation", chosen, fd.groupedList, MainWindow)
+			}
+		}, MainWindow)
+	})
+
+	buttons := container.New(layout.NewGridLayout(2), preferencesButton, multiInputAnimationButton)
+	fd.surface = container.NewBorder(buttons, nil, nil, nil, container.NewVScroll(fd.accordion))
 
 	fd.ExtendBaseWidget(fd)
 

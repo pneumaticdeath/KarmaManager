@@ -124,6 +124,7 @@ type AnimationDisplay struct {
 	CycleCallback    func()
 	FinishedCallback func()
 	running          bool
+	setupComplete    bool
 }
 
 func NewAnimationDisplay(icon fyne.Resource) *AnimationDisplay {
@@ -140,11 +141,12 @@ func (ad *AnimationDisplay) CreateRenderer() fyne.WidgetRenderer {
 	return widget.NewSimpleRenderer(ad.scroll)
 }
 
-func (ad *AnimationDisplay) AnimateAnagrams(input string, anagrams ...string) {
-	ad.running = true
-	dispSize := ad.surface.Size()
-	maxCols := int(math.Floor(float64(dispSize.Width / (glyphSize.Width + glyphSpacing))))
-	maxRows := int(math.Floor(float64(dispSize.Height / (glyphSize.Height + glyphSpacing))))
+func (ad *AnimationDisplay) setupIconAndBadge(dispSize fyne.Size) {
+	if ad.setupComplete {
+		return
+	}
+
+	ad.setupComplete = true
 
 	icon := canvas.NewImageFromResource(ad.Icon)
 	icon.SetMinSize(fyne.NewSize(64, 64))
@@ -161,6 +163,15 @@ func (ad *AnimationDisplay) AnimateAnagrams(input string, anagrams ...string) {
 	badgePos := fyne.NewPos(20+icon.MinSize().Width, dispSize.Height-badge.MinSize().Height-10)
 	badge.Move(badgePos)
 	badge.Resize(badge.MinSize())
+}
+
+func (ad *AnimationDisplay) AnimateAnagrams(input string, anagrams ...string) {
+	ad.running = true
+	dispSize := ad.surface.Size()
+	maxCols := int(math.Floor(float64(dispSize.Width / (glyphSize.Width + glyphSpacing))))
+	maxRows := int(math.Floor(float64(dispSize.Height / (glyphSize.Height + glyphSpacing))))
+
+	ad.setupIconAndBadge(dispSize)
 
 	style := fyne.TextStyle{Monospace: true}
 
@@ -301,6 +312,10 @@ func (ad *AnimationDisplay) AnimateAnagrams(input string, anagrams ...string) {
 		}
 
 		time.Sleep(Config.MoveDuration())
+
+		for _, obj := range animElements {
+			ad.surface.Remove(obj)
+		}
 
 		if ad.FinishedCallback != nil {
 			ad.FinishedCallback()

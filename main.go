@@ -49,6 +49,44 @@ func ShowPrivateDictSettings(private *Dictionary, window fyne.Window) {
 	d.Show()
 }
 
+func ShowMultiInputAnimation(title string, inputs []string, favoriteGroups GroupedFavorites, window fyne.Window) {
+	ad := NewAnimationDisplay(Icon)
+	cd := dialog.NewCustom(title, "dismiss", ad, window)
+	cd.Resize(fyne.NewSize(600, 400))
+	inputCount := len(inputs)
+	inputIndex := 0
+	abort := false
+	if inputCount == 0 {
+		return
+	}
+	findFavoriteAnagrams := func(input string) []string {
+		retVal := make([]string, len(favoriteGroups[input]))
+		for index, fav := range favoriteGroups[input] {
+			retVal[index] = fav.Anagram
+		}
+		return retVal
+	}
+	nextInput := func() {
+		if abort {
+			return
+		}
+		favs := findFavoriteAnagrams(inputs[inputIndex])
+		// fyne.DoAndWait(ad.Clear)
+		ad.AnimateAnagrams(inputs[inputIndex], favs...)
+		inputIndex = (inputIndex + 1) % inputCount
+	}
+	cd.Show()
+	ad.CycleCallback = func() {
+		ad.Stop()
+	}
+	ad.FinishedCallback = nextInput
+	cd.SetOnClosed(func() {
+		abort = true
+		ad.Stop()
+	})
+	go nextInput()
+}
+
 func ShowAnimation(title, startPhrase string, anagrams []string, window fyne.Window) {
 	ad := NewAnimationDisplay(Icon)
 	cd := dialog.NewCustom(title, "dismiss", ad, MainWindow)
@@ -63,9 +101,9 @@ func ShowAnimation(title, startPhrase string, anagrams []string, window fyne.Win
 	})
 }
 
-func ShowMultiAnagramPicker(title, submitlabel, dismisslabel, shufflelabel string, anagrams []string, callback func([]string), window fyne.Window) {
-	anaChecks := make([]bool, len(anagrams))
-	for index := range anagrams {
+func ShowMultiPicker(title, submitlabel, dismisslabel, shufflelabel string, choices []string, callback func([]string), window fyne.Window) {
+	anaChecks := make([]bool, len(choices))
+	for index := range choices {
 		anaChecks[index] = true
 	}
 	chooseList := widget.NewList(func() int {
@@ -77,7 +115,7 @@ func ShowMultiAnagramPicker(title, submitlabel, dismisslabel, shufflelabel strin
 		if !ok {
 			return
 		}
-		check.Text = UnmarkSpaces(anagrams[id])
+		check.Text = UnmarkSpaces(choices[id])
 		check.Checked = anaChecks[id]
 		check.OnChanged = func(checked bool) {
 			anaChecks[id] = checked
@@ -89,18 +127,18 @@ func ShowMultiAnagramPicker(title, submitlabel, dismisslabel, shufflelabel strin
 	d.Resize(fyne.NewSize(300, 500))
 	submitbutton := widget.NewButton(submitlabel, func() {
 		d.Hide()
-		chosen := make([]string, 0, len(anagrams))
+		chosen := make([]string, 0, len(choices))
 		for index, check := range anaChecks {
 			if check {
-				chosen = append(chosen, anagrams[index])
+				chosen = append(chosen, choices[index])
 			}
 		}
 		callback(chosen)
 	})
 	submitbutton.Importance = widget.HighImportance
 	shufflebutton := widget.NewButton(shufflelabel, func() {
-		rand.Shuffle(len(anagrams), func(i, j int) {
-			anagrams[i], anagrams[j] = anagrams[j], anagrams[i]
+		rand.Shuffle(len(choices), func(i, j int) {
+			choices[i], choices[j] = choices[j], choices[i]
 			anaChecks[i], anaChecks[j] = anaChecks[j], anaChecks[i]
 		})
 		d.Refresh()
