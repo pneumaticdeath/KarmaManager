@@ -1,3 +1,8 @@
+# Changed in v0.8.0
+* Multi-word place names now supported
+* Animaiton will wrap itself up and stop gracefully after completing the sequence when tapped
+* Multi input animations
+
 # Changed in v0.7.0
 * editor now animates changes 
 
