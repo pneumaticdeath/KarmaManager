@@ -52,7 +52,7 @@ func ShowPrivateDictSettings(private *Dictionary, window fyne.Window) {
 func ShowMultiInputAnimation(title string, inputs []string, favoriteGroups GroupedFavorites, window fyne.Window) {
 	ad := NewAnimationDisplay(Icon)
 	cd := dialog.NewCustom(title, "dismiss", ad, window)
-	cd.Resize(fyne.NewSize(600, 400))
+	cd.Resize(fyne.NewSize(700, 500))
 	inputCount := len(inputs)
 	inputIndex := 0
 	abort := false
