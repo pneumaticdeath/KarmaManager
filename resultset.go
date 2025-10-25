@@ -166,6 +166,13 @@ func (rs *ResultSet) trimCache() {
 	}
 }
 
+func (rs *ResultSet) DumpCache() {
+	log.Println("Dumping state cache")
+	rs.cached = make([]*RSState, 0)
+	rs.setState(rs.state.input, rs.state.included, rs.state.excluded, rs.state.combinedDictName)
+}
+
+
 func (rs *ResultSet) Abort() {
 	if rs.inFetch {
 		log.Println("Aborting in-process FetchTo()")

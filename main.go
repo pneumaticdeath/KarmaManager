@@ -27,7 +27,7 @@ var Icon fyne.Resource
 var AppPreferences fyne.Preferences
 var RebuildFavorites func()
 
-func ShowPrivateDictSettings(private *Dictionary, window fyne.Window) {
+func ShowPrivateDictSettings(private *Dictionary, saveCallback func(),  window fyne.Window) {
 	wl := NewWordList(private.Words)
 	d := dialog.NewCustom("Private words", "submit", wl, window)
 	d.Resize(fyne.NewSize(300, 500))
@@ -38,6 +38,9 @@ func ShowPrivateDictSettings(private *Dictionary, window fyne.Window) {
 		d.Hide()
 		private.Words = wl.Words
 		SavePrivateDictionary(private, AppPreferences)
+		if saveCallback != nil {
+			saveCallback()
+		}
 	})
 	savebutton.Importance = widget.HighImportance
 	dismissbutton := widget.NewButton("Cancel", func() {
@@ -52,7 +55,7 @@ func ShowPrivateDictSettings(private *Dictionary, window fyne.Window) {
 func ShowMultiInputAnimation(title string, inputs []string, favoriteGroups GroupedFavorites, window fyne.Window) {
 	ad := NewAnimationDisplay(Icon)
 	cd := dialog.NewCustom(title, "dismiss", ad, window)
-	cd.Resize(fyne.NewSize(700, 500))
+	cd.Resize(fyne.NewSize(600, 400))
 	inputCount := len(inputs)
 	inputIndex := 0
 	abort := false
@@ -72,6 +75,9 @@ func ShowMultiInputAnimation(title string, inputs []string, favoriteGroups Group
 		}
 		favs := findFavoriteAnagrams(inputs[inputIndex])
 		// fyne.DoAndWait(ad.Clear)
+		rand.Shuffle(len(favs), func(i, j int) {
+			favs[i], favs[j] = favs[j], favs[i]
+		})
 		ad.AnimateAnagrams(inputs[inputIndex], favs...)
 		inputIndex = (inputIndex + 1) % inputCount
 	}
@@ -299,7 +305,7 @@ func main() {
 	privateCheck.Checked = privateDict.Enabled
 	addedChecks[len(addedDicts)] = privateCheck
 	privateDictSettingsButton := widget.NewButtonWithIcon("", theme.DocumentCreateIcon(), func() {
-		ShowPrivateDictSettings(privateDict, MainWindow)
+		ShowPrivateDictSettings(privateDict, resultSet.DumpCache, MainWindow)
 	})
 	addedChecks[len(addedDicts)+1] = privateDictSettingsButton
 	addedDictsContainer := container.New(layout.NewHBoxLayout(), addedChecks...)
