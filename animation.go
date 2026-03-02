@@ -18,6 +18,7 @@ import (
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
+	"fyne.io/fyne/v2/driver/software"
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 )
@@ -336,9 +337,13 @@ func (ad *AnimationDisplay) Clear() {
 	ad.surface.Refresh()
 }
 
+type rawFrame struct {
+	im    image.Image
+	delay int
+}
+
 type GIFCaptureTool struct {
-	Frames      []*image.Paletted
-	Delays      []int
+	rawFrames   []rawFrame
 	mu          sync.Mutex
 	lastCapture time.Time
 	minInterval time.Duration
@@ -346,8 +351,7 @@ type GIFCaptureTool struct {
 
 func NewGIFCaptureTool() *GIFCaptureTool {
 	return &GIFCaptureTool{
-		Frames:      make([]*image.Paletted, 0, 200),
-		Delays:      make([]int, 0, 200),
+		rawFrames:   make([]rawFrame, 0, 200),
 		minInterval: 80 * time.Millisecond, // ~12fps
 	}
 }
@@ -359,14 +363,15 @@ func convertToPaletted(im image.Image) *image.Paletted {
 	return pal
 }
 
-// MakeCaptureCallback returns a rate-limited CaptureCallback that captures from
-// the live window canvas at full resolution.
-func (gct *GIFCaptureTool) MakeCaptureCallback(c fyne.Canvas) func() {
+// MakeCaptureCallback returns a rate-limited CaptureCallback that renders only
+// the animation surface to an off-screen software canvas. This avoids capturing
+// the whole window and keeps the heavy palette conversion out of the hot path.
+func (gct *GIFCaptureTool) MakeCaptureCallback(ad *AnimationDisplay) func() {
 	return func() {
 		gct.mu.Lock()
-		defer gct.mu.Unlock()
 		now := time.Now()
 		if !gct.lastCapture.IsZero() && now.Sub(gct.lastCapture) < gct.minInterval {
+			gct.mu.Unlock()
 			return
 		}
 		delay := 8 // default: 80ms in GIF centiseconds
@@ -379,15 +384,37 @@ func (gct *GIFCaptureTool) MakeCaptureCallback(c fyne.Canvas) func() {
 				delay = 500
 			}
 		}
-		im := c.Capture()
-		gct.Frames = append(gct.Frames, convertToPaletted(im))
-		gct.Delays = append(gct.Delays, delay)
 		gct.lastCapture = now
+		gct.mu.Unlock()
+
+		// Render just the animation surface at its current size.
+		surfaceSize := ad.surface.Size()
+		offC := software.NewCanvas()
+		offC.SetPadded(false)
+		offC.Resize(surfaceSize)
+		offC.SetContent(ad.surface)
+		im := offC.Capture()
+		// Restore surface state in case SetContent resized/moved it.
+		ad.surface.Resize(surfaceSize)
+		ad.surface.Move(fyne.NewPos(0, 0))
+
+		gct.mu.Lock()
+		gct.rawFrames = append(gct.rawFrames, rawFrame{im: im, delay: delay})
+		gct.mu.Unlock()
 	}
 }
 
+// GetGIF converts the captured raw frames to a GIF. This is intentionally
+// deferred until after the animation completes so dithering doesn't block
+// the animation goroutine.
 func (gct *GIFCaptureTool) GetGIF() *gif.GIF {
 	gct.mu.Lock()
 	defer gct.mu.Unlock()
-	return &gif.GIF{Image: gct.Frames, Delay: gct.Delays, LoopCount: 0}
+	frames := make([]*image.Paletted, len(gct.rawFrames))
+	delays := make([]int, len(gct.rawFrames))
+	for i, rf := range gct.rawFrames {
+		frames[i] = convertToPaletted(rf.im)
+		delays[i] = rf.delay
+	}
+	return &gif.GIF{Image: frames, Delay: delays, LoopCount: 0}
 }
