@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"math/rand/v2"
+	"os"
 	"sort"
 	"strings"
 	"time"
@@ -69,7 +70,8 @@ func ShowMultiInputAnimation(title string, inputs []string, favoriteGroups Group
 		}
 		return retVal
 	}
-	nextInput := func() {
+	var nextInput func()
+	nextInput = func() {
 		if abort {
 			return
 		}
@@ -86,6 +88,38 @@ func ShowMultiInputAnimation(title string, inputs []string, favoriteGroups Group
 		ad.Stop()
 	}
 	ad.FinishedCallback = nextInput
+
+	var gifButton *widget.Button
+	gifButton = widget.NewButton("Save as GIF", func() {
+		gifButton.Disable()
+		// After current cycle ends, capture one full cycle then share
+		ad.FinishedCallback = func() {
+			gct := NewGIFCaptureTool()
+			ad.CaptureCallback = gct.MakeCaptureCallback(MainWindow.Canvas())
+			ad.CycleCallback = func() { ad.Stop() }
+			ad.FinishedCallback = func() {
+				ad.CaptureCallback = nil
+				ad.CycleCallback = func() { ad.Stop() }
+				ad.FinishedCallback = nextInput
+				g := gct.GetGIF()
+				tmpPath := os.TempDir() + "/karmamanager_anim.gif"
+				if err := WriteGIF(g, tmpPath); err != nil {
+					fyne.Do(func() { dialog.ShowError(err, MainWindow) })
+				} else {
+					fyne.Do(func() { ShareGIF(tmpPath, MainWindow) })
+				}
+				fyne.Do(func() { gifButton.Enable() })
+				go nextInput()
+			}
+			go nextInput()
+		}
+		ad.Stop()
+	})
+	cd.SetButtons([]fyne.CanvasObject{
+		widget.NewButton("Dismiss", func() { cd.Hide() }),
+		gifButton,
+	})
+
 	cd.SetOnClosed(func() {
 		abort = true
 		ad.Stop()
@@ -98,6 +132,38 @@ func ShowAnimation(title, startPhrase string, anagrams []string, window fyne.Win
 	cd := dialog.NewCustom(title, "dismiss", ad, MainWindow)
 	cd.Resize(fyne.NewSize(600, 400))
 	cd.Show()
+
+	var gifButton *widget.Button
+	gifButton = widget.NewButton("Save as GIF", func() {
+		gifButton.Disable()
+		ad.Stop()
+		gct := NewGIFCaptureTool()
+		ad.CaptureCallback = gct.MakeCaptureCallback(MainWindow.Canvas())
+		ad.CycleCallback = func() { ad.Stop() }
+		ad.FinishedCallback = func() {
+			ad.CaptureCallback = nil
+			ad.CycleCallback = nil
+			g := gct.GetGIF()
+			tmpPath := os.TempDir() + "/karmamanager_anim.gif"
+			if err := WriteGIF(g, tmpPath); err != nil {
+				fyne.Do(func() { dialog.ShowError(err, MainWindow) })
+			} else {
+				fyne.Do(func() { ShareGIF(tmpPath, MainWindow) })
+			}
+			fyne.Do(func() {
+				gifButton.Enable()
+				// Restore normal auto-close behavior
+				ad.FinishedCallback = func() { fyne.Do(cd.Hide) }
+			})
+			go ad.AnimateAnagrams(startPhrase, anagrams...)
+		}
+		go ad.AnimateAnagrams(startPhrase, anagrams...)
+	})
+	cd.SetButtons([]fyne.CanvasObject{
+		widget.NewButton("Dismiss", func() { cd.Hide() }),
+		gifButton,
+	})
+
 	ad.FinishedCallback = func() {
 		fyne.Do(cd.Hide)
 	}

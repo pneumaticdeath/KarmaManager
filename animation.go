@@ -3,21 +3,21 @@ package main
 import (
 	"errors"
 	// "fmt"
-	// "image"
-	// "image/draw"
+	"image"
 	"image/color"
-	// "image/color/palette"
-	// "image/gif"
+	"image/color/palette"
+	"image/draw"
+	"image/gif"
 	"log"
 	"math"
 	"strings"
+	"sync"
 	"time"
 	"unicode"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
-	// "fyne.io/fyne/v2/driver/software"
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 )
@@ -336,55 +336,58 @@ func (ad *AnimationDisplay) Clear() {
 	ad.surface.Refresh()
 }
 
-/*
-func convertToPaletted(im image.Image) *image.Paletted {
-	bounds := im.Bounds()
-	pal := image.NewPaletted(bounds, palette.WebSafe)
-	draw.Draw(pal, bounds, im, image.Point{}, draw.Src)
-
-	return pal
-}
-
 type GIFCaptureTool struct {
 	Frames      []*image.Paletted
 	Delays      []int
-	Running     bool
+	mu          sync.Mutex
 	lastCapture time.Time
+	minInterval time.Duration
 }
 
-func (gct *GIFCaptureTool) Done() bool {
-	return !gct.Running
+func NewGIFCaptureTool() *GIFCaptureTool {
+	return &GIFCaptureTool{
+		Frames:      make([]*image.Paletted, 0, 200),
+		Delays:      make([]int, 0, 200),
+		minInterval: 80 * time.Millisecond, // ~12fps
+	}
+}
+
+func convertToPaletted(im image.Image) *image.Paletted {
+	bounds := im.Bounds()
+	pal := image.NewPaletted(bounds, palette.WebSafe)
+	draw.FloydSteinberg.Draw(pal, bounds, im, image.Point{})
+	return pal
+}
+
+// MakeCaptureCallback returns a rate-limited CaptureCallback that captures from
+// the live window canvas at full resolution.
+func (gct *GIFCaptureTool) MakeCaptureCallback(c fyne.Canvas) func() {
+	return func() {
+		gct.mu.Lock()
+		defer gct.mu.Unlock()
+		now := time.Now()
+		if !gct.lastCapture.IsZero() && now.Sub(gct.lastCapture) < gct.minInterval {
+			return
+		}
+		delay := 8 // default: 80ms in GIF centiseconds
+		if !gct.lastCapture.IsZero() {
+			delay = int(now.Sub(gct.lastCapture).Milliseconds() / 10)
+			if delay < 1 {
+				delay = 1
+			}
+			if delay > 500 {
+				delay = 500
+			}
+		}
+		im := c.Capture()
+		gct.Frames = append(gct.Frames, convertToPaletted(im))
+		gct.Delays = append(gct.Delays, delay)
+		gct.lastCapture = now
+	}
 }
 
 func (gct *GIFCaptureTool) GetGIF() *gif.GIF {
-	return  &gif.GIF{Image: gct.Frames, Delay: gct.Delays, LoopCount: 0}
+	gct.mu.Lock()
+	defer gct.mu.Unlock()
+	return &gif.GIF{Image: gct.Frames, Delay: gct.Delays, LoopCount: 0}
 }
-
-func MakeAnimatedGIF(complete func()) (*AnimationDisplay, *GIFCaptureTool) {
-	gct := &GIFCaptureTool{}
-	gct.Running = true
-	ad := NewAnimationDisplay(Icon)
-	// gct.ad.MoveDuration = 600*time.Millisecond
-	// gct.ad.ColorCycleDuration = 100*time.Millisecond
-	// gct.ad.PauseDuration = 300*time.Millisecond
-	ad.CycleCallback = func() {
-		ad.Stop()
-		gct.Running = false
-		complete()
-	}
-	gct.Frames = make([]*image.Paletted, 0, 200)
-	gct.Delays = make([]int, 0, 200)
-	ad.CaptureCallback = func() {
-		delay := min(50,max(1, int(time.Since(gct.lastCapture).Milliseconds())/10))
-		im := software.Render(ad, fyne.CurrentApp().Settings().Theme())
-		gct.Frames = append(gct.Frames, convertToPaletted(im))
-		gct.Delays = append(gct.Delays, delay)
-		gct.lastCapture = time.Now()
-	}
-
-	// ad.SetMinSize(fyne.NewSize(600, 350))
-	// ad.Resize(ad.MinSize())
-	// gct.lastCapture = time.Now()
-	return ad, gct
-}
-*/
