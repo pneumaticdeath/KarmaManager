@@ -90,12 +90,17 @@ func ShowMultiInputAnimation(title string, inputs []string, favoriteGroups Group
 	ad.FinishedCallback = nextInput
 
 	var gifButton *widget.Button
+	var cachedGIFPath, cachedInput string
 	gifButton = widget.NewButton("Save as GIF", func() {
-		gifButton.Disable()
-		captureSize := ad.surface.Size()
 		// Capture the input that's currently animating (inputIndex was already
 		// incremented by nextInput, so the current input is at index-1).
 		captureInput := inputs[(inputIndex-1+inputCount)%inputCount]
+		if cachedGIFPath != "" && cachedInput == captureInput {
+			ShareGIF(cachedGIFPath, MainWindow)
+			return
+		}
+		gifButton.Disable()
+		captureSize := ad.surface.Size()
 		captureFavs := findFavoriteAnagrams(captureInput)
 		progressBar := widget.NewProgressBarInfinite()
 		progressDialog := dialog.NewCustomWithoutButtons("Rendering GIF…", progressBar, MainWindow)
@@ -121,6 +126,8 @@ func ShowMultiInputAnimation(title string, inputs []string, favoriteGroups Group
 				if err != nil {
 					dialog.ShowError(err, MainWindow)
 				} else {
+					cachedGIFPath = tmpPath
+					cachedInput = captureInput
 					ShareGIF(tmpPath, MainWindow)
 				}
 			})
@@ -145,7 +152,12 @@ func ShowAnimation(title, startPhrase string, anagrams []string, window fyne.Win
 	cd.Show()
 
 	var gifButton *widget.Button
+	var cachedGIFPath string
 	gifButton = widget.NewButton("Save as GIF", func() {
+		if cachedGIFPath != "" {
+			ShareGIF(cachedGIFPath, MainWindow)
+			return
+		}
 		gifButton.Disable()
 		// Snapshot the surface size now, while the dialog is laid out.
 		captureSize := ad.surface.Size()
@@ -175,6 +187,7 @@ func ShowAnimation(title, startPhrase string, anagrams []string, window fyne.Win
 				if err != nil {
 					dialog.ShowError(err, MainWindow)
 				} else {
+					cachedGIFPath = tmpPath
 					ShareGIF(tmpPath, MainWindow)
 				}
 			})
