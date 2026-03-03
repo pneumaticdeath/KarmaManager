@@ -52,7 +52,27 @@ func NthGlyphIndex(glyphs []RuneGlyph, r rune, n int) int {
 	return -1
 }
 
-func NewAnimation(input string, anagrams []string, maxRows, maxCols int) (*Animation, error) {
+func layoutCenterOffset(layout []RuneLayoutElement, dispSize fyne.Size) fyne.Position {
+	maxCol, maxRow := 0, 0
+	for _, e := range layout {
+		if e.Col > maxCol {
+			maxCol = e.Col
+		}
+		if e.Row > maxRow {
+			maxRow = e.Row
+		}
+	}
+	textWidth := float32(maxCol+1) * (glyphSize.Width + glyphSpacing)
+	textHeight := float32(maxRow+1) * (glyphSize.Height + glyphSpacing)
+	return fyne.NewPos(
+		(dispSize.Width-textWidth)/2,
+		(dispSize.Height-textHeight)/2,
+	)
+}
+
+func NewAnimation(input string, anagrams []string, dispSize fyne.Size) (*Animation, error) {
+	maxCols := int(math.Floor(float64(dispSize.Width / (glyphSize.Width + glyphSpacing))))
+
 	inputRC := NewRuneCluster(input)
 	for _, anagram := range anagrams {
 		anagramRC := NewRuneCluster(anagram)
@@ -66,8 +86,12 @@ func NewAnimation(input string, anagrams []string, maxRows, maxCols int) (*Anima
 	numGlyphs := len(inputLayout)
 	glyphs := make([]RuneGlyph, 0, numGlyphs)
 
+	inputOffset := layoutCenterOffset(inputLayout, dispSize)
 	for _, element := range inputLayout {
-		startPos := fyne.NewPos(float32(element.Col)*(glyphSize.Width+glyphSpacing), float32(element.Row)*(glyphSize.Height+glyphSpacing))
+		startPos := fyne.NewPos(
+			inputOffset.X+float32(element.Col)*(glyphSize.Width+glyphSpacing),
+			inputOffset.Y+float32(element.Row)*(glyphSize.Height+glyphSpacing),
+		)
 		glyphs = append(glyphs, RuneGlyph{element.Rune, startPos, make([]fyne.Position, len(anagrams))})
 	}
 
@@ -79,6 +103,7 @@ func NewAnimation(input string, anagrams []string, maxRows, maxCols int) (*Anima
 			rows = anagramRows
 		}
 
+		anagramOffset := layoutCenterOffset(anagramLayout, dispSize)
 		glyphsUsed := make([]bool, len(glyphs))
 		runeCounts := make(map[rune]int)
 
@@ -86,8 +111,9 @@ func NewAnimation(input string, anagrams []string, maxRows, maxCols int) (*Anima
 			runeCounts[element.Rune] += 1
 			n := runeCounts[element.Rune]
 			stepPos := fyne.NewPos(
-				float32(element.Col)*(glyphSize.Width+glyphSpacing),
-				float32(element.Row)*(glyphSize.Height+glyphSpacing))
+				anagramOffset.X+float32(element.Col)*(glyphSize.Width+glyphSpacing),
+				anagramOffset.Y+float32(element.Row)*(glyphSize.Height+glyphSpacing),
+			)
 			glyphIndex := NthGlyphIndex(glyphs, element.Rune, n)
 			if glyphIndex >= 0 {
 				glyphsUsed[glyphIndex] = true
@@ -127,6 +153,8 @@ type AnimationDisplay struct {
 	setupComplete    bool
 	iconImage        *canvas.Image
 	badgeLabel       *widget.Label
+	pendingInput     string
+	pendingAnagrams  []string
 }
 
 func NewAnimationDisplay(icon fyne.Resource) *AnimationDisplay {
@@ -177,19 +205,35 @@ func (ad *AnimationDisplay) positionIconBadge(dispSize fyne.Size) {
 func (ad *AnimationDisplay) Resize(size fyne.Size) {
 	ad.BaseWidget.Resize(size)
 	ad.positionIconBadge(size)
+	if ad.pendingInput != "" && size.Width > 0 && size.Height > 0 {
+		input := ad.pendingInput
+		anagrams := ad.pendingAnagrams
+		ad.pendingInput = ""
+		ad.pendingAnagrams = nil
+		ad.startAnimation(input, anagrams, size)
+	}
 }
 
 func (ad *AnimationDisplay) AnimateAnagrams(input string, anagrams ...string) {
 	ad.running = true
-	dispSize := ad.surface.Size()
-	maxCols := int(math.Floor(float64(dispSize.Width / (glyphSize.Width + glyphSpacing))))
-	maxRows := int(math.Floor(float64(dispSize.Height / (glyphSize.Height + glyphSpacing))))
-
 	ad.setupIconAndBadge()
 
+	// Use the widget's own size (set by BaseWidget.Resize during layout).
+	// On platforms where layout is async (iOS), this may be zero on first call;
+	// Resize() will pick up the pending animation once the real size arrives.
+	size := ad.Size()
+	if size.Width > 0 && size.Height > 0 {
+		ad.startAnimation(input, anagrams, size)
+	} else {
+		ad.pendingInput = input
+		ad.pendingAnagrams = anagrams
+	}
+}
+
+func (ad *AnimationDisplay) startAnimation(input string, anagrams []string, dispSize fyne.Size) {
 	style := fyne.TextStyle{Monospace: true}
 
-	animation, err := NewAnimation(input, anagrams, maxRows, maxCols)
+	animation, err := NewAnimation(input, anagrams, dispSize)
 	if err != nil {
 		log.Println(err)
 		ad.running = false

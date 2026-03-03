@@ -100,6 +100,7 @@ func ShowMultiInputAnimation(title string, inputs []string, favoriteGroups Group
 		go func() {
 			adCapture := NewAnimationDisplay(Icon)
 			adCapture.surface.Resize(captureSize)
+			adCapture.Resize(captureSize)
 			gct := NewGIFCaptureTool()
 			adCapture.CaptureCallback = gct.MakeCaptureCallback(adCapture)
 			adCapture.CycleCallback = func() { adCapture.Stop() }
@@ -146,6 +147,7 @@ func ShowAnimation(title, startPhrase string, anagrams []string, window fyne.Win
 			// the live animation is never stopped or mutated.
 			adCapture := NewAnimationDisplay(Icon)
 			adCapture.surface.Resize(captureSize)
+			adCapture.Resize(captureSize)
 			gct := NewGIFCaptureTool()
 			adCapture.CaptureCallback = gct.MakeCaptureCallback(adCapture)
 			adCapture.CycleCallback = func() { adCapture.Stop() }
