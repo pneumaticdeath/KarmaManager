@@ -2,7 +2,6 @@ package main
 
 import (
 	"errors"
-	// "fmt"
 	"image"
 	"image/color"
 	"image/color/palette"
@@ -126,6 +125,8 @@ type AnimationDisplay struct {
 	FinishedCallback func()
 	running          bool
 	setupComplete    bool
+	iconImage        *canvas.Image
+	badgeLabel       *widget.Label
 }
 
 func NewAnimationDisplay(icon fyne.Resource) *AnimationDisplay {
@@ -142,28 +143,40 @@ func (ad *AnimationDisplay) CreateRenderer() fyne.WidgetRenderer {
 	return widget.NewSimpleRenderer(ad.scroll)
 }
 
-func (ad *AnimationDisplay) setupIconAndBadge(dispSize fyne.Size) {
+func (ad *AnimationDisplay) setupIconAndBadge() {
 	if ad.setupComplete {
 		return
 	}
 
 	ad.setupComplete = true
 
-	icon := canvas.NewImageFromResource(ad.Icon)
-	icon.SetMinSize(fyne.NewSize(64, 64))
-	icon.FillMode = canvas.ImageFillContain
-	badge := widget.NewLabel(ad.Badge)
+	ad.iconImage = canvas.NewImageFromResource(ad.Icon)
+	ad.iconImage.SetMinSize(fyne.NewSize(64, 64))
+	ad.iconImage.FillMode = canvas.ImageFillContain
+	ad.badgeLabel = widget.NewLabel(ad.Badge)
 
 	ad.surface.RemoveAll()
-	// Add icon and badging
-	ad.surface.Add(icon)
-	ad.surface.Add(badge)
-	iconPos := fyne.NewPos(10, dispSize.Height-icon.MinSize().Height-10)
-	icon.Move(iconPos)
-	icon.Resize(icon.MinSize())
-	badgePos := fyne.NewPos(20+icon.MinSize().Width, dispSize.Height-badge.MinSize().Height-10)
-	badge.Move(badgePos)
-	badge.Resize(badge.MinSize())
+	ad.surface.Add(ad.iconImage)
+	ad.surface.Add(ad.badgeLabel)
+	// Attempt immediate placement; Resize() will correct it once layout is applied.
+	ad.positionIconBadge(ad.surface.Size())
+}
+
+func (ad *AnimationDisplay) positionIconBadge(dispSize fyne.Size) {
+	if ad.iconImage == nil || dispSize.Width == 0 || dispSize.Height == 0 {
+		return
+	}
+	iconPos := fyne.NewPos(10, dispSize.Height-ad.iconImage.MinSize().Height-10)
+	ad.iconImage.Move(iconPos)
+	ad.iconImage.Resize(ad.iconImage.MinSize())
+	badgePos := fyne.NewPos(20+ad.iconImage.MinSize().Width, dispSize.Height-ad.badgeLabel.MinSize().Height-10)
+	ad.badgeLabel.Move(badgePos)
+	ad.badgeLabel.Resize(ad.badgeLabel.MinSize())
+}
+
+func (ad *AnimationDisplay) Resize(size fyne.Size) {
+	ad.BaseWidget.Resize(size)
+	ad.positionIconBadge(size)
 }
 
 func (ad *AnimationDisplay) AnimateAnagrams(input string, anagrams ...string) {
@@ -172,7 +185,7 @@ func (ad *AnimationDisplay) AnimateAnagrams(input string, anagrams ...string) {
 	maxCols := int(math.Floor(float64(dispSize.Width / (glyphSize.Width + glyphSpacing))))
 	maxRows := int(math.Floor(float64(dispSize.Height / (glyphSize.Height + glyphSpacing))))
 
-	ad.setupIconAndBadge(dispSize)
+	ad.setupIconAndBadge()
 
 	style := fyne.TextStyle{Monospace: true}
 
