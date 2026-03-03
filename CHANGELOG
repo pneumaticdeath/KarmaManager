@@ -1,3 +1,7 @@
+# Changed in v0.9.6
+* MP4 video export now captured at 24fps for smoother playback
+* GIF export remains at 12fps (clean centisecond timing)
+
 # Changed in v0.9.5
 * Export animation as MP4 video (shareable to Instagram and other platforms that don't support GIF)
 * Both "Save as GIF" and "Save as Video" share a single off-screen capture pass — second export is instant
