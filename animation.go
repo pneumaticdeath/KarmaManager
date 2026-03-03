@@ -248,128 +248,102 @@ func (ad *AnimationDisplay) startAnimation(input string, anagrams []string, disp
 		ad.surface.Add(text)
 	}
 
-	colorPulse := func(c color.Color) {
-		for _, text := range animElements {
-			anim := canvas.NewColorRGBAAnimation(theme.TextColor(), c, Config.PulseDuration(), func(newColor color.Color) {
-				text.Color = newColor
-				text.Refresh()
+	// moveGlyphs drives all glyph positions from a single animation so every
+	// glyph is guaranteed to update on the same tick with no stagger.
+	// It uses a dummy (0,0)→(1,0) animation and treats pos.X as a progress
+	// value t∈[0,1] to linearly interpolate each glyph's from/to positions.
+	moveGlyphs := func(fromPos, toPos func(i int) fyne.Position) {
+		n := len(animation.Glyphs)
+		froms := make([]fyne.Position, n)
+		tos := make([]fyne.Position, n)
+		for i := range animation.Glyphs {
+			froms[i] = fromPos(i)
+			tos[i] = toPos(i)
+		}
+		anim := canvas.NewPositionAnimation(
+			fyne.NewPos(0, 0), fyne.NewPos(1, 0),
+			Config.MoveDuration(),
+			func(pos fyne.Position) {
+				t := pos.X
+				for i, text := range animElements {
+					text.Move(fyne.NewPos(
+						froms[i].X+t*(tos[i].X-froms[i].X),
+						froms[i].Y+t*(tos[i].Y-froms[i].Y),
+					))
+				}
 				if ad.CaptureCallback != nil {
 					ad.CaptureCallback()
 				}
-				// fmt.Printf("Color of %s: %v\n", text.Text, newColor)
-			})
-			anim.Start()
-		}
+			},
+		)
+		anim.Start()
+		time.Sleep(Config.MoveDuration())
+	}
 
+	// colorPulse drives all glyph colors from a single animation for the
+	// same reason — one ticker callback, no per-glyph stagger.
+	colorPulse := func(c color.Color) {
+		anim := canvas.NewColorRGBAAnimation(theme.TextColor(), c, Config.PulseDuration(), func(newColor color.Color) {
+			for _, text := range animElements {
+				text.Color = newColor
+				text.Refresh()
+			}
+			if ad.CaptureCallback != nil {
+				ad.CaptureCallback()
+			}
+		})
+		anim.Start()
 		time.Sleep(Config.PulseDuration())
-
 		time.Sleep(Config.PauseDuration())
 
-		for _, text := range animElements {
-			anim := canvas.NewColorRGBAAnimation(c, theme.TextColor(), Config.PulseDuration(), func(newColor color.Color) {
+		anim2 := canvas.NewColorRGBAAnimation(c, theme.TextColor(), Config.PulseDuration(), func(newColor color.Color) {
+			for _, text := range animElements {
 				text.Color = newColor
 				text.Refresh()
-				if ad.CaptureCallback != nil {
-					ad.CaptureCallback()
-				}
-				// fmt.Printf("Color of %s: %v\n", text.Text, newColor)
-			})
-			anim.Start()
-		}
-
+			}
+			if ad.CaptureCallback != nil {
+				ad.CaptureCallback()
+			}
+		})
+		anim2.Start()
 		time.Sleep(Config.PulseDuration())
 	}
 
 	go func() {
-		for glyphIndex, glyph := range animation.Glyphs {
-			text := animElements[glyphIndex]
-			anim := canvas.NewPositionAnimation(fyne.NewPos(0, 0), glyph.StartPos, Config.MoveDuration(), func(pos fyne.Position) {
-				text.Move(pos)
-				if ad.CaptureCallback != nil {
-					ad.CaptureCallback()
-				}
-			})
-			anim.Start()
+		for i, glyph := range animation.Glyphs {
+			animElements[i].Move(glyph.StartPos)
 		}
 
-		time.Sleep(Config.MoveDuration())
-
-		colorPulse(Config.InputPulseColor())
-
 		for ad.running {
-			// Start to first pos
-			for glyphIndex, glyph := range animation.Glyphs {
-				text := animElements[glyphIndex]
-				anim := canvas.NewPositionAnimation(glyph.StartPos, glyph.StepPos[0], Config.MoveDuration(), func(pos fyne.Position) {
-					text.Move(pos)
-					// fmt.Printf("Move %c to %v\n", glyph.Letter, pos)
-					if ad.CaptureCallback != nil {
-						ad.CaptureCallback()
-					}
-				})
-				anim.Start()
-			}
-
-			time.Sleep(Config.MoveDuration())
+			moveGlyphs(
+				func(i int) fyne.Position { return animation.Glyphs[i].StartPos },
+				func(i int) fyne.Position { return animation.Glyphs[i].StepPos[0] },
+			)
 
 			colorPulse(Config.AnagramPulseColor())
 
-			// Now all the steps except the last one
-
 			stepIndex := 0
 			for stepIndex < len(anagrams)-1 {
-				for glyphIndex, glyph := range animation.Glyphs {
-					text := animElements[glyphIndex]
-					anim := canvas.NewPositionAnimation(glyph.StepPos[stepIndex], glyph.StepPos[stepIndex+1], Config.MoveDuration(), func(pos fyne.Position) {
-						text.Move(pos)
-						if ad.CaptureCallback != nil {
-							ad.CaptureCallback()
-						}
-						// fmt.Printf("Move %c to %v\n", glyph.Letter, pos)
-					})
-					anim.Start()
-				}
-
-				time.Sleep(Config.MoveDuration())
-
+				si := stepIndex
+				moveGlyphs(
+					func(i int) fyne.Position { return animation.Glyphs[i].StepPos[si] },
+					func(i int) fyne.Position { return animation.Glyphs[i].StepPos[si+1] },
+				)
 				colorPulse(Config.AnagramPulseColor())
-
-				stepIndex += 1
+				stepIndex++
 			}
 
-			for index, glyph := range animation.Glyphs {
-				text := animElements[index]
-				anim := canvas.NewPositionAnimation(glyph.StepPos[stepIndex], glyph.StartPos, Config.MoveDuration(), func(pos fyne.Position) {
-					text.Move(pos)
-					if ad.CaptureCallback != nil {
-						ad.CaptureCallback()
-					}
-					// fmt.Printf("Move %c to %v\n", glyph.Letter, pos)
-				})
-				anim.Start()
-			}
-
-			time.Sleep(Config.MoveDuration())
+			si := stepIndex
+			moveGlyphs(
+				func(i int) fyne.Position { return animation.Glyphs[i].StepPos[si] },
+				func(i int) fyne.Position { return animation.Glyphs[i].StartPos },
+			)
 
 			colorPulse(Config.InputPulseColor())
-			// fmt.Println("Cycle completed")
 			if ad.CycleCallback != nil {
 				ad.CycleCallback()
 			}
 		}
-
-		for glyphIndex, glyph := range animation.Glyphs {
-			text := animElements[glyphIndex]
-			anim := canvas.NewPositionAnimation(glyph.StartPos, fyne.NewPos(0, 0), Config.MoveDuration(), func(pos fyne.Position) {
-				text.Move(pos)
-				if ad.CaptureCallback != nil {
-					ad.CaptureCallback()
-				}
-			})
-			anim.Start()
-		}
-
-		time.Sleep(Config.MoveDuration())
 
 		for _, obj := range animElements {
 			ad.surface.Remove(obj)

@@ -22,15 +22,15 @@ const (
 var (
 	defaultInputPulseColor   color.Color   = color.NRGBA{R: 0, G: 255, B: 0, A: 255}
 	defaultAnagramPulseColor color.Color   = color.NRGBA{R: 192, G: 0, B: 192, A: 255}
-	quickPulseDuration       time.Duration = 200 * time.Millisecond
-	regularPulseDuration     time.Duration = 500 * time.Millisecond
-	statelyPulseDuration     time.Duration = 800 * time.Millisecond
+	quickPulseDuration       time.Duration = 300 * time.Millisecond
+	regularPulseDuration     time.Duration = 800 * time.Millisecond
+	statelyPulseDuration     time.Duration = 1500 * time.Millisecond
 	quickMoveDuration        time.Duration = 1000 * time.Millisecond
 	regularMoveDuration      time.Duration = 1500 * time.Millisecond
 	statelyMoveDuration      time.Duration = 3000 * time.Millisecond
 	quickPauseDuration       time.Duration = 1000 * time.Millisecond
-	regularPauseDuration     time.Duration = 1500 * time.Millisecond
-	statelyPauseDuration     time.Duration = 3000 * time.Millisecond
+	regularPauseDuration     time.Duration = 2000 * time.Millisecond
+	statelyPauseDuration     time.Duration = 4000 * time.Millisecond
 )
 
 type ConfigT struct {

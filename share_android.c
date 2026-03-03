@@ -2,79 +2,139 @@
 #include <android/log.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdio.h>
 
 #define LOG_TAG "KarmaManager"
 #define LOGI(...) __android_log_print(ANDROID_LOG_INFO, LOG_TAG, __VA_ARGS__)
 #define LOGE(...) __android_log_print(ANDROID_LOG_ERROR, LOG_TAG, __VA_ARGS__)
 
+// Insert the GIF into MediaStore.Downloads (API 29+) and return a content:// URI.
+// Returns NULL on failure.
+static jobject insertIntoMediaStore(JNIEnv *env, jobject activity, const char *path) {
+    // Get ContentResolver
+    jclass contextClass = (*env)->GetObjectClass(env, activity);
+    jmethodID getContentResolver = (*env)->GetMethodID(env, contextClass, "getContentResolver",
+        "()Landroid/content/ContentResolver;");
+    jobject resolver = (*env)->CallObjectMethod(env, activity, getContentResolver);
+
+    // Build ContentValues
+    jclass cvClass = (*env)->FindClass(env, "android/content/ContentValues");
+    jmethodID cvInit = (*env)->GetMethodID(env, cvClass, "<init>", "()V");
+    jobject cv = (*env)->NewObject(env, cvClass, cvInit);
+    jmethodID putStr = (*env)->GetMethodID(env, cvClass, "put",
+        "(Ljava/lang/String;Ljava/lang/String;)V");
+
+    const char *filename = strrchr(path, '/');
+    filename = filename ? filename + 1 : path;
+
+    jstring keyName = (*env)->NewStringUTF(env, "_display_name");
+    jstring jFilename = (*env)->NewStringUTF(env, filename);
+    (*env)->CallVoidMethod(env, cv, putStr, keyName, jFilename);
+
+    jstring keyMime = (*env)->NewStringUTF(env, "mime_type");
+    jstring jMime = (*env)->NewStringUTF(env, "image/gif");
+    (*env)->CallVoidMethod(env, cv, putStr, keyMime, jMime);
+
+    // MediaStore.Downloads.EXTERNAL_CONTENT_URI
+    jclass downloadsClass = (*env)->FindClass(env, "android/provider/MediaStore$Downloads");
+    if (downloadsClass == NULL || (*env)->ExceptionCheck(env)) {
+        (*env)->ExceptionClear(env);
+        LOGE("MediaStore.Downloads not available (API < 29)");
+        return NULL;
+    }
+    jfieldID uriField = (*env)->GetStaticFieldID(env, downloadsClass,
+        "EXTERNAL_CONTENT_URI", "Landroid/net/Uri;");
+    jobject externalUri = (*env)->GetStaticObjectField(env, downloadsClass, uriField);
+
+    // Insert to get item URI
+    jclass resolverClass = (*env)->GetObjectClass(env, resolver);
+    jmethodID insertMethod = (*env)->GetMethodID(env, resolverClass, "insert",
+        "(Landroid/net/Uri;Landroid/content/ContentValues;)Landroid/net/Uri;");
+    jobject itemUri = (*env)->CallObjectMethod(env, resolver, insertMethod, externalUri, cv);
+    if (itemUri == NULL || (*env)->ExceptionCheck(env)) {
+        (*env)->ExceptionClear(env);
+        LOGE("MediaStore insert failed");
+        return NULL;
+    }
+
+    // Open OutputStream and write file bytes
+    jmethodID openOutput = (*env)->GetMethodID(env, resolverClass, "openOutputStream",
+        "(Landroid/net/Uri;)Ljava/io/OutputStream;");
+    jobject outputStream = (*env)->CallObjectMethod(env, resolver, openOutput, itemUri);
+    if (outputStream == NULL || (*env)->ExceptionCheck(env)) {
+        (*env)->ExceptionClear(env);
+        LOGE("openOutputStream failed");
+        return NULL;
+    }
+
+    FILE *f = fopen(path, "rb");
+    if (f == NULL) { LOGE("Cannot open source file: %s", path); return NULL; }
+
+    jclass osClass = (*env)->GetObjectClass(env, outputStream);
+    jmethodID writeMethod = (*env)->GetMethodID(env, osClass, "write", "([BII)V");
+    jmethodID closeMethod = (*env)->GetMethodID(env, osClass, "close", "()V");
+
+    jbyteArray buf = (*env)->NewByteArray(env, 8192);
+    char cbuf[8192];
+    size_t n;
+    while ((n = fread(cbuf, 1, sizeof(cbuf), f)) > 0) {
+        (*env)->SetByteArrayRegion(env, buf, 0, (jsize)n, (jbyte *)cbuf);
+        (*env)->CallVoidMethod(env, outputStream, writeMethod, buf, 0, (jint)n);
+        if ((*env)->ExceptionCheck(env)) {
+            (*env)->ExceptionClear(env);
+            LOGE("write failed");
+            break;
+        }
+    }
+    fclose(f);
+    (*env)->CallVoidMethod(env, outputStream, closeMethod);
+
+    return itemUri;
+}
+
 void shareGIFViaJNI(uintptr_t envPtr, uintptr_t ctxPtr, const char *path) {
     JNIEnv *env = (JNIEnv *)envPtr;
     jobject activity = (jobject)ctxPtr;
 
-    // Create File object from path
-    jclass fileClass = (*env)->FindClass(env, "java/io/File");
-    if (fileClass == NULL) { LOGE("File class not found"); return; }
-    jmethodID fileConstructor = (*env)->GetMethodID(env, fileClass, "<init>", "(Ljava/lang/String;)V");
-    jstring jpath = (*env)->NewStringUTF(env, path);
-    jobject fileObj = (*env)->NewObject(env, fileClass, fileConstructor, jpath);
-
-    // Get URI via FileProvider.getUriForFile(context, authority, file)
-    jclass fileProviderClass = (*env)->FindClass(env, "androidx/core/content/FileProvider");
-    if (fileProviderClass == NULL) { LOGE("FileProvider class not found"); return; }
-    jmethodID getUriMethod = (*env)->GetStaticMethodID(env, fileProviderClass,
-        "getUriForFile",
-        "(Landroid/content/Context;Ljava/lang/String;Ljava/io/File;)Landroid/net/Uri;");
-    if (getUriMethod == NULL) { LOGE("getUriForFile method not found"); return; }
-    jstring authority = (*env)->NewStringUTF(env, "io.patenaude.karmamanager.fileprovider");
-    jobject uri = (*env)->CallStaticObjectMethod(env, fileProviderClass, getUriMethod,
-        activity, authority, fileObj);
-    if (uri == NULL) { LOGE("getUriForFile returned null"); return; }
+    jobject uri = insertIntoMediaStore(env, activity, path);
+    if (uri == NULL) {
+        LOGE("Could not get shareable URI for GIF");
+        return;
+    }
 
     // Build ACTION_SEND intent
     jclass intentClass = (*env)->FindClass(env, "android/content/Intent");
-    jmethodID intentConstructor = (*env)->GetMethodID(env, intentClass, "<init>", "(Ljava/lang/String;)V");
+    jmethodID intentInit = (*env)->GetMethodID(env, intentClass, "<init>",
+        "(Ljava/lang/String;)V");
     jstring actionSend = (*env)->NewStringUTF(env, "android.intent.action.SEND");
-    jobject intent = (*env)->NewObject(env, intentClass, intentConstructor, actionSend);
+    jobject intent = (*env)->NewObject(env, intentClass, intentInit, actionSend);
 
-    // setType("image/gif")
-    jmethodID setTypeMethod = (*env)->GetMethodID(env, intentClass, "setType",
+    jmethodID setType = (*env)->GetMethodID(env, intentClass, "setType",
         "(Ljava/lang/String;)Landroid/content/Intent;");
     jstring mimeType = (*env)->NewStringUTF(env, "image/gif");
-    (*env)->CallObjectMethod(env, intent, setTypeMethod, mimeType);
+    (*env)->CallObjectMethod(env, intent, setType, mimeType);
 
-    // putExtra(EXTRA_STREAM, uri)
-    jmethodID putExtraMethod = (*env)->GetMethodID(env, intentClass, "putExtra",
+    jmethodID putExtra = (*env)->GetMethodID(env, intentClass, "putExtra",
         "(Ljava/lang/String;Landroid/os/Parcelable;)Landroid/content/Intent;");
     jstring extraStream = (*env)->NewStringUTF(env, "android.intent.extra.STREAM");
-    (*env)->CallObjectMethod(env, intent, putExtraMethod, extraStream, uri);
+    (*env)->CallObjectMethod(env, intent, putExtra, extraStream, uri);
 
-    // addFlags(FLAG_GRANT_READ_URI_PERMISSION = 1)
-    jmethodID addFlagsMethod = (*env)->GetMethodID(env, intentClass, "addFlags",
+    jmethodID addFlags = (*env)->GetMethodID(env, intentClass, "addFlags",
         "(I)Landroid/content/Intent;");
-    (*env)->CallObjectMethod(env, intent, addFlagsMethod, (jint)1);
+    (*env)->CallObjectMethod(env, intent, addFlags, (jint)1); // FLAG_GRANT_READ_URI_PERMISSION
 
-    // Intent.createChooser(intent, "Share GIF")
-    jmethodID createChooserMethod = (*env)->GetStaticMethodID(env, intentClass, "createChooser",
+    // Wrap in chooser
+    jmethodID createChooser = (*env)->GetStaticMethodID(env, intentClass, "createChooser",
         "(Landroid/content/Intent;Ljava/lang/CharSequence;)Landroid/content/Intent;");
     jstring chooserTitle = (*env)->NewStringUTF(env, "Share GIF");
-    jobject chooserIntent = (*env)->CallStaticObjectMethod(env, intentClass,
-        createChooserMethod, intent, chooserTitle);
+    jobject chooser = (*env)->CallStaticObjectMethod(env, intentClass,
+        createChooser, intent, chooserTitle);
 
-    // activity.startActivity(chooserIntent)
+    // startActivity
     jclass activityClass = (*env)->GetObjectClass(env, activity);
-    jmethodID startActivityMethod = (*env)->GetMethodID(env, activityClass, "startActivity",
+    jmethodID startActivity = (*env)->GetMethodID(env, activityClass, "startActivity",
         "(Landroid/content/Intent;)V");
-    (*env)->CallVoidMethod(env, activity, startActivityMethod, chooserIntent);
+    (*env)->CallVoidMethod(env, activity, startActivity, chooser);
 
-    // Clean up local references
-    (*env)->DeleteLocalRef(env, jpath);
-    (*env)->DeleteLocalRef(env, fileObj);
-    (*env)->DeleteLocalRef(env, authority);
-    (*env)->DeleteLocalRef(env, uri);
-    (*env)->DeleteLocalRef(env, actionSend);
-    (*env)->DeleteLocalRef(env, intent);
-    (*env)->DeleteLocalRef(env, mimeType);
-    (*env)->DeleteLocalRef(env, extraStream);
-    (*env)->DeleteLocalRef(env, chooserTitle);
-    (*env)->DeleteLocalRef(env, chooserIntent);
+    LOGI("Share intent launched for %s", path);
 }
