@@ -313,6 +313,9 @@ func (ad *AnimationDisplay) startAnimation(input string, anagrams []string, disp
 		for i, glyph := range animation.Glyphs {
 			animElements[i].Move(glyph.StartPos)
 		}
+		if ad.CaptureCallback != nil {
+			ad.CaptureCallback()
+		}
 
 		for ad.running {
 			moveGlyphs(
