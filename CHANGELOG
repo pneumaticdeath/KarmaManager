@@ -1,3 +1,24 @@
+# Changed in v0.9.5
+* Export animation as MP4 video (shareable to Instagram and other platforms that don't support GIF)
+* Both "Save as GIF" and "Save as Video" share a single off-screen capture pass — second export is instant
+
+# Changed in v0.9.4
+* GIF export cached for the lifetime of the animation dialog — re-exporting skips re-render
+* Capture initial frame before animation starts so GIF begins from the resting position
+* GIF rendering now shows a progress bar
+
+# Changed in v0.9.2
+* Animation timing overhauled: single-driver per phase eliminates per-glyph stagger
+* Animation text centered in display area
+* Fixed iOS async layout timing for animation widget
+
+# Changed in v0.9.0
+* Animation export: save animation as GIF and share via platform share sheet
+* Fixed GIF capture to use off-screen rendering with no race conditions
+* Fixed iOS share sheet crash (UIKit calls dispatched to main thread)
+* Fixed animation icon/badge positioning on iOS
+* Upgraded to Fyne v2.7.0
+
 # Changed in v0.8.0
 * Multi-word place names now supported
 * Animaiton will wrap itself up and stop gracefully after completing the sequence when tapped
