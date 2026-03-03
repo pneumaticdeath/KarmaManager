@@ -643,7 +643,7 @@ func main() {
 		layout.NewSpacer(),
 		iconImage,
 		container.New(layout.NewHBoxLayout(), layout.NewSpacer(), widget.NewLabel(App.Metadata().Name), layout.NewSpacer()),
-		container.New(layout.NewHBoxLayout(), layout.NewSpacer(), widget.NewLabel("Copyright 2025"), layout.NewSpacer()),
+		container.New(layout.NewHBoxLayout(), layout.NewSpacer(), widget.NewLabel("Copyright 2025, 2026"), layout.NewSpacer()),
 		container.New(layout.NewHBoxLayout(), layout.NewSpacer(), widget.NewLabel("by Mitch Patenaude"), layout.NewSpacer()),
 		container.New(layout.NewHBoxLayout(), layout.NewSpacer(), widget.NewLabel(fmt.Sprintf("Version %s (build %d)", App.Metadata().Version, App.Metadata().Build)), layout.NewSpacer()),
 		container.New(layout.NewHBoxLayout(), layout.NewSpacer(), widget.NewLabel("with thanks to the 80's Mac shareware of the same name"), layout.NewSpacer()),
