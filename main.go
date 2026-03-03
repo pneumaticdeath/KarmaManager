@@ -97,6 +97,9 @@ func ShowMultiInputAnimation(title string, inputs []string, favoriteGroups Group
 		// incremented by nextInput, so the current input is at index-1).
 		captureInput := inputs[(inputIndex-1+inputCount)%inputCount]
 		captureFavs := findFavoriteAnagrams(captureInput)
+		progressBar := widget.NewProgressBarInfinite()
+		progressDialog := dialog.NewCustomWithoutButtons("Rendering GIF…", progressBar, MainWindow)
+		progressDialog.Show()
 		go func() {
 			adCapture := NewAnimationDisplay(Icon)
 			adCapture.surface.Resize(captureSize)
@@ -111,12 +114,16 @@ func ShowMultiInputAnimation(title string, inputs []string, favoriteGroups Group
 
 			g := gct.GetGIF()
 			tmpPath := os.TempDir() + "/karmamanager_anim.gif"
-			if err := WriteGIF(g, tmpPath); err != nil {
-				fyne.Do(func() { dialog.ShowError(err, MainWindow) })
-			} else {
-				fyne.Do(func() { ShareGIF(tmpPath, MainWindow) })
-			}
-			fyne.Do(func() { gifButton.Enable() })
+			err := WriteGIF(g, tmpPath)
+			fyne.Do(func() {
+				progressDialog.Hide()
+				gifButton.Enable()
+				if err != nil {
+					dialog.ShowError(err, MainWindow)
+				} else {
+					ShareGIF(tmpPath, MainWindow)
+				}
+			})
 		}()
 	})
 	cd.SetButtons([]fyne.CanvasObject{
@@ -142,6 +149,9 @@ func ShowAnimation(title, startPhrase string, anagrams []string, window fyne.Win
 		gifButton.Disable()
 		// Snapshot the surface size now, while the dialog is laid out.
 		captureSize := ad.surface.Size()
+		progressBar := widget.NewProgressBarInfinite()
+		progressDialog := dialog.NewCustomWithoutButtons("Rendering GIF…", progressBar, MainWindow)
+		progressDialog.Show()
 		go func() {
 			// Run the capture on a separate off-screen AnimationDisplay so
 			// the live animation is never stopped or mutated.
@@ -158,12 +168,16 @@ func ShowAnimation(title, startPhrase string, anagrams []string, window fyne.Win
 
 			g := gct.GetGIF()
 			tmpPath := os.TempDir() + "/karmamanager_anim.gif"
-			if err := WriteGIF(g, tmpPath); err != nil {
-				fyne.Do(func() { dialog.ShowError(err, MainWindow) })
-			} else {
-				fyne.Do(func() { ShareGIF(tmpPath, MainWindow) })
-			}
-			fyne.Do(func() { gifButton.Enable() })
+			err := WriteGIF(g, tmpPath)
+			fyne.Do(func() {
+				progressDialog.Hide()
+				gifButton.Enable()
+				if err != nil {
+					dialog.ShowError(err, MainWindow)
+				} else {
+					ShareGIF(tmpPath, MainWindow)
+				}
+			})
 		}()
 	})
 	cd.SetButtons([]fyne.CanvasObject{

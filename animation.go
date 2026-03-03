@@ -345,6 +345,10 @@ func (ad *AnimationDisplay) startAnimation(input string, anagrams []string, disp
 			}
 		}
 
+		// Allow any in-flight animation ticks to complete before tearing down,
+		// so capture callbacks see the final frames of the last pulse.
+		time.Sleep(100 * time.Millisecond)
+
 		for _, obj := range animElements {
 			ad.surface.Remove(obj)
 		}
