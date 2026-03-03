@@ -8,9 +8,9 @@
 #define LOGI(...) __android_log_print(ANDROID_LOG_INFO, LOG_TAG, __VA_ARGS__)
 #define LOGE(...) __android_log_print(ANDROID_LOG_ERROR, LOG_TAG, __VA_ARGS__)
 
-// Insert the GIF into MediaStore.Downloads (API 29+) and return a content:// URI.
-// Returns NULL on failure.
-static jobject insertIntoMediaStore(JNIEnv *env, jobject activity, const char *path) {
+// Insert a file into MediaStore.Downloads (API 29+) and return a content:// URI.
+// mimeType should be e.g. "image/gif" or "video/mp4". Returns NULL on failure.
+static jobject insertIntoMediaStore(JNIEnv *env, jobject activity, const char *path, const char *mimeType) {
     // Get ContentResolver
     jclass contextClass = (*env)->GetObjectClass(env, activity);
     jmethodID getContentResolver = (*env)->GetMethodID(env, contextClass, "getContentResolver",
@@ -32,7 +32,7 @@ static jobject insertIntoMediaStore(JNIEnv *env, jobject activity, const char *p
     (*env)->CallVoidMethod(env, cv, putStr, keyName, jFilename);
 
     jstring keyMime = (*env)->NewStringUTF(env, "mime_type");
-    jstring jMime = (*env)->NewStringUTF(env, "image/gif");
+    jstring jMime = (*env)->NewStringUTF(env, mimeType);
     (*env)->CallVoidMethod(env, cv, putStr, keyMime, jMime);
 
     // MediaStore.Downloads.EXTERNAL_CONTENT_URI
@@ -92,13 +92,11 @@ static jobject insertIntoMediaStore(JNIEnv *env, jobject activity, const char *p
     return itemUri;
 }
 
-void shareGIFViaJNI(uintptr_t envPtr, uintptr_t ctxPtr, const char *path) {
-    JNIEnv *env = (JNIEnv *)envPtr;
-    jobject activity = (jobject)ctxPtr;
-
-    jobject uri = insertIntoMediaStore(env, activity, path);
+static void shareFileViaJNI(JNIEnv *env, jobject activity, const char *path,
+                            const char *mimeType, const char *chooserTitle) {
+    jobject uri = insertIntoMediaStore(env, activity, path, mimeType);
     if (uri == NULL) {
-        LOGE("Could not get shareable URI for GIF");
+        LOGE("Could not get shareable URI for %s", path);
         return;
     }
 
@@ -111,8 +109,8 @@ void shareGIFViaJNI(uintptr_t envPtr, uintptr_t ctxPtr, const char *path) {
 
     jmethodID setType = (*env)->GetMethodID(env, intentClass, "setType",
         "(Ljava/lang/String;)Landroid/content/Intent;");
-    jstring mimeType = (*env)->NewStringUTF(env, "image/gif");
-    (*env)->CallObjectMethod(env, intent, setType, mimeType);
+    jstring jMime = (*env)->NewStringUTF(env, mimeType);
+    (*env)->CallObjectMethod(env, intent, setType, jMime);
 
     jmethodID putExtra = (*env)->GetMethodID(env, intentClass, "putExtra",
         "(Ljava/lang/String;Landroid/os/Parcelable;)Landroid/content/Intent;");
@@ -126,9 +124,9 @@ void shareGIFViaJNI(uintptr_t envPtr, uintptr_t ctxPtr, const char *path) {
     // Wrap in chooser
     jmethodID createChooser = (*env)->GetStaticMethodID(env, intentClass, "createChooser",
         "(Landroid/content/Intent;Ljava/lang/CharSequence;)Landroid/content/Intent;");
-    jstring chooserTitle = (*env)->NewStringUTF(env, "Share GIF");
+    jstring jChooserTitle = (*env)->NewStringUTF(env, chooserTitle);
     jobject chooser = (*env)->CallStaticObjectMethod(env, intentClass,
-        createChooser, intent, chooserTitle);
+        createChooser, intent, jChooserTitle);
 
     // startActivity
     jclass activityClass = (*env)->GetObjectClass(env, activity);
@@ -137,4 +135,16 @@ void shareGIFViaJNI(uintptr_t envPtr, uintptr_t ctxPtr, const char *path) {
     (*env)->CallVoidMethod(env, activity, startActivity, chooser);
 
     LOGI("Share intent launched for %s", path);
+}
+
+void shareGIFViaJNI(uintptr_t envPtr, uintptr_t ctxPtr, const char *path) {
+    JNIEnv *env = (JNIEnv *)envPtr;
+    jobject activity = (jobject)ctxPtr;
+    shareFileViaJNI(env, activity, path, "image/gif", "Share GIF");
+}
+
+void shareVideoViaJNI(uintptr_t envPtr, uintptr_t ctxPtr, const char *path) {
+    JNIEnv *env = (JNIEnv *)envPtr;
+    jobject activity = (jobject)ctxPtr;
+    shareFileViaJNI(env, activity, path, "video/mp4", "Share Video");
 }

@@ -56,7 +56,7 @@ func ShowPrivateDictSettings(private *Dictionary, saveCallback func(),  window f
 func ShowMultiInputAnimation(title string, inputs []string, favoriteGroups GroupedFavorites, window fyne.Window) {
 	ad := NewAnimationDisplay(Icon)
 	cd := dialog.NewCustom(title, "dismiss", ad, window)
-	cd.Resize(fyne.NewSize(600, 400))
+	cd.Resize(fyne.NewSize(400, 600))
 	inputCount := len(inputs)
 	inputIndex := 0
 	abort := false
@@ -89,21 +89,35 @@ func ShowMultiInputAnimation(title string, inputs []string, favoriteGroups Group
 	}
 	ad.FinishedCallback = nextInput
 
-	var gifButton *widget.Button
-	var cachedGIFPath, cachedInput string
-	gifButton = widget.NewButton("Save as GIF", func() {
-		// Capture the input that's currently animating (inputIndex was already
-		// incremented by nextInput, so the current input is at index-1).
-		captureInput := inputs[(inputIndex-1+inputCount)%inputCount]
-		if cachedGIFPath != "" && cachedInput == captureInput {
-			ShareGIF(cachedGIFPath, MainWindow)
+	var gifButton, videoButton *widget.Button
+	var cachedGCT *GIFCaptureTool
+	var cachedGIFPath, cachedMP4Path, cachedCaptureInput string
+
+	// runCapture runs an off-screen animation for captureInput to populate
+	// cachedGCT, then calls onCaptured. If cachedGCT already matches
+	// captureInput it skips the animation. Both export buttons are disabled
+	// for the duration.
+	runCapture := func(captureInput string, captureFavs []string, onCaptured func(*GIFCaptureTool)) {
+		gifButton.Disable()
+		videoButton.Disable()
+		if cachedGCT != nil && cachedCaptureInput == captureInput {
+			go func() {
+				onCaptured(cachedGCT)
+				fyne.Do(func() {
+					gifButton.Enable()
+					videoButton.Enable()
+				})
+			}()
 			return
 		}
-		gifButton.Disable()
+		// Input changed or first capture — reset cached encoded paths.
+		cachedGCT = nil
+		cachedGIFPath = ""
+		cachedMP4Path = ""
+
 		captureSize := ad.surface.Size()
-		captureFavs := findFavoriteAnagrams(captureInput)
 		progressBar := widget.NewProgressBarInfinite()
-		progressDialog := dialog.NewCustomWithoutButtons("Rendering GIF…", progressBar, MainWindow)
+		progressDialog := dialog.NewCustomWithoutButtons("Rendering…", progressBar, MainWindow)
 		progressDialog.Show()
 		go func() {
 			adCapture := NewAnimationDisplay(Icon)
@@ -116,26 +130,66 @@ func ShowMultiInputAnimation(title string, inputs []string, favoriteGroups Group
 			adCapture.FinishedCallback = func() { close(done) }
 			adCapture.AnimateAnagrams(captureInput, captureFavs...)
 			<-done
+			cachedGCT = gct
+			cachedCaptureInput = captureInput
+			fyne.Do(progressDialog.Hide)
+			onCaptured(gct)
+			fyne.Do(func() {
+				gifButton.Enable()
+				videoButton.Enable()
+			})
+		}()
+	}
 
+	gifButton = widget.NewButton("Save as GIF", func() {
+		// inputIndex was already incremented by nextInput, so current input is at index-1.
+		captureInput := inputs[(inputIndex-1+inputCount)%inputCount]
+		if cachedGIFPath != "" && cachedCaptureInput == captureInput {
+			ShareGIF(cachedGIFPath, MainWindow)
+			return
+		}
+		captureFavs := findFavoriteAnagrams(captureInput)
+		runCapture(captureInput, captureFavs, func(gct *GIFCaptureTool) {
 			g := gct.GetGIF()
 			tmpPath := os.TempDir() + "/karmamanager_anim.gif"
 			err := WriteGIF(g, tmpPath)
 			fyne.Do(func() {
-				progressDialog.Hide()
-				gifButton.Enable()
 				if err != nil {
 					dialog.ShowError(err, MainWindow)
 				} else {
 					cachedGIFPath = tmpPath
-					cachedInput = captureInput
 					ShareGIF(tmpPath, MainWindow)
 				}
 			})
-		}()
+		})
 	})
+
+	videoButton = widget.NewButton("Save as Video", func() {
+		captureInput := inputs[(inputIndex-1+inputCount)%inputCount]
+		if cachedMP4Path != "" && cachedCaptureInput == captureInput {
+			ShareVideo(cachedMP4Path, MainWindow)
+			return
+		}
+		captureFavs := findFavoriteAnagrams(captureInput)
+		runCapture(captureInput, captureFavs, func(gct *GIFCaptureTool) {
+			frames, delays := gct.GetRawFrames()
+			tmpPath := os.TempDir() + "/karmamanager_anim.mp4"
+			err := WriteMP4(frames, delays, tmpPath)
+			fyne.Do(func() {
+				if err != nil {
+					dialog.ShowError(err, MainWindow)
+				} else {
+					cachedMP4Path = tmpPath
+					ShareVideo(tmpPath, MainWindow)
+				}
+			})
+		})
+	})
+
 	cd.SetButtons([]fyne.CanvasObject{
 		widget.NewButton("Dismiss", func() { cd.Hide() }),
 		gifButton,
+		videoButton,
 	})
 
 	cd.SetOnClosed(func() {
@@ -148,25 +202,35 @@ func ShowMultiInputAnimation(title string, inputs []string, favoriteGroups Group
 func ShowAnimation(title, startPhrase string, anagrams []string, window fyne.Window) {
 	ad := NewAnimationDisplay(Icon)
 	cd := dialog.NewCustom(title, "dismiss", ad, MainWindow)
-	cd.Resize(fyne.NewSize(600, 400))
+	cd.Resize(fyne.NewSize(400, 600))
 	cd.Show()
 
-	var gifButton *widget.Button
-	var cachedGIFPath string
-	gifButton = widget.NewButton("Save as GIF", func() {
-		if cachedGIFPath != "" {
-			ShareGIF(cachedGIFPath, MainWindow)
+	var gifButton, videoButton *widget.Button
+	var cachedGCT *GIFCaptureTool
+	var cachedGIFPath, cachedMP4Path string
+
+	// runCapture runs an off-screen animation to populate cachedGCT, then calls
+	// onCaptured. If cachedGCT is already set, it skips straight to onCaptured.
+	// Both export buttons are disabled for the duration.
+	runCapture := func(onCaptured func(*GIFCaptureTool)) {
+		gifButton.Disable()
+		videoButton.Disable()
+		if cachedGCT != nil {
+			go func() {
+				onCaptured(cachedGCT)
+				fyne.Do(func() {
+					gifButton.Enable()
+					videoButton.Enable()
+				})
+			}()
 			return
 		}
-		gifButton.Disable()
 		// Snapshot the surface size now, while the dialog is laid out.
 		captureSize := ad.surface.Size()
 		progressBar := widget.NewProgressBarInfinite()
-		progressDialog := dialog.NewCustomWithoutButtons("Rendering GIF…", progressBar, MainWindow)
+		progressDialog := dialog.NewCustomWithoutButtons("Rendering…", progressBar, MainWindow)
 		progressDialog.Show()
 		go func() {
-			// Run the capture on a separate off-screen AnimationDisplay so
-			// the live animation is never stopped or mutated.
 			adCapture := NewAnimationDisplay(Icon)
 			adCapture.surface.Resize(captureSize)
 			adCapture.Resize(captureSize)
@@ -177,13 +241,26 @@ func ShowAnimation(title, startPhrase string, anagrams []string, window fyne.Win
 			adCapture.FinishedCallback = func() { close(done) }
 			adCapture.AnimateAnagrams(startPhrase, anagrams...)
 			<-done
+			cachedGCT = gct
+			fyne.Do(progressDialog.Hide)
+			onCaptured(gct)
+			fyne.Do(func() {
+				gifButton.Enable()
+				videoButton.Enable()
+			})
+		}()
+	}
 
+	gifButton = widget.NewButton("Save as GIF", func() {
+		if cachedGIFPath != "" {
+			ShareGIF(cachedGIFPath, MainWindow)
+			return
+		}
+		runCapture(func(gct *GIFCaptureTool) {
 			g := gct.GetGIF()
 			tmpPath := os.TempDir() + "/karmamanager_anim.gif"
 			err := WriteGIF(g, tmpPath)
 			fyne.Do(func() {
-				progressDialog.Hide()
-				gifButton.Enable()
 				if err != nil {
 					dialog.ShowError(err, MainWindow)
 				} else {
@@ -191,11 +268,33 @@ func ShowAnimation(title, startPhrase string, anagrams []string, window fyne.Win
 					ShareGIF(tmpPath, MainWindow)
 				}
 			})
-		}()
+		})
 	})
+
+	videoButton = widget.NewButton("Save as Video", func() {
+		if cachedMP4Path != "" {
+			ShareVideo(cachedMP4Path, MainWindow)
+			return
+		}
+		runCapture(func(gct *GIFCaptureTool) {
+			frames, delays := gct.GetRawFrames()
+			tmpPath := os.TempDir() + "/karmamanager_anim.mp4"
+			err := WriteMP4(frames, delays, tmpPath)
+			fyne.Do(func() {
+				if err != nil {
+					dialog.ShowError(err, MainWindow)
+				} else {
+					cachedMP4Path = tmpPath
+					ShareVideo(tmpPath, MainWindow)
+				}
+			})
+		})
+	})
+
 	cd.SetButtons([]fyne.CanvasObject{
 		widget.NewButton("Dismiss", func() { cd.Hide() }),
 		gifButton,
+		videoButton,
 	})
 
 	ad.FinishedCallback = func() {

@@ -9,7 +9,7 @@ case "$1" in
 		;;
 	ios)
 		fyne release --target ios --certificate "${IOSDEVCERT}" --profile "${IOSDEVPROF}"
-		DEVICE=$(xcrun devicectl list devices 2>&1 | awk 'NR>2 && /connected/ && /iPhone/ {print $3; exit}')
+		DEVICE=$(xcrun devicectl list devices 2>&1 | awk 'NR>2 && (/available/ || /connected/) && /iPhone/ {print $3; exit}')
 		if [ -z "$DEVICE" ]; then
 			echo "No connected iPhone found"
 			exit 1

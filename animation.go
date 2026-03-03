@@ -442,6 +442,20 @@ func (gct *GIFCaptureTool) MakeCaptureCallback(ad *AnimationDisplay) func() {
 	}
 }
 
+// GetRawFrames returns copies of the captured raw frames and their delays
+// (in GIF centiseconds). Callers can use this to encode formats other than GIF.
+func (gct *GIFCaptureTool) GetRawFrames() ([]image.Image, []int) {
+	gct.mu.Lock()
+	defer gct.mu.Unlock()
+	imgs := make([]image.Image, len(gct.rawFrames))
+	delays := make([]int, len(gct.rawFrames))
+	for i, rf := range gct.rawFrames {
+		imgs[i] = rf.im
+		delays[i] = rf.delay
+	}
+	return imgs, delays
+}
+
 // GetGIF converts the captured raw frames to a GIF. This is intentionally
 // deferred until after the animation completes so dithering doesn't block
 // the animation goroutine.
