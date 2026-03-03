@@ -57,7 +57,7 @@ int writeMP4ToPath(int w, int h, int n, int *delays_cs, uint8_t **frameData, con
     AMediaFormat_setInt32(format,  AMEDIAFORMAT_KEY_WIDTH,          enc_w);
     AMediaFormat_setInt32(format,  AMEDIAFORMAT_KEY_HEIGHT,         enc_h);
     AMediaFormat_setInt32(format,  AMEDIAFORMAT_KEY_BIT_RATE,       2000000); // 2 Mbps
-    AMediaFormat_setInt32(format,  AMEDIAFORMAT_KEY_FRAME_RATE,     15);
+    AMediaFormat_setInt32(format,  AMEDIAFORMAT_KEY_FRAME_RATE,     24);
     AMediaFormat_setInt32(format,  AMEDIAFORMAT_KEY_I_FRAME_INTERVAL, 1);
     AMediaFormat_setInt32(format,  AMEDIAFORMAT_KEY_COLOR_FORMAT,   21); // COLOR_FormatYUV420SemiPlanar
 

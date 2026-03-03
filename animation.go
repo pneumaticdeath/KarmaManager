@@ -389,8 +389,8 @@ type GIFCaptureTool struct {
 
 func NewGIFCaptureTool() *GIFCaptureTool {
 	return &GIFCaptureTool{
-		rawFrames:   make([]rawFrame, 0, 200),
-		minInterval: 80 * time.Millisecond, // ~12fps
+		rawFrames:   make([]rawFrame, 0, 400),
+		minInterval: 42 * time.Millisecond, // ~24fps
 	}
 }
 
@@ -412,7 +412,7 @@ func (gct *GIFCaptureTool) MakeCaptureCallback(ad *AnimationDisplay) func() {
 			gct.mu.Unlock()
 			return
 		}
-		delay := 8 // default: 80ms in GIF centiseconds
+		delay := 4 // default: ~42ms in GIF centiseconds (~24fps)
 		if !gct.lastCapture.IsZero() {
 			delay = int(now.Sub(gct.lastCapture).Milliseconds() / 10)
 			if delay < 1 {
@@ -456,17 +456,25 @@ func (gct *GIFCaptureTool) GetRawFrames() ([]image.Image, []int) {
 	return imgs, delays
 }
 
-// GetGIF converts the captured raw frames to a GIF. This is intentionally
+// GetGIF converts the captured raw frames to a 12fps GIF by merging adjacent
+// pairs of 24fps source frames (summing their delays). This is intentionally
 // deferred until after the animation completes so dithering doesn't block
 // the animation goroutine.
 func (gct *GIFCaptureTool) GetGIF() *gif.GIF {
 	gct.mu.Lock()
 	defer gct.mu.Unlock()
-	frames := make([]*image.Paletted, len(gct.rawFrames))
-	delays := make([]int, len(gct.rawFrames))
-	for i, rf := range gct.rawFrames {
-		frames[i] = convertToPaletted(rf.im)
-		delays[i] = rf.delay
+	// Downsample 2:1: keep every even-indexed frame and combine its delay
+	// with the following frame's delay so timing stays accurate.
+	capacity := (len(gct.rawFrames) + 1) / 2
+	frames := make([]*image.Paletted, 0, capacity)
+	delays := make([]int, 0, capacity)
+	for i := 0; i < len(gct.rawFrames); i += 2 {
+		combinedDelay := gct.rawFrames[i].delay
+		if i+1 < len(gct.rawFrames) {
+			combinedDelay += gct.rawFrames[i+1].delay
+		}
+		frames = append(frames, convertToPaletted(gct.rawFrames[i].im))
+		delays = append(delays, combinedDelay)
 	}
 	return &gif.GIF{Image: frames, Delay: delays, LoopCount: 0}
 }
