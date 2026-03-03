@@ -12,11 +12,17 @@
 #define LOGI(...) __android_log_print(ANDROID_LOG_INFO,  LOG_TAG, __VA_ARGS__)
 #define LOGE(...) __android_log_print(ANDROID_LOG_ERROR, LOG_TAG, __VA_ARGS__)
 
-// Convert RGBA to YUV420SemiPlanar (NV12: Y plane followed by interleaved UV plane).
-static void rgbaToYUV420SP(const uint8_t *rgba, uint8_t *yuv, int w, int h) {
-    int ySize = w * h;
+// Convert RGBA (w×h) to YUV420SemiPlanar written into a buffer sized enc_w×enc_h.
+// enc_w and enc_h must be >= w and h respectively, and both must be even (H.264 requirement).
+// Padding rows/columns are filled with black (Y=16, UV=128).
+static void rgbaToYUV420SP(const uint8_t *rgba, uint8_t *yuv, int w, int h, int enc_w, int enc_h) {
+    int ySize = enc_w * enc_h;
     uint8_t *yPlane  = yuv;
     uint8_t *uvPlane = yuv + ySize;
+
+    // Fill Y with black (16) and UV with neutral chroma (128).
+    memset(yPlane,  16,  (size_t)ySize);
+    memset(uvPlane, 128, (size_t)(enc_w * enc_h / 2));
 
     for (int j = 0; j < h; j++) {
         for (int i = 0; i < w; i++) {
@@ -24,10 +30,10 @@ static void rgbaToYUV420SP(const uint8_t *rgba, uint8_t *yuv, int w, int h) {
             uint8_t r = p[0], g = p[1], b = p[2];
 
             // BT.601 limited range
-            yPlane[j * w + i] = (uint8_t)((66 * r + 129 * g + 25 * b + 128) >> 8) + 16;
+            yPlane[j * enc_w + i] = (uint8_t)((66 * r + 129 * g + 25 * b + 128) >> 8) + 16;
 
             if ((j & 1) == 0 && (i & 1) == 0) {
-                int uvIdx = (j / 2) * w + i;
+                int uvIdx = (j / 2) * enc_w + i;
                 uvPlane[uvIdx]     = (uint8_t)((-38 * r - 74 * g + 112 * b + 128) >> 8) + 128; // Cb
                 uvPlane[uvIdx + 1] = (uint8_t)((112 * r - 94 * g -  18 * b + 128) >> 8) + 128; // Cr
             }
@@ -36,6 +42,10 @@ static void rgbaToYUV420SP(const uint8_t *rgba, uint8_t *yuv, int w, int h) {
 }
 
 int writeMP4ToPath(int w, int h, int n, int *delays_cs, uint8_t **frameData, const char *path) {
+    // H.264 requires even dimensions; round up if needed.
+    int enc_w = (w + 1) & ~1;
+    int enc_h = (h + 1) & ~1;
+
     AMediaCodec *codec = AMediaCodec_createEncoderByType("video/avc");
     if (!codec) {
         LOGE("Failed to create AMediaCodec encoder");
@@ -44,8 +54,8 @@ int writeMP4ToPath(int w, int h, int n, int *delays_cs, uint8_t **frameData, con
 
     AMediaFormat *format = AMediaFormat_new();
     AMediaFormat_setString(format, AMEDIAFORMAT_KEY_MIME,           "video/avc");
-    AMediaFormat_setInt32(format,  AMEDIAFORMAT_KEY_WIDTH,          w);
-    AMediaFormat_setInt32(format,  AMEDIAFORMAT_KEY_HEIGHT,         h);
+    AMediaFormat_setInt32(format,  AMEDIAFORMAT_KEY_WIDTH,          enc_w);
+    AMediaFormat_setInt32(format,  AMEDIAFORMAT_KEY_HEIGHT,         enc_h);
     AMediaFormat_setInt32(format,  AMEDIAFORMAT_KEY_BIT_RATE,       2000000); // 2 Mbps
     AMediaFormat_setInt32(format,  AMEDIAFORMAT_KEY_FRAME_RATE,     15);
     AMediaFormat_setInt32(format,  AMEDIAFORMAT_KEY_I_FRAME_INTERVAL, 1);
@@ -84,7 +94,7 @@ int writeMP4ToPath(int w, int h, int n, int *delays_cs, uint8_t **frameData, con
         return -1;
     }
 
-    int yuvSize = w * h * 3 / 2;
+    int yuvSize = enc_w * enc_h * 3 / 2;
     uint8_t *yuvBuf = (uint8_t *)malloc((size_t)yuvSize);
     if (!yuvBuf) {
         LOGE("OOM allocating YUV buffer");
@@ -108,7 +118,7 @@ int writeMP4ToPath(int w, int h, int n, int *delays_cs, uint8_t **frameData, con
                 size_t bufSize = 0;
                 uint8_t *inputBuf = AMediaCodec_getInputBuffer(codec, (size_t)inputBufIdx, &bufSize);
                 if (inputBuf) {
-                    rgbaToYUV420SP(frameData[i], yuvBuf, w, h);
+                    rgbaToYUV420SP(frameData[i], yuvBuf, w, h, enc_w, enc_h);
                     size_t copySize = (size_t)yuvSize < bufSize ? (size_t)yuvSize : bufSize;
                     memcpy(inputBuf, yuvBuf, copySize);
 
