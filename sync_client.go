@@ -134,12 +134,30 @@ func (sc *SyncClient) SignOut() {
 	sc.prefs.SetString(prefSyncEmail, "")
 }
 
-// DeleteAccount permanently deletes the user account and all associated data
+// DeleteAccount permanently deletes all favorites records then the user account
 // on the server, then signs out locally.
 func (sc *SyncClient) DeleteAccount() error {
 	sc.mu.Lock()
 	userID := sc.userID
 	sc.mu.Unlock()
+
+	// Fetch all records (live + tombstones) and delete them first to satisfy
+	// referential integrity before deleting the user.
+	allRecords, err := sc.fetchRecords("")
+	if err != nil {
+		return fmt.Errorf("fetching records for deletion: %w", err)
+	}
+	for _, r := range allRecords {
+		resp, err := sc.doRequest("DELETE", "/api/collections/favorites/records/"+r.ID, nil)
+		if err != nil {
+			return fmt.Errorf("deleting favorite %s: %w", r.ID, err)
+		}
+		io.ReadAll(resp.Body)
+		resp.Body.Close()
+		if resp.StatusCode != http.StatusNoContent && resp.StatusCode != http.StatusOK {
+			return fmt.Errorf("deleting favorite %s failed (%d)", r.ID, resp.StatusCode)
+		}
+	}
 
 	resp, err := sc.doRequest("DELETE", "/api/collections/users/records/"+userID, nil)
 	if err != nil {
