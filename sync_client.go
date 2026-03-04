@@ -227,10 +227,25 @@ func (sc *SyncClient) FullSync(favs *FavoritesSlice) error {
 		return fmt.Errorf("sync tombstones failed: %w", err)
 	}
 
+	// Build the set of live client_ids so the tombstone filter below can
+	// ignore tombstones that share a client_id with a still-live server record.
+	// This situation arises from the historical Push double-encoding bug, which
+	// created multiple PB records with identical client_ids; dedup tombstoned
+	// the extras, leaving tombstones whose client_id matches the canonical live
+	// record and would otherwise falsely evict local favorites.
+	liveClientIDs := make(map[string]bool, len(serverRecords))
+	for _, r := range serverRecords {
+		liveClientIDs[r.ClientID] = true
+	}
+
 	// Remove local favorites that were deleted remotely.
+	// Skip any tombstone whose client_id also appears on a live server record —
+	// that tombstone is a stale duplicate artifact, not an intentional deletion.
 	tombstoneIDs := make(map[string]bool, len(tombstones))
 	for _, r := range tombstones {
-		tombstoneIDs[r.ClientID] = true
+		if !liveClientIDs[r.ClientID] {
+			tombstoneIDs[r.ClientID] = true
+		}
 	}
 	filtered := make(FavoritesSlice, 0, len(*favs))
 	for _, fav := range *favs {
