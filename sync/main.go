@@ -61,6 +61,9 @@ func main() {
 		if err := ensureUsersOTP(app); err != nil {
 			log.Println("ensureUsersOTP:", err)
 		}
+		if err := ensureAppMeta(app); err != nil {
+			log.Println("ensureAppMeta:", err)
+		}
 		if err := ensureFavoritesCollection(app); err != nil {
 			log.Println("ensureFavoritesCollection:", err)
 		}
@@ -130,19 +133,32 @@ func main() {
 	}
 }
 
-// ensureUsersOTP enables OTP auth on the users collection if it isn't already.
+// ensureUsersOTP enables OTP auth on the users collection and keeps
+// the length/duration correct even if the collection already existed.
 func ensureUsersOTP(app *pocketbase.PocketBase) error {
 	col, err := app.FindCollectionByNameOrId("users")
 	if err != nil {
 		return err
 	}
-	if col.OTP.Enabled {
-		return nil // already on
+	if col.OTP.Enabled && col.OTP.Length == 6 && col.OTP.Duration == 300 {
+		return nil // already correct
 	}
 	col.OTP.Enabled = true
 	col.OTP.Duration = 300 // 5 minutes
 	col.OTP.Length = 6
 	return app.Save(col)
+}
+
+// ensureAppMeta sets the PocketBase app name and email sender name so
+// outgoing emails don't say "Acme" / "Support".
+func ensureAppMeta(app *pocketbase.PocketBase) error {
+	s := app.Settings()
+	if s.Meta.AppName == "Acme" || s.Meta.SenderName == "Support" {
+		s.Meta.AppName = "Karma Manager"
+		s.Meta.SenderName = "Karma Manager"
+		return app.Save(s)
+	}
+	return nil
 }
 
 func ensureFavoritesCollection(app *pocketbase.PocketBase) error {
