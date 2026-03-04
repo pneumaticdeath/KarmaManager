@@ -63,6 +63,7 @@ func WriteMP4(frames []image.Image, delays []int, path string) error {
 		"-safe", "0",
 		"-i", concatPath,
 		"-c:v", "libx264",
+		"-vf", "pad=ceil(iw/2)*2:ceil(ih/2)*2",
 		"-pix_fmt", "yuv420p",
 		"-movflags", "+faststart",
 		"-y",
