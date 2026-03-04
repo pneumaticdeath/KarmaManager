@@ -120,6 +120,9 @@ func ShowFavoriteAnagramEditor(favs *FavoritesSlice, index int, prefs fyne.Prefe
 				refresh()
 			}
 			SaveFavorites(*favs, prefs)
+			if SyncSvc != nil && SyncSvc.IsAuthenticated() {
+				go SyncSvc.Push(fav)
+			}
 		}
 	}, window)
 }
@@ -133,6 +136,9 @@ func ShowFavoriteInputEditor(favs *FavoritesSlice, index int, prefs fyne.Prefere
 				if f.Input == oldInput {
 					f.Input = newInput
 					(*favs)[f_index] = f
+					if SyncSvc != nil && SyncSvc.IsAuthenticated() {
+						go SyncSvc.Push(f)
+					}
 				}
 			}
 			if refresh != nil {
