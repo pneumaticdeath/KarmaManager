@@ -127,6 +127,9 @@ func ShowFavoriteInputEditor(favs *FavoritesSlice, index int, prefs fyne.Prefere
 }
 
 func ShowDeleteFavConfirm(favs *FavoritesSlice, id int, prefs fyne.Preferences, refresh func(), window fyne.Window) {
+	if id < 0 || id >= len(*favs) {
+		return
+	}
 	fav := (*favs)[id]
 	dialog.ShowConfirm("Really delete?", fmt.Sprintf("Really delete \"%s\"?", fav.Anagram), func(confirmed bool) {
 		if confirmed {
@@ -300,6 +303,15 @@ func (fal *FavoritesAccList) MinSize() fyne.Size {
 }
 
 func (fal *FavoritesAccList) findGlobalID(selectedFavorite FavoriteAnagram) int {
+	// Prefer exact ID match (fast, unambiguous).
+	if selectedFavorite.ID != "" {
+		for globalID, globalFavorite := range *(fal.baseSlice) {
+			if globalFavorite.ID == selectedFavorite.ID {
+				return globalID
+			}
+		}
+	}
+	// Fall back to content match.
 	for globalID, globalFavorite := range *(fal.baseSlice) {
 		if selectedFavorite.Dictionaries == globalFavorite.Dictionaries && selectedFavorite.Input == globalFavorite.Input && selectedFavorite.Anagram == globalFavorite.Anagram {
 			return globalID

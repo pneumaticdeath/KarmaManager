@@ -239,19 +239,33 @@ func (sc *SyncClient) FullSync(favs *FavoritesSlice) error {
 	}
 
 	// Merge server-only favorites into local.
-	// If the same content already exists locally under a different ID, adopt
-	// the server's client_id rather than creating a duplicate.
+	// seenContent tracks content keys encountered during this pass so that
+	// redundant server records (same anagram pushed from two devices) are
+	// tombstoned rather than creating duplicates.
+	seenContent := make(map[contentKey]bool, len(*favs))
+	for _, fav := range *favs {
+		seenContent[contentKey{Normalize(fav.Input), Normalize(fav.Anagram)}] = true
+	}
+
 	for _, r := range serverRecords {
 		if localByID[r.ClientID] {
 			continue // already have this exact record
 		}
 		k := contentKey{Normalize(r.Input), Normalize(r.Anagram)}
 		if idx, exists := localByContent[k]; exists {
-			// Content match with a different local ID — adopt the server's
-			// canonical client_id so future push/delete/share ops are consistent.
+			// Local record with a different ID — adopt the server's client_id
+			// so future push/delete/share ops are consistent.
 			(*favs)[idx].ID = r.ClientID
+			seenContent[k] = true
 			continue
 		}
+		if seenContent[k] {
+			// A record with identical content was already kept this pass.
+			// Tombstone this redundant server record.
+			go sc.DeleteRemote(r.ClientID)
+			continue
+		}
+		seenContent[k] = true
 		*favs = append(*favs, FavoriteAnagram{
 			Dictionaries: r.Dicts,
 			Input:        r.Input,
