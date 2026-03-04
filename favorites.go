@@ -72,6 +72,23 @@ func Favorites(prefs fyne.Preferences) FavoritesSlice {
 	return favs
 }
 
+// localDedupFavorites returns a new slice with content duplicates removed,
+// keeping the first occurrence by normalized (input, anagram) pair.
+func localDedupFavorites(favs FavoritesSlice) FavoritesSlice {
+	type contentKey struct{ input, anagram string }
+	seen := make(map[contentKey]bool, len(favs))
+	out := make(FavoritesSlice, 0, len(favs))
+	for _, fav := range favs {
+		k := contentKey{Normalize(fav.Input), Normalize(fav.Anagram)}
+		if seen[k] {
+			continue
+		}
+		seen[k] = true
+		out = append(out, fav)
+	}
+	return out
+}
+
 func SaveFavorites(favorites FavoritesSlice, prefs fyne.Preferences) {
 	strs := make([]string, len(favorites))
 	for i, fav := range favorites {

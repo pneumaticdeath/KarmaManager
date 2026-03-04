@@ -543,6 +543,12 @@ func main() {
 	SyncSvc = NewSyncClient(AppPreferences)
 
 	favorites = Favorites(App.Preferences())
+	// Deduplicate local favorites at load time — no network needed.
+	// Handles duplicates that accumulated before or between syncs.
+	if deduped := localDedupFavorites(favorites); len(deduped) < len(favorites) {
+		favorites = deduped
+		SaveFavorites(favorites, AppPreferences)
+	}
 	if SyncSvc.IsAuthenticated() {
 		go func() {
 			if err := SyncSvc.FullSync(&favorites); err != nil {

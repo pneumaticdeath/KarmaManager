@@ -261,6 +261,11 @@ func (sc *SyncClient) FullSync(favs *FavoritesSlice) error {
 	}
 	*favs = deduped
 
+	// Persist the deduped local slice immediately — don't wait for push/pull.
+	// This ensures duplicates are removed from prefs even if network ops fail.
+	SaveFavorites(*favs, sc.prefs)
+	fyne.Do(RebuildFavorites)
+
 	// Rebuild local ID set after dedup.
 	localByID = make(map[string]bool, len(*favs))
 	for _, fav := range *favs {
@@ -286,6 +291,7 @@ func (sc *SyncClient) FullSync(favs *FavoritesSlice) error {
 		}
 	}
 
+	// Save again to include any newly-pulled server entries.
 	SaveFavorites(*favs, sc.prefs)
 	fyne.Do(RebuildFavorites)
 	return nil
