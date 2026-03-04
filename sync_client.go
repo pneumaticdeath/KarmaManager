@@ -222,10 +222,13 @@ func (sc *SyncClient) FullSync(favs *FavoritesSlice) error {
 	}
 	*favs = filtered
 
-	// Build local lookup.
+	// Build local lookup by ID and by normalized content.
+	type contentKey struct{ input, anagram string }
 	localByID := make(map[string]bool, len(*favs))
-	for _, fav := range *favs {
+	localByContent := make(map[contentKey]int, len(*favs)) // value = slice index
+	for i, fav := range *favs {
 		localByID[fav.ID] = true
+		localByContent[contentKey{Normalize(fav.Input), Normalize(fav.Anagram)}] = i
 	}
 
 	// Push local favorites not on server.
@@ -236,15 +239,25 @@ func (sc *SyncClient) FullSync(favs *FavoritesSlice) error {
 	}
 
 	// Merge server-only favorites into local.
+	// If the same content already exists locally under a different ID, adopt
+	// the server's client_id rather than creating a duplicate.
 	for _, r := range serverRecords {
-		if !localByID[r.ClientID] {
-			*favs = append(*favs, FavoriteAnagram{
-				Dictionaries: r.Dicts,
-				Input:        r.Input,
-				Anagram:      r.Anagram,
-				ID:           r.ClientID,
-			})
+		if localByID[r.ClientID] {
+			continue // already have this exact record
 		}
+		k := contentKey{Normalize(r.Input), Normalize(r.Anagram)}
+		if idx, exists := localByContent[k]; exists {
+			// Content match with a different local ID — adopt the server's
+			// canonical client_id so future push/delete/share ops are consistent.
+			(*favs)[idx].ID = r.ClientID
+			continue
+		}
+		*favs = append(*favs, FavoriteAnagram{
+			Dictionaries: r.Dicts,
+			Input:        r.Input,
+			Anagram:      r.Anagram,
+			ID:           r.ClientID,
+		})
 	}
 
 	SaveFavorites(*favs, sc.prefs)
