@@ -22,6 +22,7 @@ const favoritesKey = "io.patenaude.karmamanager.favorites"
 type FavoriteAnagram struct {
 	Dictionaries, Input string
 	Anagram             string
+	ID                  string // client-generated UUID, stable sync key
 }
 
 type FavoritesSlice []FavoriteAnagram
@@ -44,12 +45,21 @@ func (fs FavoritesSlice) Less(i, j int) bool {
 }
 
 func encodeFavorite(fav FavoriteAnagram) string {
-	return fmt.Sprintf("%s\n%s\n%s", fav.Dictionaries, fav.Input, fav.Anagram)
+	if fav.ID == "" {
+		fav.ID = newUUID()
+	}
+	return fmt.Sprintf("%s\n%s\n%s\n%s", fav.Dictionaries, fav.Input, fav.Anagram, fav.ID)
 }
 
 func decodeFavorite(s string) FavoriteAnagram {
 	lines := strings.Split(s, "\n")
-	return FavoriteAnagram{lines[0], lines[1], lines[2]}
+	fav := FavoriteAnagram{Dictionaries: lines[0], Input: lines[1], Anagram: lines[2]}
+	if len(lines) > 3 && lines[3] != "" {
+		fav.ID = lines[3]
+	} else {
+		fav.ID = newUUID()
+	}
+	return fav
 }
 
 func Favorites(prefs fyne.Preferences) FavoritesSlice {
@@ -117,11 +127,16 @@ func ShowFavoriteInputEditor(favs *FavoritesSlice, index int, prefs fyne.Prefere
 }
 
 func ShowDeleteFavConfirm(favs *FavoritesSlice, id int, prefs fyne.Preferences, refresh func(), window fyne.Window) {
-	dialog.ShowConfirm("Really delete?", fmt.Sprintf("Really delete \"%s\"?", (*favs)[id].Anagram), func(confirmed bool) {
+	fav := (*favs)[id]
+	dialog.ShowConfirm("Really delete?", fmt.Sprintf("Really delete \"%s\"?", fav.Anagram), func(confirmed bool) {
 		if confirmed {
+			clientID := fav.ID
 			*favs = slices.Delete(*favs, id, id+1)
 			refresh()
 			SaveFavorites(*favs, prefs)
+			if SyncSvc != nil && SyncSvc.IsAuthenticated() {
+				go SyncSvc.DeleteRemote(clientID)
+			}
 		}
 	}, window)
 }
@@ -241,7 +256,25 @@ func NewFavoritesAccList(title string, baseList, this *FavoritesSlice, sendToMai
 				globalID := fal.findGlobalID((*this)[id])
 				ShowDeleteFavConfirm(fal.baseSlice, globalID, AppPreferences, RebuildFavorites, MainWindow)
 			})
-			pumenu := fyne.NewMenu("Pop up", copyAnagramMI, copyBothMI, animateMI, sendToMainMI, editMI, deleteMI)
+			shareLinkMI := fyne.NewMenuItem("Share link", func() {
+				fav := (*this)[id]
+				if SyncSvc == nil || !SyncSvc.IsAuthenticated() {
+					dialog.ShowInformation("Account required", "Sign in via the Sync button in Favorites to share anagrams.", MainWindow)
+					return
+				}
+				go func() {
+					url, err := SyncSvc.GenerateShareURL(fav.ID)
+					fyne.Do(func() {
+						if err != nil {
+							dialog.ShowError(err, MainWindow)
+							return
+						}
+						MainWindow.Clipboard().SetContent(url)
+						ShowPopUpMessage("Link copied!", time.Second, MainWindow)
+					})
+				}()
+			})
+			pumenu := fyne.NewMenu("Pop up", copyAnagramMI, copyBothMI, animateMI, sendToMainMI, editMI, deleteMI, shareLinkMI)
 			widget.ShowPopUpMenuAtRelativePosition(pumenu, MainWindow.Canvas(), pe.Position, label)
 		}
 
@@ -311,7 +344,11 @@ func NewFavoritesDisplay(list *FavoritesSlice, sendToMain func(string)) *Favorit
 		}, MainWindow)
 	})
 
-	buttons := container.New(layout.NewGridLayout(2), preferencesButton, multiInputAnimationButton)
+	syncButton := widget.NewButtonWithIcon("Sync", theme.UploadIcon(), func() {
+		ShowAccountDialog(MainWindow)
+	})
+
+	buttons := container.New(layout.NewGridLayout(3), preferencesButton, multiInputAnimationButton, syncButton)
 	fd.surface = container.NewBorder(buttons, nil, nil, nil, container.NewVScroll(fd.accordion))
 
 	fd.ExtendBaseWidget(fd)

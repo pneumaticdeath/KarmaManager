@@ -27,6 +27,7 @@ var MainWindow fyne.Window
 var Icon fyne.Resource
 var AppPreferences fyne.Preferences
 var RebuildFavorites func()
+var favorites FavoritesSlice
 
 func ShowPrivateDictSettings(private *Dictionary, saveCallback func(),  window fyne.Window) {
 	wl := NewWordList(private.Words)
@@ -408,6 +409,128 @@ func ShowPopUpMessage(message string, duration time.Duration, window fyne.Window
 	}()
 }
 
+func ShowAccountDialog(window fyne.Window) {
+	if SyncSvc != nil && SyncSvc.IsAuthenticated() {
+		showSignedInDialog(window)
+	} else {
+		showSignInDialog(window)
+	}
+}
+
+func showSignedInDialog(window fyne.Window) {
+	emailLabel := widget.NewLabel("Signed in as: " + SyncSvc.UserEmail())
+	emailLabel.Wrapping = fyne.TextWrapWord
+
+	syncNowButton := widget.NewButton("Sync Now", nil)
+	signOutButton := widget.NewButton("Sign Out", nil)
+
+	var d *dialog.CustomDialog
+	syncNowButton.OnTapped = func() {
+		syncNowButton.Disable()
+		go func() {
+			if err := SyncSvc.FullSync(&favorites); err != nil {
+				fyne.Do(func() { dialog.ShowError(err, window) })
+			} else {
+				fyne.Do(func() { ShowPopUpMessage("Sync complete", time.Second, window) })
+			}
+			fyne.Do(syncNowButton.Enable)
+		}()
+	}
+	signOutButton.OnTapped = func() {
+		SyncSvc.SignOut()
+		d.Hide()
+		ShowPopUpMessage("Signed out", time.Second, window)
+	}
+
+	content := container.New(layout.NewVBoxLayout(), emailLabel, syncNowButton)
+	d = dialog.NewCustom("Sync Account", "Close", content, window)
+	d.SetButtons([]fyne.CanvasObject{
+		widget.NewButton("Close", func() { d.Hide() }),
+		syncNowButton,
+		signOutButton,
+	})
+	d.Show()
+}
+
+func showSignInDialog(window fyne.Window) {
+	emailEntry := widget.NewEntry()
+	emailEntry.SetPlaceHolder("your@email.com")
+
+	codeEntry := widget.NewEntry()
+	codeEntry.SetPlaceHolder("6-digit code")
+	codeEntry.Hide()
+
+	statusLabel := widget.NewLabel("")
+	statusLabel.Wrapping = fyne.TextWrapWord
+
+	var otpID string
+	var sendButton, verifyButton *widget.Button
+	var d *dialog.CustomDialog
+
+	sendButton = widget.NewButton("Send Code", func() {
+		email := strings.TrimSpace(emailEntry.Text)
+		if email == "" {
+			statusLabel.SetText("Please enter your email address.")
+			return
+		}
+		sendButton.Disable()
+		statusLabel.SetText("Sending…")
+		go func() {
+			id, err := SyncSvc.RequestOTP(email)
+			fyne.Do(func() {
+				if err != nil {
+					statusLabel.SetText("Error: " + err.Error())
+					sendButton.Enable()
+					return
+				}
+				otpID = id
+				emailEntry.Hide()
+				sendButton.Hide()
+				codeEntry.Show()
+				verifyButton.Show()
+				statusLabel.SetText("Check your email for a 6-digit code.")
+			})
+		}()
+	})
+
+	verifyButton = widget.NewButton("Verify", func() {
+		code := strings.TrimSpace(codeEntry.Text)
+		if code == "" {
+			statusLabel.SetText("Please enter the code from your email.")
+			return
+		}
+		verifyButton.Disable()
+		statusLabel.SetText("Verifying…")
+		go func() {
+			err := SyncSvc.AuthWithOTP(otpID, code)
+			fyne.Do(func() {
+				if err != nil {
+					statusLabel.SetText("Error: " + err.Error())
+					verifyButton.Enable()
+					return
+				}
+				d.Hide()
+				ShowPopUpMessage("Signed in!", time.Second, window)
+				go func() {
+					if err := SyncSvc.FullSync(&favorites); err != nil {
+						log.Println("Post-login sync failed:", err)
+					}
+				}()
+			})
+		}()
+	})
+	verifyButton.Hide()
+
+	content := container.New(layout.NewVBoxLayout(), emailEntry, codeEntry, statusLabel)
+	d = dialog.NewCustom("Sign In to Sync", "Cancel", content, window)
+	d.SetButtons([]fyne.CanvasObject{
+		widget.NewButton("Cancel", func() { d.Hide() }),
+		sendButton,
+		verifyButton,
+	})
+	d.Show()
+}
+
 func main() {
 	log.SetFlags(log.Ldate | log.Ltime | log.Lmicroseconds | log.Lshortfile)
 	App := app.NewWithID("io.patenaude.karmamanager")
@@ -417,8 +540,16 @@ func main() {
 
 	Icon = App.Metadata().Icon
 	AppPreferences = App.Preferences()
+	SyncSvc = NewSyncClient(AppPreferences)
 
-	favorites := Favorites(App.Preferences())
+	favorites = Favorites(App.Preferences())
+	if SyncSvc.IsAuthenticated() {
+		go func() {
+			if err := SyncSvc.FullSync(&favorites); err != nil {
+				log.Println("Auto-sync failed:", err)
+			}
+		}()
+	}
 
 	mainDicts, addedDicts, err := ReadDictionaries()
 	if err != nil {
@@ -686,11 +817,14 @@ func main() {
 							dialog.ShowConfirm("Duplicate detected", fmt.Sprintf("Looks similar to \"%s\".  Add anyway?", existing.Anagram), func(addAnyway bool) {
 								if addAnyway {
 									ShowEditor("Add to favorites", text, func(editted string) {
-										newFav := FavoriteAnagram{resultSet.CombinedDictName(), strings.TrimSpace(input), editted}
+										newFav := FavoriteAnagram{resultSet.CombinedDictName(), strings.TrimSpace(input), editted, newUUID()}
 										favorites = append(favorites, newFav)
 										RebuildFavorites()
 										SaveFavorites(favorites, App.Preferences())
 										ShowPopUpMessage("Added to favorites", time.Second, MainWindow)
+										if SyncSvc.IsAuthenticated() {
+											go SyncSvc.Push(newFav)
+										}
 									}, MainWindow)
 								} else {
 									ShowPopUpMessage("Not adding duplicate", time.Second, MainWindow)
@@ -701,11 +835,14 @@ func main() {
 					}
 					ShowEditor("Add to favorites", text, func(editted string) {
 						// log.Println("No duplicate detected")
-						newFav := FavoriteAnagram{resultSet.CombinedDictName(), strings.TrimSpace(input), editted}
+						newFav := FavoriteAnagram{resultSet.CombinedDictName(), strings.TrimSpace(input), editted, newUUID()}
 						favorites = append(favorites, newFav)
 						RebuildFavorites()
 						SaveFavorites(favorites, App.Preferences())
 						ShowPopUpMessage("Added to favorites", time.Second, MainWindow)
+						if SyncSvc.IsAuthenticated() {
+							go SyncSvc.Push(newFav)
+						}
 					}, MainWindow)
 				})
 				animateMI := fyne.NewMenuItem("Animate", func() {
