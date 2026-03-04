@@ -346,6 +346,24 @@ func (sc *SyncClient) FullSync(favs *FavoritesSlice) error {
 		log.Printf("FullSync: tombstoned %d duplicate server records", len(dedupIDs))
 	}
 
+	// --- Apply server-side edits ---
+	// If a server record shares a client_id with a local favorite but has
+	// different content, the favorite was edited on another device — adopt the
+	// server's content so it propagates here.
+	serverByClientID := make(map[string]pbFavorite, len(serverRecords))
+	for _, r := range serverRecords {
+		serverByClientID[r.ClientID] = r
+	}
+	for i, fav := range *favs {
+		if r, exists := serverByClientID[fav.ID]; exists {
+			if Normalize(fav.Input) != Normalize(r.Input) || Normalize(fav.Anagram) != Normalize(r.Anagram) {
+				(*favs)[i].Input = r.Input
+				(*favs)[i].Anagram = r.Anagram
+				(*favs)[i].Dictionaries = r.Dicts
+			}
+		}
+	}
+
 	// --- Local dedup ---
 	// Deduplicate local slice by content, adopting canonical server client_id.
 	seenLocal := make(map[contentKey]bool, len(*favs))
