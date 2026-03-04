@@ -191,6 +191,8 @@ func (sc *SyncClient) FullSync(favs *FavoritesSlice) error {
 		return fmt.Errorf("not authenticated")
 	}
 
+	type contentKey struct{ input, anagram string }
+
 	// Pull live records.
 	serverRecords, err := sc.fetchRecords("deleted=false")
 	if err != nil {
@@ -203,17 +205,11 @@ func (sc *SyncClient) FullSync(favs *FavoritesSlice) error {
 		return fmt.Errorf("sync tombstones failed: %w", err)
 	}
 
-	// Build lookup maps.
-	serverByClientID := make(map[string]pbFavorite, len(serverRecords))
-	for _, r := range serverRecords {
-		serverByClientID[r.ClientID] = r
-	}
+	// Remove local favorites that were deleted remotely.
 	tombstoneIDs := make(map[string]bool, len(tombstones))
 	for _, r := range tombstones {
 		tombstoneIDs[r.ClientID] = true
 	}
-
-	// Remove local favorites that were deleted remotely.
 	filtered := make(FavoritesSlice, 0, len(*favs))
 	for _, fav := range *favs {
 		if !tombstoneIDs[fav.ID] {
@@ -222,56 +218,72 @@ func (sc *SyncClient) FullSync(favs *FavoritesSlice) error {
 	}
 	*favs = filtered
 
-	// Build local lookup by ID and by normalized content.
-	type contentKey struct{ input, anagram string }
+	// --- Server-side dedup ---
+	// For each content key, elect one canonical server record. Prefer records
+	// whose client_id is already referenced locally (avoids ID churn).
+	// Tombstone all non-canonical duplicates immediately.
 	localByID := make(map[string]bool, len(*favs))
-	localByContent := make(map[contentKey]int, len(*favs)) // value = slice index
-	for i, fav := range *favs {
+	for _, fav := range *favs {
 		localByID[fav.ID] = true
-		localByContent[contentKey{Normalize(fav.Input), Normalize(fav.Anagram)}] = i
+	}
+
+	canonical := make(map[contentKey]pbFavorite, len(serverRecords))
+	for _, r := range serverRecords {
+		k := contentKey{Normalize(r.Input), Normalize(r.Anagram)}
+		existing, exists := canonical[k]
+		if !exists {
+			canonical[k] = r
+			continue
+		}
+		// Prefer the record already known locally; tombstone the other.
+		if localByID[r.ClientID] && !localByID[existing.ClientID] {
+			go sc.DeleteRemote(existing.ClientID)
+			canonical[k] = r
+		} else {
+			go sc.DeleteRemote(r.ClientID)
+		}
+	}
+
+	// --- Local dedup ---
+	// Deduplicate local slice by content, adopting canonical server client_id.
+	seenLocal := make(map[contentKey]bool, len(*favs))
+	deduped := make(FavoritesSlice, 0, len(*favs))
+	for _, fav := range *favs {
+		k := contentKey{Normalize(fav.Input), Normalize(fav.Anagram)}
+		if seenLocal[k] {
+			continue // local duplicate — drop silently
+		}
+		seenLocal[k] = true
+		if r, exists := canonical[k]; exists {
+			fav.ID = r.ClientID // adopt canonical server ID
+		}
+		deduped = append(deduped, fav)
+	}
+	*favs = deduped
+
+	// Rebuild local ID set after dedup.
+	localByID = make(map[string]bool, len(*favs))
+	for _, fav := range *favs {
+		localByID[fav.ID] = true
 	}
 
 	// Push local favorites not on server.
 	for _, fav := range *favs {
-		if _, exists := serverByClientID[fav.ID]; !exists {
+		if _, exists := canonical[contentKey{Normalize(fav.Input), Normalize(fav.Anagram)}]; !exists {
 			_ = sc.Push(fav) // best-effort
 		}
 	}
 
-	// Merge server-only favorites into local.
-	// seenContent tracks content keys encountered during this pass so that
-	// redundant server records (same anagram pushed from two devices) are
-	// tombstoned rather than creating duplicates.
-	seenContent := make(map[contentKey]bool, len(*favs))
-	for _, fav := range *favs {
-		seenContent[contentKey{Normalize(fav.Input), Normalize(fav.Anagram)}] = true
-	}
-
-	for _, r := range serverRecords {
-		if localByID[r.ClientID] {
-			continue // already have this exact record
+	// Pull server-only favorites (already deduped in canonical map).
+	for k, r := range canonical {
+		if !seenLocal[k] {
+			*favs = append(*favs, FavoriteAnagram{
+				Dictionaries: r.Dicts,
+				Input:        r.Input,
+				Anagram:      r.Anagram,
+				ID:           r.ClientID,
+			})
 		}
-		k := contentKey{Normalize(r.Input), Normalize(r.Anagram)}
-		if idx, exists := localByContent[k]; exists {
-			// Local record with a different ID — adopt the server's client_id
-			// so future push/delete/share ops are consistent.
-			(*favs)[idx].ID = r.ClientID
-			seenContent[k] = true
-			continue
-		}
-		if seenContent[k] {
-			// A record with identical content was already kept this pass.
-			// Tombstone this redundant server record.
-			go sc.DeleteRemote(r.ClientID)
-			continue
-		}
-		seenContent[k] = true
-		*favs = append(*favs, FavoriteAnagram{
-			Dictionaries: r.Dicts,
-			Input:        r.Input,
-			Anagram:      r.Anagram,
-			ID:           r.ClientID,
-		})
 	}
 
 	SaveFavorites(*favs, sc.prefs)
