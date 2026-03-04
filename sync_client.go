@@ -253,6 +253,7 @@ func (sc *SyncClient) FullSync(favs *FavoritesSlice) error {
 		len(serverRecords), len(tombstones), len(*favs))
 
 	canonical := make(map[contentKey]pbFavorite, len(serverRecords))
+	var dedupIDs []string // PB record IDs to tombstone
 	for _, r := range serverRecords {
 		k := contentKey{Normalize(r.Input), Normalize(r.Anagram)}
 		existing, exists := canonical[k]
@@ -261,15 +262,36 @@ func (sc *SyncClient) FullSync(favs *FavoritesSlice) error {
 			continue
 		}
 		// Prefer the record already known locally; tombstone the other.
+		// Use tombstoneByPBID directly since we have the PB record ID —
+		// no need for an extra GET to resolve client_id → PB ID.
 		if localByID[r.ClientID] && !localByID[existing.ClientID] {
-			go sc.DeleteRemote(existing.ClientID)
+			dedupIDs = append(dedupIDs, existing.ID)
 			canonical[k] = r
 		} else {
-			go sc.DeleteRemote(r.ClientID)
+			dedupIDs = append(dedupIDs, r.ID)
 		}
 	}
 
-	log.Printf("FullSync: canonical map has %d unique entries", len(canonical))
+	log.Printf("FullSync: canonical map has %d unique entries, %d duplicates to tombstone",
+		len(canonical), len(dedupIDs))
+
+	// Tombstone all server-side duplicates and wait for completion.
+	// This runs concurrently (bounded by httpSem) but is awaited so the server
+	// is actually cleaned up before this FullSync returns.
+	if len(dedupIDs) > 0 {
+		var dedupWg sync.WaitGroup
+		for _, pbID := range dedupIDs {
+			dedupWg.Add(1)
+			go func(id string) {
+				defer dedupWg.Done()
+				if err := sc.tombstoneByPBID(id); err != nil {
+					log.Printf("FullSync: tombstone %s failed: %v", id, err)
+				}
+			}(pbID)
+		}
+		dedupWg.Wait()
+		log.Printf("FullSync: tombstoned %d duplicate server records", len(dedupIDs))
+	}
 
 	// --- Local dedup ---
 	// Deduplicate local slice by content, adopting canonical server client_id.
@@ -391,7 +413,7 @@ func (sc *SyncClient) Push(fav FavoriteAnagram) error {
 	}
 
 	// Check if it exists on server.
-	existing, err := sc.fetchRecords(urlEncode("client_id='"+fav.ID+"'"))
+	existing, err := sc.fetchRecords("client_id='" + fav.ID + "'")
 	_ = err
 	dicts := fav.Dictionaries
 	if dicts == "" {
@@ -424,12 +446,26 @@ func (sc *SyncClient) Push(fav FavoriteAnagram) error {
 	return nil
 }
 
+// tombstoneByPBID marks a server record as deleted by its PocketBase record ID.
+// Used by FullSync's dedup loop where we already have the PB ID and don't need
+// an extra GET to resolve client_id → PB ID.
+func (sc *SyncClient) tombstoneByPBID(pbID string) error {
+	resp, err := sc.doRequest("PATCH",
+		"/api/collections/favorites/records/"+pbID,
+		map[string]any{"deleted": true})
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	return nil
+}
+
 // DeleteRemote marks a favorite as deleted on the server.
 func (sc *SyncClient) DeleteRemote(clientID string) error {
 	if !sc.IsAuthenticated() {
 		return nil
 	}
-	records, err := sc.fetchRecords(urlEncode("client_id='" + clientID + "'"))
+	records, err := sc.fetchRecords("client_id='" + clientID + "'")
 	if err != nil || len(records) == 0 {
 		return err
 	}
@@ -449,7 +485,7 @@ func (sc *SyncClient) GenerateShareURL(clientID string) (string, error) {
 		return "", fmt.Errorf("not authenticated")
 	}
 	// Find the PocketBase record ID from client_id.
-	records, err := sc.fetchRecords(urlEncode("client_id='" + clientID + "'"))
+	records, err := sc.fetchRecords("client_id='" + clientID + "'")
 	if err != nil {
 		return "", err
 	}
