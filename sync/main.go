@@ -23,6 +23,34 @@ var shareTmpl = template.Must(template.New("share").Parse(shareTmplSrc))
 func main() {
 	app := pocketbase.New()
 
+	// Auto-create a user record on first OTP request so sign-up and
+	// sign-in are the same single flow (just enter your email).
+	app.OnRecordRequestOTPRequest("users").BindFunc(func(e *core.RecordCreateOTPRequestEvent) error {
+		if e.Record != nil {
+			return e.Next() // user already exists, proceed normally
+		}
+		// Parse the email from the request body (PocketBase buffers the body
+		// so it can be read again here after the main handler already read it).
+		var form struct {
+			Email string `json:"email" form:"email"`
+		}
+		if err := e.BindBody(&form); err != nil || form.Email == "" {
+			return e.Next() // can't determine email; let standard dummy-200 flow run
+		}
+		usersCol, err := e.App.FindCollectionByNameOrId("users")
+		if err != nil {
+			return e.Next()
+		}
+		record := core.NewRecord(usersCol)
+		record.Set("email", form.Email)
+		if err := e.App.Save(record); err != nil {
+			log.Println("auto-create user failed:", err)
+			return e.Next()
+		}
+		e.Record = record
+		return e.Next()
+	})
+
 	app.OnServe().BindFunc(func(se *core.ServeEvent) error {
 		if err := ensureUsersOTP(app); err != nil {
 			log.Println("ensureUsersOTP:", err)
