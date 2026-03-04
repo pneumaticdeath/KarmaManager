@@ -356,7 +356,7 @@ func (sc *SyncClient) FullSync(favs *FavoritesSlice) error {
 	}
 	for i, fav := range *favs {
 		if r, exists := serverByClientID[fav.ID]; exists {
-			if Normalize(fav.Input) != Normalize(r.Input) || Normalize(fav.Anagram) != Normalize(r.Anagram) {
+			if fav.Input != r.Input || fav.Anagram != r.Anagram {
 				(*favs)[i].Input = r.Input
 				(*favs)[i].Anagram = r.Anagram
 				(*favs)[i].Dictionaries = r.Dicts
