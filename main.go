@@ -277,6 +277,8 @@ func showSignedInDialog(window fyne.Window) {
 
 	syncNowButton := widget.NewButton("Sync Now", nil)
 	signOutButton := widget.NewButton("Sign Out", nil)
+	deleteAccountButton := widget.NewButton("Delete Account", nil)
+	deleteAccountButton.Importance = widget.DangerImportance
 
 	var d *dialog.CustomDialog
 	syncNowButton.OnTapped = func() {
@@ -295,13 +297,39 @@ func showSignedInDialog(window fyne.Window) {
 		d.Hide()
 		ShowPopUpMessage("Signed out", time.Second, window)
 	}
+	deleteAccountButton.OnTapped = func() {
+		dialog.ShowConfirm(
+			"Delete Account",
+			"This will permanently delete your account and all synced favorites from the server. Your local favorites are not affected. This cannot be undone.",
+			func(confirmed bool) {
+				if !confirmed {
+					return
+				}
+				deleteAccountButton.Disable()
+				go func() {
+					err := SyncSvc.DeleteAccount()
+					fyne.Do(func() {
+						if err != nil {
+							dialog.ShowError(err, window)
+							deleteAccountButton.Enable()
+							return
+						}
+						d.Hide()
+						ShowPopUpMessage("Account deleted", time.Second, window)
+					})
+				}()
+			},
+			window,
+		)
+	}
 
-	content := container.New(layout.NewVBoxLayout(), emailLabel, syncNowButton)
+	content := container.New(layout.NewVBoxLayout(), emailLabel)
 	d = dialog.NewCustom("Sync Account", "Close", content, window)
 	d.SetButtons([]fyne.CanvasObject{
 		widget.NewButton("Close", func() { d.Hide() }),
 		syncNowButton,
 		signOutButton,
+		deleteAccountButton,
 	})
 	d.Show()
 }

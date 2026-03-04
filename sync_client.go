@@ -134,6 +134,26 @@ func (sc *SyncClient) SignOut() {
 	sc.prefs.SetString(prefSyncEmail, "")
 }
 
+// DeleteAccount permanently deletes the user account and all associated data
+// on the server, then signs out locally.
+func (sc *SyncClient) DeleteAccount() error {
+	sc.mu.Lock()
+	userID := sc.userID
+	sc.mu.Unlock()
+
+	resp, err := sc.doRequest("DELETE", "/api/collections/users/records/"+userID, nil)
+	if err != nil {
+		return err
+	}
+	data, _ := io.ReadAll(resp.Body)
+	resp.Body.Close()
+	if resp.StatusCode != http.StatusNoContent && resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("delete account failed (%d): %s", resp.StatusCode, string(data))
+	}
+	sc.SignOut()
+	return nil
+}
+
 // pbFavorite is the JSON shape returned by PocketBase for a favorites record.
 type pbFavorite struct {
 	ID          string `json:"id"`
