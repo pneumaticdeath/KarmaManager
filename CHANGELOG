@@ -1,3 +1,8 @@
+# Changed in v0.9.7
+* Cross-device favorites sync via email sign-in (one-time passcode, no password)
+* Share any favorite as a public link — copies URL to clipboard
+* Fixed multiple sync reliability issues (server record bloat, duplicate tombstones, pull-evict loop)
+
 # Changed in v0.9.6
 * MP4 video export now captured at 24fps for smoother playback
 * GIF export remains at 12fps (clean centisecond timing)
