@@ -20,6 +20,7 @@ var SyncSvc *SyncClient
 
 type SyncClient struct {
 	mu        sync.Mutex
+	syncMu    sync.Mutex // serializes FullSync — prevents concurrent runs
 	authToken string
 	userID    string
 	userEmail string
@@ -186,10 +187,15 @@ func (sc *SyncClient) fetchRecords(filter string) ([]pbFavorite, error) {
 }
 
 // FullSync does a bidirectional sync of local favorites against the server.
+// Only one FullSync may run at a time; a concurrent call returns immediately.
 func (sc *SyncClient) FullSync(favs *FavoritesSlice) error {
 	if !sc.IsAuthenticated() {
 		return fmt.Errorf("not authenticated")
 	}
+	if !sc.syncMu.TryLock() {
+		return nil // another sync is already in progress
+	}
+	defer sc.syncMu.Unlock()
 
 	type contentKey struct{ input, anagram string }
 
@@ -227,6 +233,7 @@ func (sc *SyncClient) FullSync(favs *FavoritesSlice) error {
 		localByID[fav.ID] = true
 	}
 
+	var tombstoneWg sync.WaitGroup
 	canonical := make(map[contentKey]pbFavorite, len(serverRecords))
 	for _, r := range serverRecords {
 		k := contentKey{Normalize(r.Input), Normalize(r.Anagram)}
@@ -236,13 +243,21 @@ func (sc *SyncClient) FullSync(favs *FavoritesSlice) error {
 			continue
 		}
 		// Prefer the record already known locally; tombstone the other.
+		var toDelete string
 		if localByID[r.ClientID] && !localByID[existing.ClientID] {
-			go sc.DeleteRemote(existing.ClientID)
+			toDelete = existing.ClientID
 			canonical[k] = r
 		} else {
-			go sc.DeleteRemote(r.ClientID)
+			toDelete = r.ClientID
 		}
+		tombstoneWg.Add(1)
+		go func(id string) {
+			defer tombstoneWg.Done()
+			sc.DeleteRemote(id) //nolint:errcheck
+		}(toDelete)
 	}
+	// Wait for all server-side tombstones before proceeding.
+	tombstoneWg.Wait()
 
 	// --- Local dedup ---
 	// Deduplicate local slice by content, adopting canonical server client_id.
