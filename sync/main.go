@@ -24,6 +24,9 @@ func main() {
 	app := pocketbase.New()
 
 	app.OnServe().BindFunc(func(se *core.ServeEvent) error {
+		if err := ensureUsersOTP(app); err != nil {
+			log.Println("ensureUsersOTP:", err)
+		}
 		if err := ensureFavoritesCollection(app); err != nil {
 			log.Println("ensureFavoritesCollection:", err)
 		}
@@ -91,6 +94,21 @@ func main() {
 	if err := app.Start(); err != nil {
 		log.Fatal(err)
 	}
+}
+
+// ensureUsersOTP enables OTP auth on the users collection if it isn't already.
+func ensureUsersOTP(app *pocketbase.PocketBase) error {
+	col, err := app.FindCollectionByNameOrId("users")
+	if err != nil {
+		return err
+	}
+	if col.OTP.Enabled {
+		return nil // already on
+	}
+	col.OTP.Enabled = true
+	col.OTP.Duration = 300 // 5 minutes
+	col.OTP.Length = 6
+	return app.Save(col)
 }
 
 func ensureFavoritesCollection(app *pocketbase.PocketBase) error {
