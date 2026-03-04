@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"sync"
 	"time"
@@ -25,6 +26,8 @@ type SyncClient struct {
 	userID    string
 	userEmail string
 	prefs     fyne.Preferences
+	httpClient *http.Client
+	httpSem    chan struct{} // limits concurrent in-flight HTTP requests
 }
 
 const (
@@ -34,7 +37,11 @@ const (
 )
 
 func NewSyncClient(prefs fyne.Preferences) *SyncClient {
-	sc := &SyncClient{prefs: prefs}
+	sc := &SyncClient{
+		prefs:      prefs,
+		httpClient: &http.Client{Timeout: 30 * time.Second},
+		httpSem:    make(chan struct{}, 8),
+	}
 	sc.authToken = prefs.String(prefSyncToken)
 	sc.userID = prefs.String(prefSyncUser)
 	sc.userEmail = prefs.String(prefSyncEmail)
@@ -139,7 +146,9 @@ type pbFavorite struct {
 }
 
 type pbListResult struct {
-	Items []pbFavorite `json:"items"`
+	Page       int          `json:"page"`
+	TotalPages int          `json:"totalPages"`
+	Items      []pbFavorite `json:"items"`
 }
 
 func (sc *SyncClient) token() string {
@@ -162,28 +171,37 @@ func (sc *SyncClient) doRequest(method, path string, body any) (*http.Response, 
 		req.Header.Set("Content-Type", "application/json")
 	}
 	req.Header.Set("Authorization", sc.token())
-	client := &http.Client{Timeout: 15 * time.Second}
-	return client.Do(req)
+	sc.httpSem <- struct{}{}
+	defer func() { <-sc.httpSem }()
+	return sc.httpClient.Do(req)
 }
 
-// fetchAllRecords pulls all favorites for the authenticated user with the given filter.
+// fetchRecords pulls all favorites matching the given filter, paginating as needed.
 func (sc *SyncClient) fetchRecords(filter string) ([]pbFavorite, error) {
-	path := fmt.Sprintf("/api/collections/favorites/records?perPage=500&filter=%s",
-		urlEncode(filter))
-	resp, err := sc.doRequest("GET", path, nil)
-	if err != nil {
-		return nil, err
+	const perPage = 200
+	var all []pbFavorite
+	for page := 1; ; page++ {
+		path := fmt.Sprintf("/api/collections/favorites/records?perPage=%d&page=%d&filter=%s",
+			perPage, page, urlEncode(filter))
+		resp, err := sc.doRequest("GET", path, nil)
+		if err != nil {
+			return nil, err
+		}
+		data, _ := io.ReadAll(resp.Body)
+		resp.Body.Close()
+		if resp.StatusCode != http.StatusOK {
+			return nil, fmt.Errorf("fetch records failed (%d): %s", resp.StatusCode, string(data))
+		}
+		var result pbListResult
+		if err := json.Unmarshal(data, &result); err != nil {
+			return nil, err
+		}
+		all = append(all, result.Items...)
+		if page >= result.TotalPages {
+			break
+		}
 	}
-	defer resp.Body.Close()
-	data, _ := io.ReadAll(resp.Body)
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("fetch records failed (%d): %s", resp.StatusCode, string(data))
-	}
-	var result pbListResult
-	if err := json.Unmarshal(data, &result); err != nil {
-		return nil, err
-	}
-	return result.Items, nil
+	return all, nil
 }
 
 // FullSync does a bidirectional sync of local favorites against the server.
@@ -231,6 +249,9 @@ func (sc *SyncClient) FullSync(favs *FavoritesSlice) error {
 		localByID[fav.ID] = true
 	}
 
+	log.Printf("FullSync: fetched %d server records, %d tombstones, %d local favs",
+		len(serverRecords), len(tombstones), len(*favs))
+
 	canonical := make(map[contentKey]pbFavorite, len(serverRecords))
 	for _, r := range serverRecords {
 		k := contentKey{Normalize(r.Input), Normalize(r.Anagram)}
@@ -248,6 +269,8 @@ func (sc *SyncClient) FullSync(favs *FavoritesSlice) error {
 		}
 	}
 
+	log.Printf("FullSync: canonical map has %d unique entries", len(canonical))
+
 	// --- Local dedup ---
 	// Deduplicate local slice by content, adopting canonical server client_id.
 	seenLocal := make(map[contentKey]bool, len(*favs))
@@ -264,6 +287,9 @@ func (sc *SyncClient) FullSync(favs *FavoritesSlice) error {
 		deduped = append(deduped, fav)
 	}
 	*favs = deduped
+
+	log.Printf("FullSync: after local dedup: %d local favs, seenLocal has %d keys",
+		len(*favs), len(seenLocal))
 
 	// Persist the deduped local slice immediately — don't wait for push/pull.
 	// This ensures duplicates are removed from prefs even if network ops fail.
@@ -302,6 +328,7 @@ func (sc *SyncClient) FullSync(favs *FavoritesSlice) error {
 	pulled := 0
 	for k, r := range canonical {
 		if !seenLocal[k] {
+			log.Printf("FullSync: pulling server-only: %q / %q", r.Input, r.Anagram)
 			*favs = append(*favs, FavoriteAnagram{
 				Dictionaries: r.Dicts,
 				Input:        r.Input,
@@ -311,6 +338,7 @@ func (sc *SyncClient) FullSync(favs *FavoritesSlice) error {
 			pulled++
 		}
 	}
+	log.Printf("FullSync: pulled %d from server; final local count %d", pulled, len(*favs))
 
 	// Save again to include any newly-pulled server entries.
 	SaveFavorites(*favs, sc.prefs)
