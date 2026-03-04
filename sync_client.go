@@ -276,15 +276,27 @@ func (sc *SyncClient) FullSync(favs *FavoritesSlice) error {
 		localByID[fav.ID] = true
 	}
 
-	// Push local favorites not on server.
-	var pushErrors []string
+	// Push local favorites not on server — concurrently (skip existence check
+	// since canonical already tells us these aren't on the server).
+	var (
+		pushWg     sync.WaitGroup
+		pushMu     sync.Mutex
+		pushErrors []string
+	)
 	for _, fav := range *favs {
 		if _, exists := canonical[contentKey{Normalize(fav.Input), Normalize(fav.Anagram)}]; !exists {
-			if err := sc.Push(fav); err != nil {
-				pushErrors = append(pushErrors, err.Error())
-			}
+			pushWg.Add(1)
+			go func(f FavoriteAnagram) {
+				defer pushWg.Done()
+				if err := sc.pushNew(f); err != nil {
+					pushMu.Lock()
+					pushErrors = append(pushErrors, err.Error())
+					pushMu.Unlock()
+				}
+			}(fav)
 		}
 	}
+	pushWg.Wait()
 
 	// Pull server-only favorites (already deduped in canonical map).
 	pulled := 0
@@ -307,6 +319,36 @@ func (sc *SyncClient) FullSync(favs *FavoritesSlice) error {
 	if len(pushErrors) > 0 {
 		return fmt.Errorf("sync completed (%d pulled) but %d push(es) failed: %s",
 			pulled, len(pushErrors), pushErrors[0])
+	}
+	return nil
+}
+
+// pushNew creates a new record on the server without checking for an existing
+// one first. Used by FullSync's push loop where canonical already confirms the
+// record is absent from the server.
+func (sc *SyncClient) pushNew(fav FavoriteAnagram) error {
+	if fav.ID == "" {
+		fav.ID = newUUID()
+	}
+	dicts := fav.Dictionaries
+	if dicts == "" {
+		dicts = "unknown"
+	}
+	resp, err := sc.doRequest("POST", "/api/collections/favorites/records", map[string]any{
+		"client_id":    fav.ID,
+		"user":         sc.userID,
+		"dictionaries": dicts,
+		"input":        fav.Input,
+		"anagram":      fav.Anagram,
+		"deleted":      false,
+	})
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode >= 400 {
+		data, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("push failed (%d): %s", resp.StatusCode, string(data))
 	}
 	return nil
 }
