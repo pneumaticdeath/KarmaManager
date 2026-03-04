@@ -449,10 +449,20 @@ func (sc *SyncClient) Push(fav FavoriteAnagram) error {
 // tombstoneByPBID marks a server record as deleted by its PocketBase record ID.
 // Used by FullSync's dedup loop where we already have the PB ID and don't need
 // an extra GET to resolve client_id → PB ID.
+//
+// A new client_id is assigned at the same time. This is critical: duplicate
+// records often share the same client_id as the canonical live record (a side
+// effect of the old Push double-encoding bug creating multiple PB rows per
+// favorite). If we tombstoned them without changing client_id, the tombstone
+// filter in the next FullSync would match the canonical record's client_id and
+// incorrectly remove the local favorite, causing an infinite pull-delete loop.
 func (sc *SyncClient) tombstoneByPBID(pbID string) error {
 	resp, err := sc.doRequest("PATCH",
 		"/api/collections/favorites/records/"+pbID,
-		map[string]any{"deleted": true})
+		map[string]any{
+			"deleted":   true,
+			"client_id": newUUID(), // prevent collision with canonical record's client_id
+		})
 	if err != nil {
 		return err
 	}
@@ -469,13 +479,17 @@ func (sc *SyncClient) DeleteRemote(clientID string) error {
 	if err != nil || len(records) == 0 {
 		return err
 	}
-	resp, err := sc.doRequest("PATCH",
-		"/api/collections/favorites/records/"+records[0].ID,
-		map[string]any{"deleted": true})
-	if err != nil {
-		return err
+	// Tombstone every record with this client_id (there may be duplicates from
+	// the old Push bug that created multiple PB rows with the same client_id).
+	for _, r := range records {
+		resp, err := sc.doRequest("PATCH",
+			"/api/collections/favorites/records/"+r.ID,
+			map[string]any{"deleted": true})
+		if err != nil {
+			return err
+		}
+		resp.Body.Close()
 	}
-	defer resp.Body.Close()
 	return nil
 }
 
