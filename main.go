@@ -323,13 +323,17 @@ func showSignedInDialog(window fyne.Window) {
 		)
 	}
 
-	content := container.New(layout.NewVBoxLayout(), emailLabel)
-	d = dialog.NewCustom("Sync Account", "Close", content, window)
-	d.SetButtons([]fyne.CanvasObject{
-		widget.NewButton("Close", func() { d.Hide() }),
+	content := container.NewVBox(
+		emailLabel,
+		widget.NewSeparator(),
 		syncNowButton,
 		signOutButton,
+		widget.NewSeparator(),
 		deleteAccountButton,
+	)
+	d = dialog.NewCustomWithoutButtons("Sync Account", content, window)
+	d.SetButtons([]fyne.CanvasObject{
+		widget.NewButton("Close", func() { d.Hide() }),
 	})
 	d.Show()
 }
