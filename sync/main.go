@@ -11,6 +11,7 @@ import (
 	"github.com/pocketbase/pocketbase"
 	"github.com/pocketbase/pocketbase/apis"
 	"github.com/pocketbase/pocketbase/core"
+	"github.com/pocketbase/pocketbase/tools/security"
 )
 
 const shareBaseURL = "https://karmamanager-sync.fly.dev"
@@ -43,6 +44,11 @@ func main() {
 		}
 		record := core.NewRecord(usersCol)
 		record.Set("email", form.Email)
+		// Set a random password the user will never know — OTP is the only
+		// sign-in method, so this password is intentionally inaccessible.
+		randomPass := security.RandomString(40)
+		record.Set("password", randomPass)
+		record.Set("passwordConfirm", randomPass)
 		if err := e.App.Save(record); err != nil {
 			log.Println("auto-create user failed:", err)
 			return e.Next()
