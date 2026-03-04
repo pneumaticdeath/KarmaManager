@@ -192,9 +192,7 @@ func (sc *SyncClient) FullSync(favs *FavoritesSlice) error {
 	if !sc.IsAuthenticated() {
 		return fmt.Errorf("not authenticated")
 	}
-	if !sc.syncMu.TryLock() {
-		return nil // another sync is already in progress
-	}
+	sc.syncMu.Lock()
 	defer sc.syncMu.Unlock()
 
 	type contentKey struct{ input, anagram string }
@@ -233,7 +231,6 @@ func (sc *SyncClient) FullSync(favs *FavoritesSlice) error {
 		localByID[fav.ID] = true
 	}
 
-	var tombstoneWg sync.WaitGroup
 	canonical := make(map[contentKey]pbFavorite, len(serverRecords))
 	for _, r := range serverRecords {
 		k := contentKey{Normalize(r.Input), Normalize(r.Anagram)}
@@ -243,21 +240,13 @@ func (sc *SyncClient) FullSync(favs *FavoritesSlice) error {
 			continue
 		}
 		// Prefer the record already known locally; tombstone the other.
-		var toDelete string
 		if localByID[r.ClientID] && !localByID[existing.ClientID] {
-			toDelete = existing.ClientID
+			go sc.DeleteRemote(existing.ClientID)
 			canonical[k] = r
 		} else {
-			toDelete = r.ClientID
+			go sc.DeleteRemote(r.ClientID)
 		}
-		tombstoneWg.Add(1)
-		go func(id string) {
-			defer tombstoneWg.Done()
-			sc.DeleteRemote(id) //nolint:errcheck
-		}(toDelete)
 	}
-	// Wait for all server-side tombstones before proceeding.
-	tombstoneWg.Wait()
 
 	// --- Local dedup ---
 	// Deduplicate local slice by content, adopting canonical server client_id.
@@ -334,10 +323,14 @@ func (sc *SyncClient) Push(fav FavoriteAnagram) error {
 	// Check if it exists on server.
 	existing, err := sc.fetchRecords(urlEncode("client_id='"+fav.ID+"'"))
 	_ = err
+	dicts := fav.Dictionaries
+	if dicts == "" {
+		dicts = "unknown"
+	}
 	payload := map[string]any{
 		"client_id":    fav.ID,
 		"user":         sc.userID,
-		"dictionaries": fav.Dictionaries,
+		"dictionaries": dicts,
 		"input":        fav.Input,
 		"anagram":      fav.Anagram,
 		"deleted":      false,
