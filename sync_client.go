@@ -288,13 +288,17 @@ func (sc *SyncClient) FullSync(favs *FavoritesSlice) error {
 	}
 
 	// Push local favorites not on server.
+	var pushErrors []string
 	for _, fav := range *favs {
 		if _, exists := canonical[contentKey{Normalize(fav.Input), Normalize(fav.Anagram)}]; !exists {
-			_ = sc.Push(fav) // best-effort
+			if err := sc.Push(fav); err != nil {
+				pushErrors = append(pushErrors, err.Error())
+			}
 		}
 	}
 
 	// Pull server-only favorites (already deduped in canonical map).
+	pulled := 0
 	for k, r := range canonical {
 		if !seenLocal[k] {
 			*favs = append(*favs, FavoriteAnagram{
@@ -303,12 +307,18 @@ func (sc *SyncClient) FullSync(favs *FavoritesSlice) error {
 				Anagram:      r.Anagram,
 				ID:           r.ClientID,
 			})
+			pulled++
 		}
 	}
 
 	// Save again to include any newly-pulled server entries.
 	SaveFavorites(*favs, sc.prefs)
 	fyne.Do(RebuildFavorites)
+
+	if len(pushErrors) > 0 {
+		return fmt.Errorf("sync completed (%d pulled) but %d push(es) failed: %s",
+			pulled, len(pushErrors), pushErrors[0])
+	}
 	return nil
 }
 
