@@ -439,7 +439,12 @@ func showSignInDialog(window fyne.Window) {
 			return
 		}
 		providers, err := SyncSvc.FetchOAuthProviders()
-		if err != nil || len(providers) == 0 {
+		if err != nil {
+			log.Println("FetchOAuthProviders:", err)
+			fyne.Do(func() { statusLabel.SetText("Could not load sign-in options: " + err.Error()) })
+			return
+		}
+		if len(providers) == 0 {
 			return
 		}
 		fyne.Do(func() {
