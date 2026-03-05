@@ -487,6 +487,9 @@ func showSignInDialog(window fyne.Window) {
 						})
 					}()
 				})
+				if len(oauthButtons.Objects) > 0 {
+					oauthButtons.Add(widget.NewLabel(""))
+				}
 				oauthButtons.Add(btn)
 			}
 			orLabel.Show()
