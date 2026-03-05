@@ -21,12 +21,14 @@ import (
 	"fyne.io/fyne/v2/widget"
 )
 
+const oauthRedirectURI = "https://karmamanager-sync.fly.dev/oauth/callback"
+
 var searchtimeout time.Duration = time.Second
 var searchlimit int = 100000
 var MainWindow fyne.Window
 var Icon fyne.Resource
 var AppPreferences fyne.Preferences
-var RebuildFavorites func()
+var RebuildFavorites = func() {} // no-op until main() sets the real implementation
 var favorites FavoritesSlice
 
 func ShowPrivateDictSettings(private *Dictionary, saveCallback func(),  window fyne.Window) {
@@ -353,6 +355,30 @@ func showSignInDialog(window fyne.Window) {
 	var sendButton, verifyButton *widget.Button
 	var d *dialog.CustomDialog
 
+	// OAuth section — buttons are added asynchronously when providers are fetched.
+	oauthButtons := container.NewVBox()
+	orLabel := widget.NewLabel("— or —")
+	orLabel.Alignment = fyne.TextAlignCenter
+	orLabel.Hide()
+
+	// setAllButtonsEnabled enables or disables every interactive element in the dialog.
+	setAllButtonsEnabled := func(enabled bool) {
+		for _, obj := range oauthButtons.Objects {
+			if btn, ok := obj.(*widget.Button); ok {
+				if enabled {
+					btn.Enable()
+				} else {
+					btn.Disable()
+				}
+			}
+		}
+		if enabled {
+			sendButton.Enable()
+		} else {
+			sendButton.Disable()
+		}
+	}
+
 	sendButton = widget.NewButton("Send Code", func() {
 		email := strings.TrimSpace(emailEntry.Text)
 		if email == "" {
@@ -407,7 +433,63 @@ func showSignInDialog(window fyne.Window) {
 	})
 	verifyButton.Hide()
 
-	content := container.New(layout.NewVBoxLayout(), emailEntry, codeEntry, statusLabel)
+	// Async-fetch OAuth providers and populate buttons when they arrive.
+	go func() {
+		if SyncSvc == nil {
+			return
+		}
+		providers, err := SyncSvc.FetchOAuthProviders()
+		if err != nil || len(providers) == 0 {
+			return
+		}
+		fyne.Do(func() {
+			for _, p := range providers {
+				p := p // capture loop variable
+				btn := widget.NewButton("Sign in with "+p.DisplayName, func() {
+					setAllButtonsEnabled(false)
+					statusLabel.SetText("Opening browser…")
+					codeVerifier := generateCodeVerifier()
+					codeChallenge := generateCodeChallenge(codeVerifier)
+					authURL := buildOAuthURL(p.AuthURL, oauthRedirectURI, codeChallenge)
+					OpenOAuthBrowser(authURL, window)
+					go func() {
+						code, err := SyncSvc.PollOAuthCode(p.State, 120*time.Second)
+						if err != nil {
+							DismissOAuthBrowser()
+							fyne.Do(func() {
+								statusLabel.SetText("Error: " + err.Error())
+								setAllButtonsEnabled(true)
+							})
+							return
+						}
+						DismissOAuthBrowser()
+						err = SyncSvc.AuthWithOAuth2(p.Name, code, codeVerifier, oauthRedirectURI)
+						if err != nil {
+							fyne.Do(func() {
+								statusLabel.SetText("Error: " + err.Error())
+								setAllButtonsEnabled(true)
+							})
+							return
+						}
+						fyne.Do(func() {
+							d.Hide()
+							ShowPopUpMessage("Signed in!", time.Second, window)
+							go func() {
+								if err := SyncSvc.FullSync(&favorites); err != nil {
+									log.Println("Post-login sync failed:", err)
+								}
+							}()
+						})
+					}()
+				})
+				oauthButtons.Add(btn)
+			}
+			orLabel.Show()
+			oauthButtons.Refresh()
+		})
+	}()
+
+	content := container.NewVBox(oauthButtons, orLabel, emailEntry, codeEntry, statusLabel)
 	d = dialog.NewCustom("Sign In to Sync", "Cancel", content, window)
 	d.SetButtons([]fyne.CanvasObject{
 		widget.NewButton("Cancel", func() { d.Hide() }),

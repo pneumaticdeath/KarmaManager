@@ -3,11 +3,14 @@ package main
 import (
 	"bytes"
 	"crypto/rand"
+	"crypto/sha256"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
 	"log"
 	"net/http"
+	"net/url"
 	"sync"
 	"time"
 
@@ -595,6 +598,147 @@ func (sc *SyncClient) GenerateShareURL(clientID string) (string, error) {
 		return "", err
 	}
 	return result.ShareURL, nil
+}
+
+// OAuthProvider holds the data needed to start an OAuth2 PKCE flow.
+type OAuthProvider struct {
+	Name        string // "google", "apple"
+	DisplayName string
+	AuthURL     string // base URL from PocketBase (includes client_id, scope, state, redirect_uri)
+	State       string // CSRF state value from PocketBase
+}
+
+// generateCodeVerifier returns a random PKCE code verifier (base64url, 32 bytes).
+func generateCodeVerifier() string {
+	b := make([]byte, 32)
+	rand.Read(b)
+	return base64.RawURLEncoding.EncodeToString(b)
+}
+
+// generateCodeChallenge returns the S256 PKCE code challenge for a verifier.
+func generateCodeChallenge(verifier string) string {
+	h := sha256.Sum256([]byte(verifier))
+	return base64.RawURLEncoding.EncodeToString(h[:])
+}
+
+// buildOAuthURL replaces redirect_uri and code_challenge in a PocketBase-generated
+// auth URL with the caller's values.
+func buildOAuthURL(baseURL, redirectURI, codeChallenge string) string {
+	u, err := url.Parse(baseURL)
+	if err != nil {
+		return baseURL
+	}
+	q := u.Query()
+	q.Set("redirect_uri", redirectURI)
+	q.Set("code_challenge", codeChallenge)
+	u.RawQuery = q.Encode()
+	return u.String()
+}
+
+// FetchOAuthProviders calls GET /api/collections/users/auth-methods and returns
+// the configured OAuth providers.
+func (sc *SyncClient) FetchOAuthProviders() ([]OAuthProvider, error) {
+	resp, err := sc.httpClient.Get(syncBaseURL + "/api/collections/users/auth-methods")
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	data, _ := io.ReadAll(resp.Body)
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("auth-methods failed (%d): %s", resp.StatusCode, string(data))
+	}
+	var result struct {
+		AuthProviders []struct {
+			Name        string `json:"name"`
+			DisplayName string `json:"displayName"`
+			State       string `json:"state"`
+			AuthURL     string `json:"authUrl"`
+		} `json:"authProviders"`
+	}
+	if err := json.Unmarshal(data, &result); err != nil {
+		return nil, err
+	}
+	providers := make([]OAuthProvider, 0, len(result.AuthProviders))
+	for _, p := range result.AuthProviders {
+		providers = append(providers, OAuthProvider{
+			Name:        p.Name,
+			DisplayName: p.DisplayName,
+			AuthURL:     p.AuthURL,
+			State:       p.State,
+		})
+	}
+	return providers, nil
+}
+
+// PollOAuthCode polls /api/ext/oauth/code/{state} every 2 s until a code is
+// returned or the timeout elapses.
+func (sc *SyncClient) PollOAuthCode(state string, timeout time.Duration) (string, error) {
+	deadline := time.Now().Add(timeout)
+	for time.Now().Before(deadline) {
+		resp, err := sc.doRequest("GET", "/api/ext/oauth/code/"+state, nil)
+		if err != nil {
+			return "", err
+		}
+		data, _ := io.ReadAll(resp.Body)
+		resp.Body.Close()
+		if resp.StatusCode == http.StatusOK {
+			var result struct {
+				Code string `json:"code"`
+			}
+			if err := json.Unmarshal(data, &result); err != nil {
+				return "", err
+			}
+			return result.Code, nil
+		}
+		if resp.StatusCode != http.StatusNotFound {
+			return "", fmt.Errorf("poll failed (%d): %s", resp.StatusCode, string(data))
+		}
+		time.Sleep(2 * time.Second)
+	}
+	return "", fmt.Errorf("timeout waiting for OAuth code")
+}
+
+// AuthWithOAuth2 exchanges an OAuth2 authorization code for a PocketBase auth
+// token and stores the credentials.
+func (sc *SyncClient) AuthWithOAuth2(provider, code, codeVerifier, redirectURL string) error {
+	body, _ := json.Marshal(map[string]string{
+		"provider":     provider,
+		"code":         code,
+		"codeVerifier": codeVerifier,
+		"redirectUrl":  redirectURL,
+	})
+	resp, err := http.Post(
+		syncBaseURL+"/api/collections/users/auth-with-oauth2",
+		"application/json",
+		bytes.NewReader(body),
+	)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	data, _ := io.ReadAll(resp.Body)
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("OAuth2 auth failed (%d): %s", resp.StatusCode, string(data))
+	}
+	var result struct {
+		Token  string `json:"token"`
+		Record struct {
+			ID    string `json:"id"`
+			Email string `json:"email"`
+		} `json:"record"`
+	}
+	if err := json.Unmarshal(data, &result); err != nil {
+		return err
+	}
+	sc.mu.Lock()
+	sc.authToken = result.Token
+	sc.userID = result.Record.ID
+	sc.userEmail = result.Record.Email
+	sc.mu.Unlock()
+	sc.prefs.SetString(prefSyncToken, result.Token)
+	sc.prefs.SetString(prefSyncUser, result.Record.ID)
+	sc.prefs.SetString(prefSyncEmail, result.Record.Email)
+	return nil
 }
 
 // newUUID returns a random UUID v4 string.

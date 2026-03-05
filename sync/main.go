@@ -6,6 +6,9 @@ import (
 	"html/template"
 	"log"
 	"net/http"
+	"os"
+	"sync"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/pocketbase/pocketbase"
@@ -15,6 +18,8 @@ import (
 )
 
 const shareBaseURL = "https://karmamanager-sync.fly.dev"
+
+var pendingOAuth sync.Map // state string → code string
 
 //go:embed pb_public/share.html
 var shareTmplSrc string
@@ -66,6 +71,9 @@ func main() {
 		}
 		if err := ensureFavoritesCollection(app); err != nil {
 			log.Println("ensureFavoritesCollection:", err)
+		}
+		if err := ensureGoogleOAuth(app); err != nil {
+			log.Println("ensureGoogleOAuth:", err)
 		}
 
 		// POST /api/ext/favorites/:id/share — generate share token
@@ -123,6 +131,29 @@ func main() {
 				return err
 			}
 			return e.HTML(http.StatusOK, buf.String())
+		})
+
+		// GET /oauth/callback — OAuth provider redirects here after user authenticates
+		se.Router.GET("/oauth/callback", func(e *core.RequestEvent) error {
+			code := e.Request.URL.Query().Get("code")
+			state := e.Request.URL.Query().Get("state")
+			if code == "" || state == "" {
+				return e.HTML(http.StatusBadRequest, "<h1>Missing parameters</h1>")
+			}
+			pendingOAuth.Store(state, code)
+			go func() { time.Sleep(5 * time.Minute); pendingOAuth.Delete(state) }()
+			return e.HTML(http.StatusOK, `<html><body style="font-family:sans-serif;text-align:center;padding:40px">
+<h2>Authentication complete</h2>
+<p>You can close this tab and return to KarmaManager.</p>
+</body></html>`)
+		})
+
+		// GET /api/ext/oauth/code/:state — app polls this until code is available
+		se.Router.GET("/api/ext/oauth/code/{state}", func(e *core.RequestEvent) error {
+			if v, ok := pendingOAuth.LoadAndDelete(e.Request.PathValue("state")); ok {
+				return e.JSON(http.StatusOK, map[string]string{"code": v.(string)})
+			}
+			return e.JSON(http.StatusNotFound, map[string]string{"status": "pending"})
 		})
 
 		return se.Next()
@@ -204,4 +235,47 @@ func ensureFavoritesCollection(app *pocketbase.PocketBase) error {
 	collection.DeleteRule = &deleteRule
 
 	return app.Save(collection)
+}
+
+// ensureGoogleOAuth reads GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET from the
+// environment and upserts the Google OAuth2 provider on the users collection.
+// If the env vars are absent it's a no-op so local dev still works.
+func ensureGoogleOAuth(app *pocketbase.PocketBase) error {
+	clientID := os.Getenv("GOOGLE_CLIENT_ID")
+	clientSecret := os.Getenv("GOOGLE_CLIENT_SECRET")
+	if clientID == "" || clientSecret == "" {
+		return nil
+	}
+
+	col, err := app.FindCollectionByNameOrId("users")
+	if err != nil {
+		return err
+	}
+
+	// Check if Google is already configured with the same credentials.
+	for _, p := range col.OAuth2.Providers {
+		if p.Name == "google" && p.ClientId == clientID && p.ClientSecret == clientSecret {
+			return nil // already correct, nothing to do
+		}
+	}
+
+	// Rebuild the providers list: keep non-Google entries, replace/add Google.
+	providers := make([]core.OAuth2ProviderConfig, 0, len(col.OAuth2.Providers)+1)
+	for _, p := range col.OAuth2.Providers {
+		if p.Name != "google" {
+			providers = append(providers, p)
+		}
+	}
+	providers = append(providers, core.OAuth2ProviderConfig{
+		Name:         "google",
+		ClientId:     clientID,
+		ClientSecret: clientSecret,
+	})
+	col.OAuth2.Providers = providers
+
+	if err := app.Save(col); err != nil {
+		return err
+	}
+	log.Println("ensureGoogleOAuth: Google OAuth2 provider configured")
+	return nil
 }
