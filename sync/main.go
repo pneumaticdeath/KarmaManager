@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/pocketbase/dbx"
 	"github.com/pocketbase/pocketbase"
 	"github.com/pocketbase/pocketbase/apis"
 	"github.com/pocketbase/pocketbase/core"
@@ -139,10 +140,14 @@ func main() {
 			return e.HTML(http.StatusOK, buf.String())
 		})
 
-		// GET /oauth/callback — OAuth provider redirects here after user authenticates
-		se.Router.GET("/oauth/callback", func(e *core.RequestEvent) error {
-			code := e.Request.URL.Query().Get("code")
-			state := e.Request.URL.Query().Get("state")
+		// oauthCallbackHandler stores the code+state and returns the "done" page.
+		// Google uses GET (code/state in query params); Apple uses POST (code/state
+		// in form body). Both are handled by parsing query params first, then falling
+		// back to the parsed form body.
+		oauthCallbackHandler := func(e *core.RequestEvent) error {
+			e.Request.ParseForm()
+			code := e.Request.FormValue("code")
+			state := e.Request.FormValue("state")
 			if code == "" || state == "" {
 				return e.HTML(http.StatusBadRequest, "<h1>Missing parameters</h1>")
 			}
@@ -152,7 +157,10 @@ func main() {
 <h2>Authentication complete</h2>
 <p>You can close this tab and return to KarmaManager.</p>
 </body></html>`)
-		})
+		}
+		// GET for Google (and most providers); POST for Apple Sign In.
+		se.Router.GET("/oauth/callback", oauthCallbackHandler)
+		se.Router.POST("/oauth/callback", oauthCallbackHandler)
 
 		// GET /api/ext/oauth/code/:state — app polls this until code is available
 		se.Router.GET("/api/ext/oauth/code/{state}", func(e *core.RequestEvent) error {
@@ -354,21 +362,15 @@ func startTombstoneCleanup(app *pocketbase.PocketBase) {
 
 func cleanupExpiredTombstones(app *pocketbase.PocketBase) {
 	cutoff := time.Now().Add(-30 * 24 * time.Hour).UTC().Format("2006-01-02 15:04:05.000Z")
-	records, err := app.FindRecordsByFilter(
-		"favorites",
-		"deleted = true && created < '"+cutoff+"'",
-		"", 0, 0,
-	)
+	result, err := app.DB().NewQuery(
+		"DELETE FROM favorites WHERE deleted = 1 AND created < {:cutoff}",
+	).Bind(dbx.Params{"cutoff": cutoff}).Execute()
 	if err != nil {
 		log.Println("tombstone cleanup: query failed:", err)
 		return
 	}
-	for _, r := range records {
-		if err := app.Delete(r); err != nil {
-			log.Printf("tombstone cleanup: delete %s failed: %v", r.Id, err)
-		}
-	}
-	if len(records) > 0 {
-		log.Printf("tombstone cleanup: deleted %d expired tombstones", len(records))
+	n, _ := result.RowsAffected()
+	if n > 0 {
+		log.Printf("tombstone cleanup: deleted %d expired tombstones", n)
 	}
 }
