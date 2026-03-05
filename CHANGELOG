@@ -1,3 +1,9 @@
+# Changed in v0.9.8
+* Sync edits now propagate across devices — editing a favorite on one device and syncing updates it on other devices
+* Fixed in-app account deletion (now correctly removes all server data before deleting the account)
+* Removed multi-input animation button from Favorites tab
+* Added in-app Delete Account button in Sync settings
+
 # Changed in v0.9.7
 * Cross-device favorites sync via email sign-in (one-time passcode, no password)
 * Share any favorite as a public link — copies URL to clipboard
