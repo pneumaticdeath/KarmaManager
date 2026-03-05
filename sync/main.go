@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	_ "embed"
+	"fmt"
 	"html/template"
 	"log"
 	"net/http"
@@ -14,6 +15,7 @@ import (
 	"github.com/pocketbase/pocketbase"
 	"github.com/pocketbase/pocketbase/apis"
 	"github.com/pocketbase/pocketbase/core"
+	"github.com/pocketbase/pocketbase/forms"
 	"github.com/pocketbase/pocketbase/tools/security"
 )
 
@@ -74,6 +76,9 @@ func main() {
 		}
 		if err := ensureGoogleOAuth(app); err != nil {
 			log.Println("ensureGoogleOAuth:", err)
+		}
+		if err := ensureAppleOAuth(app); err != nil {
+			log.Println("ensureAppleOAuth:", err)
 		}
 		startTombstoneCleanup(app)
 
@@ -278,6 +283,58 @@ func ensureGoogleOAuth(app *pocketbase.PocketBase) error {
 		return err
 	}
 	log.Println("ensureGoogleOAuth: Google OAuth2 provider configured")
+	return nil
+}
+
+// ensureAppleOAuth reads APPLE_CLIENT_ID / APPLE_TEAM_ID / APPLE_KEY_ID /
+// APPLE_PRIVATE_KEY from the environment, generates a fresh JWT client secret
+// (max 6-month validity), and upserts the Apple OAuth2 provider on the users
+// collection. If any env vars are absent it's a no-op so local dev still works.
+// The JWT is regenerated on every startup to keep it fresh.
+func ensureAppleOAuth(app *pocketbase.PocketBase) error {
+	clientID := os.Getenv("APPLE_CLIENT_ID")
+	teamID := os.Getenv("APPLE_TEAM_ID")
+	keyID := os.Getenv("APPLE_KEY_ID")
+	privateKey := os.Getenv("APPLE_PRIVATE_KEY")
+	if clientID == "" || teamID == "" || keyID == "" || privateKey == "" {
+		return nil
+	}
+
+	f := forms.NewAppleClientSecretCreate(app)
+	f.ClientId = clientID
+	f.TeamId = teamID
+	f.KeyId = keyID
+	f.PrivateKey = privateKey
+	f.Duration = 15777000 // max ~6 months
+
+	jwtSecret, err := f.Submit()
+	if err != nil {
+		return fmt.Errorf("generate Apple JWT client secret: %w", err)
+	}
+
+	col, err := app.FindCollectionByNameOrId("users")
+	if err != nil {
+		return err
+	}
+
+	// Rebuild the providers list: keep non-Apple entries, replace/add Apple.
+	providers := make([]core.OAuth2ProviderConfig, 0, len(col.OAuth2.Providers)+1)
+	for _, p := range col.OAuth2.Providers {
+		if p.Name != "apple" {
+			providers = append(providers, p)
+		}
+	}
+	providers = append(providers, core.OAuth2ProviderConfig{
+		Name:         "apple",
+		ClientId:     clientID,
+		ClientSecret: jwtSecret,
+	})
+	col.OAuth2.Providers = providers
+
+	if err := app.Save(col); err != nil {
+		return err
+	}
+	log.Println("ensureAppleOAuth: Apple OAuth2 provider configured")
 	return nil
 }
 
