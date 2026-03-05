@@ -328,10 +328,10 @@ func (sc *SyncClient) FullSync(favs *FavoritesSlice) error {
 		}
 	}
 
-	log.Printf("FullSync: canonical map has %d unique entries, %d duplicates to tombstone",
+	log.Printf("FullSync: canonical map has %d unique entries, %d duplicates to hard-delete",
 		len(canonical), len(dedupIDs))
 
-	// Tombstone all server-side duplicates and wait for completion.
+	// Hard-delete all server-side duplicates and wait for completion.
 	// This runs concurrently (bounded by httpSem) but is awaited so the server
 	// is actually cleaned up before this FullSync returns.
 	if len(dedupIDs) > 0 {
@@ -341,12 +341,12 @@ func (sc *SyncClient) FullSync(favs *FavoritesSlice) error {
 			go func(id string) {
 				defer dedupWg.Done()
 				if err := sc.tombstoneByPBID(id); err != nil {
-					log.Printf("FullSync: tombstone %s failed: %v", id, err)
+					log.Printf("FullSync: hard-delete %s failed: %v", id, err)
 				}
 			}(pbID)
 		}
 		dedupWg.Wait()
-		log.Printf("FullSync: tombstoned %d duplicate server records", len(dedupIDs))
+		log.Printf("FullSync: hard-deleted %d duplicate server records", len(dedupIDs))
 	}
 
 	// --- Apply server-side edits ---
@@ -520,27 +520,17 @@ func (sc *SyncClient) Push(fav FavoriteAnagram) error {
 	return nil
 }
 
-// tombstoneByPBID marks a server record as deleted by its PocketBase record ID.
-// Used by FullSync's dedup loop where we already have the PB ID and don't need
-// an extra GET to resolve client_id → PB ID.
-//
-// A new client_id is assigned at the same time. This is critical: duplicate
-// records often share the same client_id as the canonical live record (a side
-// effect of the old Push double-encoding bug creating multiple PB rows per
-// favorite). If we tombstoned them without changing client_id, the tombstone
-// filter in the next FullSync would match the canonical record's client_id and
-// incorrectly remove the local favorite, causing an infinite pull-delete loop.
+// tombstoneByPBID hard-deletes a duplicate server record by its PocketBase record ID.
+// Used by FullSync's dedup loop. Dedup records serve no purpose after removal —
+// they have newly-assigned random client_ids that will never match any local
+// favorite — so a hard DELETE is correct and avoids tombstone accumulation.
 func (sc *SyncClient) tombstoneByPBID(pbID string) error {
-	resp, err := sc.doRequest("PATCH",
-		"/api/collections/favorites/records/"+pbID,
-		map[string]any{
-			"deleted":   true,
-			"client_id": newUUID(), // prevent collision with canonical record's client_id
-		})
+	resp, err := sc.doRequest("DELETE", "/api/collections/favorites/records/"+pbID, nil)
 	if err != nil {
 		return err
 	}
-	defer resp.Body.Close()
+	io.ReadAll(resp.Body)
+	resp.Body.Close()
 	return nil
 }
 

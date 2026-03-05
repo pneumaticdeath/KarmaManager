@@ -75,6 +75,7 @@ func main() {
 		if err := ensureGoogleOAuth(app); err != nil {
 			log.Println("ensureGoogleOAuth:", err)
 		}
+		startTombstoneCleanup(app)
 
 		// POST /api/ext/favorites/:id/share — generate share token
 		se.Router.POST("/api/ext/favorites/{id}/share", func(e *core.RequestEvent) error {
@@ -278,4 +279,39 @@ func ensureGoogleOAuth(app *pocketbase.PocketBase) error {
 	}
 	log.Println("ensureGoogleOAuth: Google OAuth2 provider configured")
 	return nil
+}
+
+// startTombstoneCleanup launches a background goroutine that hard-deletes
+// tombstone records older than 30 days, running once at startup and then
+// every 24 hours.
+func startTombstoneCleanup(app *pocketbase.PocketBase) {
+	go func() {
+		cleanupExpiredTombstones(app)
+		ticker := time.NewTicker(24 * time.Hour)
+		defer ticker.Stop()
+		for range ticker.C {
+			cleanupExpiredTombstones(app)
+		}
+	}()
+}
+
+func cleanupExpiredTombstones(app *pocketbase.PocketBase) {
+	cutoff := time.Now().Add(-30 * 24 * time.Hour).UTC().Format("2006-01-02 15:04:05.000Z")
+	records, err := app.FindRecordsByFilter(
+		"favorites",
+		"deleted = true && created < '"+cutoff+"'",
+		"", 0, 0,
+	)
+	if err != nil {
+		log.Println("tombstone cleanup: query failed:", err)
+		return
+	}
+	for _, r := range records {
+		if err := app.Delete(r); err != nil {
+			log.Printf("tombstone cleanup: delete %s failed: %v", r.Id, err)
+		}
+	}
+	if len(records) > 0 {
+		log.Printf("tombstone cleanup: deleted %d expired tombstones", len(records))
+	}
 }
