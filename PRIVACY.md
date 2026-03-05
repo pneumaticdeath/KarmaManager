@@ -21,8 +21,9 @@ any other purpose.
 
 ## How to delete your data
 
-You can delete all your sync data at any time by signing in and tapping **Sign Out**, then contacting us to
-request account deletion. You can also [email us](mailto:support@karma-manager.com?Subject=KarmaManager%20Privacy%20Policy)
+You can delete your account and all associated data directly in the app: go to the **Favorites** tab, tap **Sync**, and tap **Delete Account**. This immediately and permanently removes all your data from our servers.
+
+You can also [email us](mailto:support@karma-manager.com?Subject=KarmaManager%20Privacy%20Policy)
 to request removal of all data associated with your email address, as required by GDPR, CCPA, or similar regulations.
 
 ## Where data is stored
