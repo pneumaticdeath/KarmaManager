@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"log"
 	// "image/gif"
 	"slices"
 	"sort"
@@ -183,248 +182,243 @@ func MakeGroupedFavorites(favs FavoritesSlice) GroupedFavorites {
 	return groups
 }
 
-type FavoritesAccList struct {
-	widget.BaseWidget
-
-	surface            *fyne.Container
-	buttonbar          *fyne.Container
-	listSize           int
-	list               *widget.List
-	MultiAnimateButton *widget.Button
-	// SendToMainButton   *widget.Button
-	baseSlice *FavoritesSlice
-}
-
-func NewFavoritesAccList(title string, baseList, this *FavoritesSlice, sendToMain func(string)) *FavoritesAccList {
-	fal := &FavoritesAccList{}
-	// fal.title = title
-	fal.baseSlice = baseList
-
-	fal.listSize = len(*this)
-
-	fal.MultiAnimateButton = widget.NewButton("Animate many", func() {
-		if len(*this) > 1 {
-			anagrams := make([]string, len(*this))
-			for index, fav := range *this {
-				anagrams[index] = fav.Anagram
-			}
-			ShowMultiPicker("Animate which anagrams", "animate", "cancel", "shuffle", anagrams, func(chosen []string) {
-				if len(chosen) > 0 {
-					ShowAnimation("Animated anagrams...", title, chosen, MainWindow)
-				}
-			}, MainWindow)
-		}
-	})
-
-	sendToMainButton := widget.NewButton("Send to Find tab", func() {
-		sendToMain(title)
-	})
-
-	editInputButton := widget.NewButton("Edit input", func() {
-		if len(*this) > 0 {
-			ShowFavoriteInputEditor(fal.baseSlice, fal.findGlobalID((*this)[0]), AppPreferences, RebuildFavorites, MainWindow)
-		} else {
-			log.Panicln("FavoritesAccList: trying to edit input on a 0 length list")
-		}
-	})
-
-	fal.buttonbar = container.New(layout.NewGridLayout(3), fal.MultiAnimateButton, sendToMainButton, editInputButton)
-
-	fal.list = widget.NewList(func() int {
-		return len(*this)
-	}, func() fyne.CanvasObject {
-		return NewTapLabel("Fav")
-	}, func(id widget.ListItemID, obj fyne.CanvasObject) {
-		label, ok := obj.(*TapLabel)
-		if !ok {
-			return
-		}
-		label.Label.Text = UnmarkSpaces((*this)[id].Anagram)
-		label.Label.Alignment = fyne.TextAlignCenter
-		label.OnTapped = func(pe *fyne.PointEvent) {
-			copyAnagramMI := fyne.NewMenuItem("Copy anagram to clipboard", func() {
-				MainWindow.Clipboard().SetContent(UnmarkSpaces((*this)[id].Anagram))
-				pulabel := widget.NewLabel("Copied to clipboard")
-				pu := widget.NewPopUp(pulabel, MainWindow.Canvas())
-				wsize := MainWindow.Canvas().Size()
-				pu.Move(fyne.NewPos((wsize.Width)/2, (wsize.Height)/2))
-				pu.Show()
-				go func() {
-					time.Sleep(time.Second)
-					fyne.Do(pu.Hide)
-				}()
-			})
-			copyBothMI := fyne.NewMenuItem("Copy input and anagram to clipboard", func() {
-				MainWindow.Clipboard().SetContent(fmt.Sprintf("%s ↔️ %s", (*this)[id].Input, UnmarkSpaces((*this)[id].Anagram)))
-				pulabel := widget.NewLabel("Copied to clipboard")
-				pu := widget.NewPopUp(pulabel, MainWindow.Canvas())
-				wsize := MainWindow.Canvas().Size()
-				pu.Move(fyne.NewPos((wsize.Width)/2, (wsize.Height)/2))
-				pu.Show()
-				go func() {
-					time.Sleep(time.Second)
-					fyne.Do(pu.Hide)
-				}()
-			})
-			animateMI := fyne.NewMenuItem("Animate", func() {
-				anagrams := []string{(*this)[id].Anagram}
-				ShowAnimation("Animated anagram...", (*this)[id].Input, anagrams, MainWindow)
-			})
-			sendToMainMI := fyne.NewMenuItem("Send anagram to Find tab", func() {
-				sendToMain((*this)[id].Anagram)
-			})
-			editMI := fyne.NewMenuItem("Edit", func() {
-				globalID := fal.findGlobalID((*this)[id])
-				ShowFavoriteAnagramEditor(fal.baseSlice, globalID, AppPreferences, RebuildFavorites, MainWindow)
-			})
-			deleteMI := fyne.NewMenuItem("Delete", func() {
-				globalID := fal.findGlobalID((*this)[id])
-				ShowDeleteFavConfirm(fal.baseSlice, globalID, AppPreferences, RebuildFavorites, MainWindow)
-			})
-			shareLinkMI := fyne.NewMenuItem("Share link", func() {
-				fav := (*this)[id]
-				if SyncSvc == nil || !SyncSvc.IsAuthenticated() {
-					dialog.ShowInformation("Account required", "Sign in via the Sync button in Favorites to share anagrams.", MainWindow)
-					return
-				}
-				go func() {
-					url, err := SyncSvc.GenerateShareURL(fav.ID)
-					fyne.Do(func() {
-						if err != nil {
-							dialog.ShowError(err, MainWindow)
-							return
-						}
-						MainWindow.Clipboard().SetContent(url)
-						ShowPopUpMessage("Link copied!", time.Second, MainWindow)
-					})
-				}()
-			})
-			pumenu := fyne.NewMenu("Pop up", copyAnagramMI, copyBothMI, animateMI, sendToMainMI, editMI, deleteMI, shareLinkMI)
-			widget.ShowPopUpMenuAtRelativePosition(pumenu, MainWindow.Canvas(), pe.Position, label)
-		}
-
-		label.Refresh()
-	})
-
-	fal.surface = container.NewBorder(fal.buttonbar, nil, nil, nil, fal.list)
-
-	fal.ExtendBaseWidget(fal)
-
-	return fal
-}
-
-func (fal *FavoritesAccList) CreateRenderer() fyne.WidgetRenderer {
-	return widget.NewSimpleRenderer(fal.surface)
-}
-
-func (fal *FavoritesAccList) MinSize() fyne.Size {
-	bbsize := fal.buttonbar.MinSize()
-	lsize := fal.list.MinSize()
-	length := min(fal.listSize, 5)
-	return fyne.NewSize(max(bbsize.Width, lsize.Width), bbsize.Height+float32(length)*(lsize.Height+5.0))
-}
-
-func (fal *FavoritesAccList) findGlobalID(selectedFavorite FavoriteAnagram) int {
-	// Prefer exact ID match (fast, unambiguous).
-	if selectedFavorite.ID != "" {
-		for globalID, globalFavorite := range *(fal.baseSlice) {
-			if globalFavorite.ID == selectedFavorite.ID {
-				return globalID
+// findGlobalFavID returns the index of fav in baseList, preferring ID match.
+func findGlobalFavID(baseList *FavoritesSlice, fav FavoriteAnagram) int {
+	if fav.ID != "" {
+		for i, f := range *baseList {
+			if f.ID == fav.ID {
+				return i
 			}
 		}
 	}
-	// Fall back to content match.
-	for globalID, globalFavorite := range *(fal.baseSlice) {
-		if selectedFavorite.Dictionaries == globalFavorite.Dictionaries && selectedFavorite.Input == globalFavorite.Input && selectedFavorite.Anagram == globalFavorite.Anagram {
-			return globalID
+	for i, f := range *baseList {
+		if fav.Dictionaries == f.Dictionaries && fav.Input == f.Input && fav.Anagram == f.Anagram {
+			return i
 		}
 	}
-	fmt.Println("Couldn't find global id")
 	return -1
+}
+
+// --- Flat virtualized favorites list ---
+
+type favRowKind int
+
+const (
+	favRowHeader  favRowKind = iota
+	favRowAnagram            // nolint:deadcode,varcheck
+)
+
+type favFlatRow struct {
+	kind  favRowKind
+	input string          // group key (both kinds)
+	fav   FavoriteAnagram // anagram rows only
+	count int             // header rows only
 }
 
 type FavoritesDisplay struct {
 	widget.BaseWidget
 
-	baseList      *FavoritesSlice
-	groupedList   GroupedFavorites
-	selectedInput string
-	accordion     *widget.Accordion
-	surface       *fyne.Container
-	sendToMain    func(string)
+	baseList     *FavoritesSlice
+	groupedList  GroupedFavorites
+	openGroups   map[string]bool
+	sortedInputs []string
+	flatRows     []favFlatRow
+	list         *widget.List
+	surface      *fyne.Container
+	sendToMain   func(string)
 }
 
-func NewFavoritesDisplay(list *FavoritesSlice, sendToMain func(string)) *FavoritesDisplay {
-	fd := &FavoritesDisplay{}
-
-	fd.baseList = list
-	fd.sendToMain = sendToMain
-	fd.RegenGroups()
-
-	preferencesButton := widget.NewButtonWithIcon("Animation Settings", theme.SettingsIcon(), Config.ShowPreferencesDialog)
-
-	syncButton := widget.NewButtonWithIcon("Sync", theme.UploadIcon(), func() {
-		ShowAccountDialog(MainWindow)
-	})
-
-	buttons := container.New(layout.NewGridLayout(2), preferencesButton, syncButton)
-	fd.surface = container.NewBorder(buttons, nil, nil, nil, container.NewVScroll(fd.accordion))
-
-	fd.ExtendBaseWidget(fd)
-
-	return fd
+func (fd *FavoritesDisplay) buildFlatRows() {
+	fd.flatRows = fd.flatRows[:0]
+	for _, input := range fd.sortedInputs {
+		group := fd.groupedList[input]
+		fd.flatRows = append(fd.flatRows, favFlatRow{kind: favRowHeader, input: input, count: len(group)})
+		if fd.openGroups[input] {
+			for _, fav := range group {
+				fd.flatRows = append(fd.flatRows, favFlatRow{kind: favRowAnagram, input: input, fav: fav})
+			}
+		}
+	}
 }
 
-func (fd *FavoritesDisplay) CreateRenderer() fyne.WidgetRenderer {
-	return widget.NewSimpleRenderer(fd.surface)
+func (fd *FavoritesDisplay) toggleGroup(input string) {
+	fd.openGroups[input] = !fd.openGroups[input]
+	fd.buildFlatRows()
+	fd.list.Refresh()
 }
 
 func (fd *FavoritesDisplay) RegenGroups() {
 	fd.groupedList = MakeGroupedFavorites(*fd.baseList)
-
 	inputs := make([]string, 0, len(fd.groupedList))
-	for input, _ := range fd.groupedList {
+	for input := range fd.groupedList {
 		inputs = append(inputs, input)
 	}
 	sort.Slice(inputs, func(i, j int) bool {
 		return strings.ToLower(inputs[i]) < strings.ToLower(inputs[j])
 	})
+	fd.sortedInputs = inputs
+	// Prune open state for groups that no longer exist.
+	for input := range fd.openGroups {
+		if _, ok := fd.groupedList[input]; !ok {
+			delete(fd.openGroups, input)
+		}
+	}
+	fd.buildFlatRows()
+	if fd.list != nil {
+		fd.list.Refresh()
+	}
+}
 
-	opened := make(map[string]bool)
-	if fd.accordion != nil {
-		for _, ai := range fd.accordion.Items {
-			title := ai.Title
-			li := strings.LastIndex(title, " (")
-			if li >= 0 {
-				opened[title[:li]] = ai.Open
-			} else {
-				opened[title] = ai.Open
+func (fd *FavoritesDisplay) createListItem() fyne.CanvasObject {
+	toggleBtn := widget.NewButton("▶", nil)
+	inputLabel := NewTapLabel("input")
+	inputLabel.Label.TextStyle = fyne.TextStyle{Bold: true}
+	sendBtn := widget.NewButtonWithIcon("", theme.SearchIcon(), nil)
+	editBtn := widget.NewButtonWithIcon("", theme.DocumentCreateIcon(), nil)
+	animBtn := widget.NewButtonWithIcon("", theme.MediaPlayIcon(), nil)
+	headerCont := container.NewHBox(toggleBtn, inputLabel, layout.NewSpacer(), sendBtn, editBtn, animBtn)
+
+	anagramLabel := NewTapLabel("anagram")
+	anagramLabel.Label.Alignment = fyne.TextAlignCenter
+	anagramCont := container.NewPadded(anagramLabel)
+
+	return container.NewStack(headerCont, anagramCont)
+}
+
+func (fd *FavoritesDisplay) updateListItem(id widget.ListItemID, obj fyne.CanvasObject) {
+	stack, ok := obj.(*fyne.Container)
+	if !ok || id >= len(fd.flatRows) {
+		return
+	}
+	row := fd.flatRows[id]
+	headerCont := stack.Objects[0].(*fyne.Container)
+	anagramCont := stack.Objects[1].(*fyne.Container)
+
+	if row.kind == favRowHeader {
+		anagramCont.Hide()
+		headerCont.Show()
+
+		toggleBtn := headerCont.Objects[0].(*widget.Button)
+		inputLabel := headerCont.Objects[1].(*TapLabel)
+		// Objects[2] is the spacer — skip
+		sendBtn := headerCont.Objects[3].(*widget.Button)
+		editBtn := headerCont.Objects[4].(*widget.Button)
+		animBtn := headerCont.Objects[5].(*widget.Button)
+
+		input := row.input
+		if fd.openGroups[input] {
+			toggleBtn.SetText("▼")
+		} else {
+			toggleBtn.SetText("▶")
+		}
+		toggleBtn.OnTapped = func() { fd.toggleGroup(input) }
+		inputLabel.Label.SetText(fmt.Sprintf("%s (%d)", input, row.count))
+		inputLabel.OnTapped = func(_ *fyne.PointEvent) { fd.toggleGroup(input) }
+
+		sendBtn.OnTapped = func() { fd.sendToMain(input) }
+
+		editBtn.OnTapped = func() {
+			group := fd.groupedList[input]
+			if len(group) > 0 {
+				globalID := findGlobalFavID(fd.baseList, group[0])
+				ShowFavoriteInputEditor(fd.baseList, globalID, AppPreferences, RebuildFavorites, MainWindow)
 			}
 		}
-	}
 
-	accordionItemList := make([]*(widget.AccordionItem), 0, len(fd.groupedList))
-	for _, input := range inputs {
-		fav := fd.groupedList[input]
-		fal := NewFavoritesAccList(input, fd.baseList, &fav, fd.sendToMain)
-		if len(fd.groupedList[input]) > 1 {
-			fal.MultiAnimateButton.Enable()
+		if row.count > 1 {
+			animBtn.Enable()
 		} else {
-			fal.MultiAnimateButton.Disable()
+			animBtn.Disable()
 		}
-
-		ai := widget.NewAccordionItem(fmt.Sprintf("%s (%d)", input, len(fd.groupedList[input])), fal)
-		ai.Open = opened[input]
-		accordionItemList = append(accordionItemList, ai)
-	}
-
-	if fd.accordion == nil {
-		fd.accordion = widget.NewAccordion(accordionItemList...)
-		fd.accordion.MultiOpen = false
+		animBtn.OnTapped = func() {
+			group := fd.groupedList[input]
+			anagrams := make([]string, len(group))
+			for i, fav := range group {
+				anagrams[i] = fav.Anagram
+			}
+			ShowMultiPicker("Animate which anagrams", "animate", "cancel", "shuffle", anagrams, func(chosen []string) {
+				if len(chosen) > 0 {
+					ShowAnimation("Animated anagrams...", input, chosen, MainWindow)
+				}
+			}, MainWindow)
+		}
 	} else {
-		fd.accordion.Items = accordionItemList
-		fd.accordion.Refresh()
-	}
+		headerCont.Hide()
+		anagramCont.Show()
 
-	// fd.surface.Refresh()
+		anagramLabel := anagramCont.Objects[0].(*TapLabel)
+		fav := row.fav
+		anagramLabel.Label.Text = UnmarkSpaces(fav.Anagram)
+		anagramLabel.Label.Refresh()
+		anagramLabel.OnTapped = func(pe *fyne.PointEvent) {
+			copyAnagramMI := fyne.NewMenuItem("Copy anagram to clipboard", func() {
+				MainWindow.Clipboard().SetContent(UnmarkSpaces(fav.Anagram))
+				ShowPopUpMessage("Copied to clipboard", time.Second, MainWindow)
+			})
+			copyBothMI := fyne.NewMenuItem("Copy input and anagram to clipboard", func() {
+				MainWindow.Clipboard().SetContent(fmt.Sprintf("%s ↔️ %s", fav.Input, UnmarkSpaces(fav.Anagram)))
+				ShowPopUpMessage("Copied to clipboard", time.Second, MainWindow)
+			})
+			animateMI := fyne.NewMenuItem("Animate", func() {
+				ShowAnimation("Animated anagram...", fav.Input, []string{fav.Anagram}, MainWindow)
+			})
+			sendToMainMI := fyne.NewMenuItem("Send anagram to Find tab", func() {
+				fd.sendToMain(fav.Anagram)
+			})
+			editMI := fyne.NewMenuItem("Edit", func() {
+				globalID := findGlobalFavID(fd.baseList, fav)
+				ShowFavoriteAnagramEditor(fd.baseList, globalID, AppPreferences, RebuildFavorites, MainWindow)
+			})
+			deleteMI := fyne.NewMenuItem("Delete", func() {
+				globalID := findGlobalFavID(fd.baseList, fav)
+				ShowDeleteFavConfirm(fd.baseList, globalID, AppPreferences, RebuildFavorites, MainWindow)
+			})
+			shareLinkMI := fyne.NewMenuItem("Share link", func() {
+				if SyncSvc == nil || !SyncSvc.IsAuthenticated() {
+					dialog.ShowInformation("Account required", "Sign in via the Sync button in Favorites to share anagrams.", MainWindow)
+					return
+				}
+				go func() {
+					shareURL, err := SyncSvc.GenerateShareURL(fav.ID)
+					fyne.Do(func() {
+						if err != nil {
+							dialog.ShowError(err, MainWindow)
+							return
+						}
+						MainWindow.Clipboard().SetContent(shareURL)
+						ShowPopUpMessage("Link copied!", time.Second, MainWindow)
+					})
+				}()
+			})
+			pumenu := fyne.NewMenu("Pop up", copyAnagramMI, copyBothMI, animateMI, sendToMainMI, editMI, deleteMI, shareLinkMI)
+			widget.ShowPopUpMenuAtRelativePosition(pumenu, MainWindow.Canvas(), pe.Position, anagramLabel)
+		}
+		anagramLabel.Refresh()
+	}
+}
+
+func NewFavoritesDisplay(list *FavoritesSlice, sendToMain func(string)) *FavoritesDisplay {
+	fd := &FavoritesDisplay{
+		baseList:   list,
+		sendToMain: sendToMain,
+		openGroups: make(map[string]bool),
+	}
+	fd.RegenGroups()
+
+	fd.list = widget.NewList(
+		func() int { return len(fd.flatRows) },
+		fd.createListItem,
+		fd.updateListItem,
+	)
+
+	preferencesButton := widget.NewButtonWithIcon("Animation Settings", theme.SettingsIcon(), Config.ShowPreferencesDialog)
+	syncButton := widget.NewButtonWithIcon("Sync", theme.UploadIcon(), func() { ShowAccountDialog(MainWindow) })
+	buttons := container.New(layout.NewGridLayout(2), preferencesButton, syncButton)
+	fd.surface = container.NewBorder(buttons, nil, nil, nil, fd.list)
+	fd.ExtendBaseWidget(fd)
+	return fd
+}
+
+func (fd *FavoritesDisplay) CreateRenderer() fyne.WidgetRenderer {
+	return widget.NewSimpleRenderer(fd.surface)
 }

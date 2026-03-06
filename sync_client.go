@@ -336,15 +336,26 @@ func (sc *SyncClient) FullSync(favs *FavoritesSlice) error {
 	// is actually cleaned up before this FullSync returns.
 	if len(dedupIDs) > 0 {
 		var dedupWg sync.WaitGroup
-		for _, pbID := range dedupIDs {
-			dedupWg.Add(1)
-			go func(id string) {
-				defer dedupWg.Done()
-				if err := sc.tombstoneByPBID(id); err != nil {
-					log.Printf("FullSync: hard-delete %s failed: %v", id, err)
-				}
-			}(pbID)
+		dedupCh := make(chan string)
+		workers := cap(sc.httpSem)
+		if len(dedupIDs) < workers {
+			workers = len(dedupIDs)
 		}
+		for i := 0; i < workers; i++ {
+			dedupWg.Add(1)
+			go func() {
+				defer dedupWg.Done()
+				for id := range dedupCh {
+					if err := sc.tombstoneByPBID(id); err != nil {
+						log.Printf("FullSync: hard-delete %s failed: %v", id, err)
+					}
+				}
+			}()
+		}
+		for _, pbID := range dedupIDs {
+			dedupCh <- pbID
+		}
+		close(dedupCh)
 		dedupWg.Wait()
 		log.Printf("FullSync: hard-deleted %d duplicate server records", len(dedupIDs))
 	}
@@ -398,26 +409,33 @@ func (sc *SyncClient) FullSync(favs *FavoritesSlice) error {
 		localByID[fav.ID] = true
 	}
 
-	// Push local favorites not on server — concurrently (skip existence check
-	// since canonical already tells us these aren't on the server).
+	// Push local favorites not on server — bounded worker pool (skip existence
+	// check since canonical already tells us these aren't on the server).
 	var (
 		pushWg     sync.WaitGroup
 		pushMu     sync.Mutex
 		pushErrors []string
 	)
-	for _, fav := range *favs {
-		if _, exists := canonical[contentKey{Normalize(fav.Input), Normalize(fav.Anagram)}]; !exists {
-			pushWg.Add(1)
-			go func(f FavoriteAnagram) {
-				defer pushWg.Done()
+	pushCh := make(chan FavoriteAnagram)
+	for i := 0; i < cap(sc.httpSem); i++ {
+		pushWg.Add(1)
+		go func() {
+			defer pushWg.Done()
+			for f := range pushCh {
 				if err := sc.pushNew(f); err != nil {
 					pushMu.Lock()
 					pushErrors = append(pushErrors, err.Error())
 					pushMu.Unlock()
 				}
-			}(fav)
+			}
+		}()
+	}
+	for _, fav := range *favs {
+		if _, exists := canonical[contentKey{Normalize(fav.Input), Normalize(fav.Anagram)}]; !exists {
+			pushCh <- fav
 		}
 	}
+	close(pushCh)
 	pushWg.Wait()
 
 	// Pull server-only favorites (already deduped in canonical map).
