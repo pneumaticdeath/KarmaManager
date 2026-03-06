@@ -1,4 +1,4 @@
-//go:build !ios && !android
+//go:build !ios && !android && !js
 
 package main
 
@@ -10,6 +10,8 @@ import (
 	"os/exec"
 	"strconv"
 )
+
+func videoExportAvailable() bool { return true }
 
 func WriteMP4(frames []image.Image, delays []int, path string) error {
 	ffmpeg, err := exec.LookPath("ffmpeg")

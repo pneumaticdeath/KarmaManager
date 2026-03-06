@@ -19,6 +19,8 @@ import (
 	"unsafe"
 )
 
+func videoExportAvailable() bool { return true }
+
 func WriteMP4(frames []image.Image, delays []int, path string) error {
 	if len(frames) == 0 {
 		return fmt.Errorf("no frames to encode")

@@ -148,11 +148,14 @@ func ShowAnimation(title, startPhrase string, anagrams []string, window fyne.Win
 		})
 	})
 
-	cd.SetButtons([]fyne.CanvasObject{
+	animButtons := []fyne.CanvasObject{
 		widget.NewButton("Dismiss", func() { cd.Hide() }),
 		gifButton,
-		videoButton,
-	})
+	}
+	if videoExportAvailable() {
+		animButtons = append(animButtons, videoButton)
+	}
+	cd.SetButtons(animButtons)
 
 	ad.FinishedCallback = func() {
 		fyne.Do(cd.Hide)
