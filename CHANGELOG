@@ -1,3 +1,8 @@
+# Changed in v1.0.0
+* Sign in with Google or Apple (OAuth) — no password required
+* Favorites list redesigned as a flat virtualized list for smooth scrolling with large collections
+* Fixed sync reliability: server-side duplicate cleanup and tombstone TTL
+
 # Changed in v0.9.8
 * Sync edits now propagate across devices — editing a favorite on one device and syncing updates it on other devices
 * Fixed in-app account deletion (now correctly removes all server data before deleting the account)
