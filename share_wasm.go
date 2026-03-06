@@ -5,16 +5,15 @@ package main
 import (
 	"encoding/base64"
 	"fmt"
-	"os"
 	"syscall/js"
 
 	"fyne.io/fyne/v2"
 )
 
 func ShareGIF(gifPath string, window fyne.Window) {
-	data, err := os.ReadFile(gifPath)
-	if err != nil {
-		fmt.Println("ShareGIF: read error:", err)
+	data, ok := wasmGIFCache[gifPath]
+	if !ok {
+		fmt.Println("ShareGIF: no data cached for", gifPath)
 		return
 	}
 	b64 := base64.StdEncoding.EncodeToString(data)
