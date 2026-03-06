@@ -2,7 +2,12 @@ module github.com/pneumaticdeath/KarmaManager
 
 go 1.25.2
 
-require fyne.io/fyne/v2 v2.7.2
+require (
+	fyne.io/fyne/v2 v2.7.2
+	github.com/pneumaticdeath/KarmaManager/reorderlist v0.0.0-00010101000000-000000000000
+)
+
+replace github.com/pneumaticdeath/KarmaManager/reorderlist => ./reorderlist
 
 require (
 	fyne.io/systray v1.12.0 // indirect

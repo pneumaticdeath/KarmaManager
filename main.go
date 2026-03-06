@@ -19,6 +19,8 @@ import (
 	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
+
+	"github.com/pneumaticdeath/KarmaManager/reorderlist"
 )
 
 const oauthRedirectURI = "https://karmamanager-sync.fly.dev/oauth/callback"
@@ -167,52 +169,46 @@ func ShowAnimation(title, startPhrase string, anagrams []string, window fyne.Win
 }
 
 func ShowMultiPicker(title, submitlabel, dismisslabel, shufflelabel string, choices []string, callback func([]string), window fyne.Window) {
-	anaChecks := make([]bool, len(choices))
-	for index := range choices {
-		anaChecks[index] = true
+	// checkState tracks which items the user has checked. Keyed by item string;
+	// anagram items within a group are unique so this is safe.
+	checkState := make(map[string]bool, len(choices))
+	for _, c := range choices {
+		checkState[c] = true
 	}
-	chooseList := widget.NewList(func() int {
-		return len(anaChecks)
-	}, func() fyne.CanvasObject {
-		return widget.NewCheck("***picker***", nil)
-	}, func(id widget.ListItemID, obj fyne.CanvasObject) {
-		check, ok := obj.(*widget.Check)
-		if !ok {
-			return
-		}
-		check.Text = UnmarkSpaces(choices[id])
-		check.Checked = anaChecks[id]
-		check.OnChanged = func(checked bool) {
-			anaChecks[id] = checked
-		}
-		check.Refresh()
-	})
 
-	d := dialog.NewCustom(title, submitlabel, chooseList, window)
+	rl := reorderlist.New(choices,
+		func(item string) fyne.CanvasObject {
+			check := widget.NewCheck(UnmarkSpaces(item), func(v bool) { checkState[item] = v })
+			check.Checked = checkState[item]
+			return check
+		},
+		func(_ []string) {}, // rl.Items is the source of truth; no extra bookkeeping needed
+	)
+
+	d := dialog.NewCustom(title, submitlabel, rl, window)
 	d.Resize(fyne.NewSize(300, 500))
+
 	submitbutton := widget.NewButton(submitlabel, func() {
 		d.Hide()
-		chosen := make([]string, 0, len(choices))
-		for index, check := range anaChecks {
-			if check {
-				chosen = append(chosen, choices[index])
+		chosen := make([]string, 0, len(rl.Items))
+		for _, item := range rl.Items {
+			if checkState[item] {
+				chosen = append(chosen, item)
 			}
 		}
 		callback(chosen)
 	})
 	submitbutton.Importance = widget.HighImportance
+
 	shufflebutton := widget.NewButton(shufflelabel, func() {
-		rand.Shuffle(len(choices), func(i, j int) {
-			choices[i], choices[j] = choices[j], choices[i]
-			anaChecks[i], anaChecks[j] = anaChecks[j], anaChecks[i]
-		})
-		d.Refresh()
+		shuffled := make([]string, len(rl.Items))
+		copy(shuffled, rl.Items)
+		rand.Shuffle(len(shuffled), func(i, j int) { shuffled[i], shuffled[j] = shuffled[j], shuffled[i] })
+		rl.SetItems(shuffled)
 	})
-	dismissbutton := widget.NewButton(dismisslabel, func() {
-		d.Hide()
-	})
-	buttons := []fyne.CanvasObject{shufflebutton, dismissbutton, submitbutton}
-	d.SetButtons(buttons)
+
+	dismissbutton := widget.NewButton(dismisslabel, func() { d.Hide() })
+	d.SetButtons([]fyne.CanvasObject{shufflebutton, dismissbutton, submitbutton})
 	d.Show()
 }
 
