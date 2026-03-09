@@ -120,6 +120,23 @@ func main() {
 			return e.JSON(http.StatusOK, map[string]string{"status": "ok"})
 		}).Bind(apis.RequireAuth())
 
+		// GET /api/ext/share/:token — JSON API for importing a shared favorite (no auth)
+		se.Router.GET("/api/ext/share/{token}", func(e *core.RequestEvent) error {
+			token := e.Request.PathValue("token")
+			record, err := app.FindFirstRecordByFilter("favorites",
+				"share_token = {:token} && deleted = false",
+				map[string]any{"token": token},
+			)
+			if err != nil {
+				return apis.NewNotFoundError("share link not found", err)
+			}
+			return e.JSON(http.StatusOK, map[string]string{
+				"input":        record.GetString("input"),
+				"anagram":      record.GetString("anagram"),
+				"dictionaries": record.GetString("dictionaries"),
+			})
+		})
+
 		// GET /share/:token — public share page
 		se.Router.GET("/share/{token}", func(e *core.RequestEvent) error {
 			token := e.Request.PathValue("token")

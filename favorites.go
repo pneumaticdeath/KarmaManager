@@ -397,6 +397,57 @@ func (fd *FavoritesDisplay) updateListItem(id widget.ListItemID, obj fyne.Canvas
 	}
 }
 
+// ShowImportFromLinkDialog lets the user paste a share URL and imports the
+// referenced favorite into their local collection.
+func ShowImportFromLinkDialog(favs *FavoritesSlice, prefs fyne.Preferences, refresh func(), window fyne.Window) {
+	urlEntry := widget.NewEntry()
+	urlEntry.SetPlaceHolder("Paste share link here…")
+	// Pre-populate from clipboard when it looks like a share URL.
+	if cb := window.Clipboard().Content(); strings.Contains(cb, "/share/") {
+		urlEntry.SetText(cb)
+	}
+
+	items := []*widget.FormItem{widget.NewFormItem("Share link", urlEntry)}
+	dialog.ShowForm("Import from link", "Import", "Cancel", items, func(submitted bool) {
+		if !submitted {
+			return
+		}
+		go func() {
+			fav, err := FetchSharedFavorite(urlEntry.Text)
+			fyne.Do(func() {
+				if err != nil {
+					dialog.ShowError(err, window)
+					return
+				}
+				// Duplicate check.
+				normIn := Normalize(fav.Input)
+				normAn := Normalize(fav.Anagram)
+				for _, existing := range *favs {
+					if Normalize(existing.Input) == normIn && Normalize(existing.Anagram) == normAn {
+						dialog.ShowInformation("Already in favorites",
+							fmt.Sprintf("%q is already in your favorites.", UnmarkSpaces(fav.Anagram)), window)
+						return
+					}
+				}
+				// Confirm and save.
+				msg := fmt.Sprintf("Import \"%s\" → \"%s\"?", fav.Input, UnmarkSpaces(fav.Anagram))
+				dialog.ShowConfirm("Import favorite", msg, func(confirmed bool) {
+					if !confirmed {
+						return
+					}
+					*favs = append(*favs, fav)
+					refresh()
+					SaveFavorites(*favs, prefs)
+					ShowPopUpMessage("Imported!", time.Second, window)
+					if SyncSvc != nil && SyncSvc.IsAuthenticated() {
+						go SyncSvc.Push(fav)
+					}
+				}, window)
+			})
+		}()
+	}, window)
+}
+
 func NewFavoritesDisplay(list *FavoritesSlice, sendToMain func(string)) *FavoritesDisplay {
 	fd := &FavoritesDisplay{
 		baseList:   list,
@@ -412,8 +463,11 @@ func NewFavoritesDisplay(list *FavoritesSlice, sendToMain func(string)) *Favorit
 	)
 
 	preferencesButton := widget.NewButtonWithIcon("Animation Settings", theme.SettingsIcon(), Config.ShowPreferencesDialog)
+	importButton := widget.NewButtonWithIcon("Import", theme.DownloadIcon(), func() {
+		ShowImportFromLinkDialog(fd.baseList, AppPreferences, RebuildFavorites, MainWindow)
+	})
 	syncButton := widget.NewButtonWithIcon("Sync", theme.UploadIcon(), func() { ShowAccountDialog(MainWindow) })
-	buttons := container.New(layout.NewGridLayout(2), preferencesButton, syncButton)
+	buttons := container.New(layout.NewGridLayout(3), preferencesButton, importButton, syncButton)
 	fd.surface = container.NewBorder(buttons, nil, nil, nil, fd.list)
 	fd.ExtendBaseWidget(fd)
 	return fd

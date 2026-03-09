@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"strings"
 	"log"
 	"net/http"
 	"net/url"
@@ -776,4 +777,45 @@ func urlEncode(s string) string {
 		}
 	}
 	return string(result)
+}
+
+// FetchSharedFavorite resolves a public share URL (e.g. from the clipboard)
+// to a FavoriteAnagram. No authentication is required.
+func FetchSharedFavorite(shareURL string) (FavoriteAnagram, error) {
+	shareURL = strings.TrimSpace(shareURL)
+	idx := strings.LastIndex(shareURL, "/share/")
+	if idx < 0 {
+		return FavoriteAnagram{}, fmt.Errorf("not a valid share link")
+	}
+	token := strings.TrimSpace(shareURL[idx+len("/share/"):])
+	if token == "" {
+		return FavoriteAnagram{}, fmt.Errorf("not a valid share link")
+	}
+
+	resp, err := http.Get(syncBaseURL + "/api/ext/share/" + token)
+	if err != nil {
+		return FavoriteAnagram{}, err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode == http.StatusNotFound {
+		return FavoriteAnagram{}, fmt.Errorf("share link not found or expired")
+	}
+	if resp.StatusCode != http.StatusOK {
+		return FavoriteAnagram{}, fmt.Errorf("server returned %d", resp.StatusCode)
+	}
+
+	var result struct {
+		Input        string `json:"input"`
+		Anagram      string `json:"anagram"`
+		Dictionaries string `json:"dictionaries"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return FavoriteAnagram{}, err
+	}
+	return FavoriteAnagram{
+		Dictionaries: result.Dictionaries,
+		Input:        result.Input,
+		Anagram:      result.Anagram,
+		ID:           newUUID(),
+	}, nil
 }
