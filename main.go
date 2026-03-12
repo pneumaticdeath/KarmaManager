@@ -33,6 +33,71 @@ var AppPreferences fyne.Preferences
 var RebuildFavorites = func() {} // no-op until main() sets the real implementation
 var favorites FavoritesSlice
 
+// flowLayout arranges objects left-to-right, wrapping to the next row when
+// the available width is exceeded. Used for the dictionary checkboxes so they
+// fit in a single row on wide screens and wrap on narrow ones.
+type flowLayout struct {
+	lastWidth float32
+}
+
+func (f *flowLayout) computeHeight(objects []fyne.CanvasObject, width float32) (minW, totalH float32) {
+	pad := theme.Padding()
+	var x, rowHeight float32
+	for _, o := range objects {
+		if !o.Visible() {
+			continue
+		}
+		s := o.MinSize()
+		if s.Width > minW {
+			minW = s.Width
+		}
+		if x > 0 && x+s.Width > width {
+			x = 0
+			totalH += rowHeight + pad
+			rowHeight = 0
+		}
+		x += s.Width + pad
+		if s.Height > rowHeight {
+			rowHeight = s.Height
+		}
+	}
+	totalH += rowHeight
+	return
+}
+
+func (f *flowLayout) MinSize(objects []fyne.CanvasObject) fyne.Size {
+	w := f.lastWidth
+	if w <= 0 {
+		// No layout yet; assume single row.
+		w = 10000
+	}
+	minW, h := f.computeHeight(objects, w)
+	return fyne.NewSize(minW, h)
+}
+
+func (f *flowLayout) Layout(objects []fyne.CanvasObject, containerSize fyne.Size) {
+	f.lastWidth = containerSize.Width
+	var x, y, rowHeight float32
+	pad := theme.Padding()
+	for _, o := range objects {
+		if !o.Visible() {
+			continue
+		}
+		s := o.MinSize()
+		if x > 0 && x+s.Width > containerSize.Width {
+			x = 0
+			y += rowHeight + pad
+			rowHeight = 0
+		}
+		o.Resize(s)
+		o.Move(fyne.NewPos(x, y))
+		x += s.Width + pad
+		if s.Height > rowHeight {
+			rowHeight = s.Height
+		}
+	}
+}
+
 func ShowPrivateDictSettings(private *Dictionary, saveCallback func(),  window fyne.Window) {
 	wl := NewWordList(private.Words)
 	d := dialog.NewCustom("Private words", "submit", wl, window)
@@ -591,9 +656,9 @@ func main() {
 		SaveDictionarySelections(dicts, AppPreferences)
 	}
 
-	addedChecks := make([]fyne.CanvasObject, len(addedDicts)+2)
+	optionalChecks := make([]fyne.CanvasObject, len(addedDicts))
 	for i, ad := range addedDicts {
-		enabled := &ad.Enabled // copy a pointer to an address
+		enabled := &addedDicts[i].Enabled // pointer to the actual slice element
 		check := widget.NewCheck(ad.Name, func(checked bool) {
 			*enabled = checked
 			resultSet.RebuildDictionaries()
@@ -603,13 +668,13 @@ func main() {
 		ad.Enabled = false
 		for _, name := range remainingDicts {
 			if ad.Name == name {
-				// log.Printf("Enabling added dictionary %s\n", name)
+				addedDicts[i].Enabled = true
 				ad.Enabled = true
 				break
 			}
 		}
 		check.Checked = ad.Enabled
-		addedChecks[i] = check
+		optionalChecks[i] = check
 	}
 	privateEnabled := &privateDict.Enabled
 	privateCheck := widget.NewCheck(privateDict.Name, func(checked bool) {
@@ -619,12 +684,14 @@ func main() {
 		saveDictSelections()
 	})
 	privateCheck.Checked = privateDict.Enabled
-	addedChecks[len(addedDicts)] = privateCheck
 	privateDictSettingsButton := widget.NewButtonWithIcon("", theme.DocumentCreateIcon(), func() {
 		ShowPrivateDictSettings(privateDict, resultSet.DumpCache, MainWindow)
 	})
-	addedChecks[len(addedDicts)+1] = privateDictSettingsButton
-	addedDictsContainer := container.New(layout.NewHBoxLayout(), addedChecks...)
+	privateRow := container.New(layout.NewHBoxLayout(), privateCheck, privateDictSettingsButton)
+	allDictChecks := make([]fyne.CanvasObject, 0, len(optionalChecks)+1)
+	allDictChecks = append(allDictChecks, optionalChecks...)
+	allDictChecks = append(allDictChecks, privateRow)
+	addedDictsContainer := container.New(&flowLayout{}, allDictChecks...)
 
 	mainSelect := widget.NewSelect(mainDictNames, func(dictName string) {
 		for i, n := range mainDictNames {
