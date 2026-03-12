@@ -861,6 +861,7 @@ func main() {
 	findContent := container.NewBorder(controlBar, nil, nil, nil, mainDisplay)
 
 	var selectTab func(int)
+	var setInput func(string)
 
 	sendToMainTabFunc := func(input string) {
 		inputdata.Set(input)
@@ -891,6 +892,9 @@ func main() {
 		container.New(layout.NewHBoxLayout(), layout.NewSpacer(), widget.NewLabel("by Mitch Patenaude"), layout.NewSpacer()),
 		container.New(layout.NewHBoxLayout(), layout.NewSpacer(), widget.NewLabel(fmt.Sprintf("Version %s (build %d)", App.Metadata().Version, App.Metadata().Build)), layout.NewSpacer()),
 		container.New(layout.NewHBoxLayout(), layout.NewSpacer(), widget.NewLabel("with thanks to the 80's Mac shareware of the same name"), layout.NewSpacer()),
+		container.New(layout.NewHBoxLayout(), layout.NewSpacer(), widget.NewButton("Show Tutorial", func() {
+			ShowGuidedTour(selectTab, setInput, MainWindow)
+		}), layout.NewSpacer()),
 		layout.NewSpacer())
 
 	content := container.NewAppTabs(
@@ -918,5 +922,19 @@ func main() {
 	}
 
 	MainWindow.Resize(fyne.NewSize(800, 600))
+
+	setInput = func(s string) { inputdata.Set(s) }
+
+	if !AppPreferences.Bool(showGuidedTourKey) {
+		AppPreferences.SetBool(showGuidedTourKey, true)
+
+		defaultFav := FavoriteAnagram{"Standard dictionary", "Karma Manager", "anagram maker", newUUID()}
+		favorites = append(favorites, defaultFav)
+		SaveFavorites(favorites, AppPreferences)
+		RebuildFavorites()
+
+		ShowGuidedTour(selectTab, setInput, MainWindow)
+	}
+
 	MainWindow.ShowAndRun()
 }
