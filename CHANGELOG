@@ -1,3 +1,9 @@
+# Changed in v1.0.3
+* Enhanced guided tour: animated demo search, "Interesting words" step, and a seed favorite for new users
+* Sync auth tokens now refresh automatically; extended token lifetime to 90 days
+* Fixed sync loop caused by duplicate server client_ids from historical push bug
+* Dictionary checkboxes now wrap on narrow screens so the Private edit button is always reachable
+
 # Changed in v1.0.2
 * Import a shared favorite directly into your collection — tap Import in the Favorites tab and paste a share link
 
