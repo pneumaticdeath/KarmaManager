@@ -199,6 +199,52 @@ func (sc *SyncClient) token() string {
 	return sc.authToken
 }
 
+// refreshToken attempts to refresh the auth token via PocketBase's auth-refresh
+// endpoint. If the token is still within its refresh window, a new token is
+// returned and stored. If the token has fully expired, the user is signed out
+// so they are prompted to re-authenticate on next sync.
+func (sc *SyncClient) refreshToken() error {
+	tok := sc.token()
+	if tok == "" {
+		return fmt.Errorf("not authenticated")
+	}
+	req, err := http.NewRequest("POST", syncBaseURL+"/api/collections/users/auth-refresh", nil)
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Authorization", tok)
+	resp, err := sc.httpClient.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	data, _ := io.ReadAll(resp.Body)
+	if resp.StatusCode != http.StatusOK {
+		// Token is fully expired — sign out so the user is prompted to re-auth.
+		sc.SignOut()
+		return fmt.Errorf("token expired, signed out (%d): %s", resp.StatusCode, string(data))
+	}
+	var result struct {
+		Token  string `json:"token"`
+		Record struct {
+			ID    string `json:"id"`
+			Email string `json:"email"`
+		} `json:"record"`
+	}
+	if err := json.Unmarshal(data, &result); err != nil {
+		return err
+	}
+	sc.mu.Lock()
+	sc.authToken = result.Token
+	sc.userID = result.Record.ID
+	sc.userEmail = result.Record.Email
+	sc.mu.Unlock()
+	sc.prefs.SetString(prefSyncToken, result.Token)
+	sc.prefs.SetString(prefSyncUser, result.Record.ID)
+	sc.prefs.SetString(prefSyncEmail, result.Record.Email)
+	return nil
+}
+
 func (sc *SyncClient) doRequest(method, path string, body any) (*http.Response, error) {
 	var bodyReader io.Reader
 	if body != nil {
@@ -251,6 +297,9 @@ func (sc *SyncClient) fetchRecords(filter string) ([]pbFavorite, error) {
 func (sc *SyncClient) FullSync(favs *FavoritesSlice) error {
 	if !sc.IsAuthenticated() {
 		return fmt.Errorf("not authenticated")
+	}
+	if err := sc.refreshToken(); err != nil {
+		return fmt.Errorf("token refresh failed: %w", err)
 	}
 	sc.syncMu.Lock()
 	defer sc.syncMu.Unlock()
@@ -501,6 +550,9 @@ func (sc *SyncClient) Push(fav FavoriteAnagram) error {
 	if !sc.IsAuthenticated() {
 		return fmt.Errorf("not authenticated")
 	}
+	if err := sc.refreshToken(); err != nil {
+		return fmt.Errorf("token refresh failed: %w", err)
+	}
 	if fav.ID == "" {
 		fav.ID = newUUID()
 	}
@@ -557,6 +609,9 @@ func (sc *SyncClient) tombstoneByPBID(pbID string) error {
 func (sc *SyncClient) DeleteRemote(clientID string) error {
 	if !sc.IsAuthenticated() {
 		return nil
+	}
+	if err := sc.refreshToken(); err != nil {
+		return fmt.Errorf("token refresh failed: %w", err)
 	}
 	records, err := sc.fetchRecords("client_id='" + clientID + "'")
 	if err != nil || len(records) == 0 {

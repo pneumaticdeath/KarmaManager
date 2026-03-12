@@ -528,6 +528,11 @@ func main() {
 		go func() {
 			if err := SyncSvc.FullSync(&favorites); err != nil {
 				log.Println("Auto-sync failed:", err)
+				if !SyncSvc.IsAuthenticated() {
+					fyne.Do(func() {
+						ShowPopUpMessage("Sync session expired — please sign in again", 3*time.Second, MainWindow)
+					})
+				}
 			}
 		}()
 	}
@@ -797,7 +802,7 @@ func main() {
 							// log.Printf("Detected duplicate with \"%s\"\n", existing.Anagram)
 							dialog.ShowConfirm("Duplicate detected", fmt.Sprintf("Looks similar to \"%s\".  Add anyway?", existing.Anagram), func(addAnyway bool) {
 								if addAnyway {
-									ShowEditor("Add to favorites", text, func(editted string) {
+									ShowEditor("Drag to reorder, click to edit", text, func(editted string) {
 										newFav := FavoriteAnagram{resultSet.CombinedDictName(), strings.TrimSpace(input), editted, newUUID()}
 										favorites = append(favorites, newFav)
 										RebuildFavorites()
@@ -814,7 +819,7 @@ func main() {
 							return
 						}
 					}
-					ShowEditor("Add to favorites", text, func(editted string) {
+					ShowEditor("Drag to reorder, click to edit", text, func(editted string) {
 						// log.Println("No duplicate detected")
 						newFav := FavoriteAnagram{resultSet.CombinedDictName(), strings.TrimSpace(input), editted, newUUID()}
 						favorites = append(favorites, newFav)

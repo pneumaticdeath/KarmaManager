@@ -202,12 +202,20 @@ func ensureUsersOTP(app *pocketbase.PocketBase) error {
 	if err != nil {
 		return err
 	}
-	if col.OTP.Enabled && col.OTP.Length == 6 && col.OTP.Duration == 300 {
-		return nil // already correct
+	needsSave := false
+	if !col.OTP.Enabled || col.OTP.Length != 6 || col.OTP.Duration != 300 {
+		col.OTP.Enabled = true
+		col.OTP.Duration = 300 // 5 minutes
+		col.OTP.Length = 6
+		needsSave = true
 	}
-	col.OTP.Enabled = true
-	col.OTP.Duration = 300 // 5 minutes
-	col.OTP.Length = 6
+	if col.AuthToken.Duration != 7776000 {
+		col.AuthToken.Duration = 7776000 // 90 days
+		needsSave = true
+	}
+	if !needsSave {
+		return nil
+	}
 	return app.Save(col)
 }
 
