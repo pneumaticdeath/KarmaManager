@@ -346,20 +346,57 @@ func (sc *SyncClient) FullSync(favs *FavoritesSlice) error {
 	}
 	*favs = filtered
 
+	log.Printf("FullSync: fetched %d server records, %d tombstones, %d local favs",
+		len(serverRecords), len(tombstones), len(*favs))
+
+	// --- Fix duplicate client_ids on server ---
+	// Historical push bugs could create multiple server records with the same
+	// client_id but different content. Assign a new UUID to the duplicate so
+	// each record has a unique client_id. Also update any local favorite that
+	// was pulled with the old duplicate client_id.
+	seenClientID := make(map[string]int, len(serverRecords)) // client_id → index in serverRecords
+	for i, r := range serverRecords {
+		if _, exists := seenClientID[r.ClientID]; exists {
+			newID := newUUID()
+			log.Printf("FullSync: fixing duplicate server client_id %q → %q for %q/%q (PB %s)",
+				r.ClientID, newID, r.Input, r.Anagram, r.ID)
+			// Update any local favorite that was pulled with this duplicate client_id
+			// and matches this record's content.
+			for j, fav := range *favs {
+				if fav.ID == r.ClientID &&
+					Normalize(fav.Input) == Normalize(r.Input) &&
+					Normalize(fav.Anagram) == Normalize(r.Anagram) {
+					(*favs)[j].ID = newID
+					break
+				}
+			}
+			// Patch server record with new client_id.
+			go func(pbID, cid string) {
+				resp, err := sc.doRequest("PATCH",
+					"/api/collections/favorites/records/"+pbID,
+					map[string]any{"client_id": cid})
+				if err != nil {
+					log.Printf("FullSync: patch client_id failed for %s: %v", pbID, err)
+					return
+				}
+				resp.Body.Close()
+			}(r.ID, newID)
+			serverRecords[i].ClientID = newID
+		}
+		seenClientID[serverRecords[i].ClientID] = i
+	}
+
 	// --- Server-side dedup ---
 	// For each content key, elect one canonical server record. Prefer records
 	// whose client_id is already referenced locally (avoids ID churn).
-	// Tombstone all non-canonical duplicates immediately.
+	// Hard-delete all non-canonical duplicates.
 	localByID := make(map[string]bool, len(*favs))
 	for _, fav := range *favs {
 		localByID[fav.ID] = true
 	}
 
-	log.Printf("FullSync: fetched %d server records, %d tombstones, %d local favs",
-		len(serverRecords), len(tombstones), len(*favs))
-
 	canonical := make(map[contentKey]pbFavorite, len(serverRecords))
-	var dedupIDs []string // PB record IDs to tombstone
+	var dedupIDs []string // PB record IDs to hard-delete
 	for _, r := range serverRecords {
 		k := contentKey{Normalize(r.Input), Normalize(r.Anagram)}
 		existing, exists := canonical[k]
@@ -368,8 +405,6 @@ func (sc *SyncClient) FullSync(favs *FavoritesSlice) error {
 			continue
 		}
 		// Prefer the record already known locally; tombstone the other.
-		// Use tombstoneByPBID directly since we have the PB record ID —
-		// no need for an extra GET to resolve client_id → PB ID.
 		if localByID[r.ClientID] && !localByID[existing.ClientID] {
 			dedupIDs = append(dedupIDs, existing.ID)
 			canonical[k] = r
@@ -382,8 +417,6 @@ func (sc *SyncClient) FullSync(favs *FavoritesSlice) error {
 		len(canonical), len(dedupIDs))
 
 	// Hard-delete all server-side duplicates and wait for completion.
-	// This runs concurrently (bounded by httpSem) but is awaited so the server
-	// is actually cleaned up before this FullSync returns.
 	if len(dedupIDs) > 0 {
 		var dedupWg sync.WaitGroup
 		dedupCh := make(chan string)
