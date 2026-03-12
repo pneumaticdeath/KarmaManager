@@ -5,7 +5,7 @@ source .env
 case "$1" in 
 	android)
 		fyne package --target android
-		fyne install --os android
+		fyne install --os android && echo "Installed on android!"
 		;;
 	ios)
 		fyne release --target ios --certificate "${IOSDEVCERT}" --profile "${IOSDEVPROF}"
@@ -18,7 +18,7 @@ case "$1" in
 		;;
 	iossimulator)
 		fyne release --target ios --certificate "${IOSDEVCERT}" --profile "${IOSDEVPROF}"
-		fyne install --os iossimulator
+		fyne install --os iossimulator && echo "Installed on iOS Simulator"
 		;;
 	*)
 		echo Only android, ios and iossimulator supported currently
