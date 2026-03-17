@@ -316,6 +316,7 @@ func (ad *AnimationDisplay) startAnimation(input string, anagrams []string, disp
 		if ad.CaptureCallback != nil {
 			ad.CaptureCallback()
 		}
+		// time.Sleep(Config.PauseDuration())
 
 		for ad.running {
 			moveGlyphs(
