@@ -10,6 +10,11 @@
         "enabled": true
     },
     {
+        "description": "Acronyms",
+        "file": "acronyms.json",
+        "enabled": false
+    },
+    {
         "description": "Offensive",
         "file": "offensive.json",
         "enabled": false

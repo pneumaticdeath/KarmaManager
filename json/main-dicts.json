@@ -1,14 +1,18 @@
 [
     {
-        "description": "Full dictionary",
-        "file": "full-dict.json"
+        "description": "US dictionary",
+        "file": "en_US.json"
     },
     {
-        "description": "Standard dictionary",
-        "file": "standard-dict.json"
+        "description": "Australian dictionary",
+        "file": "en_AU.json"
     },
     {
-        "description": "Basic words only",
-        "file": "basic-dict.json"
+        "description": "Canadian dictionary",
+        "file": "en_CA.json"
+    },
+    {
+        "description": "UK dictionary",
+        "file": "en_GB-ise.json"
     }
 ]
