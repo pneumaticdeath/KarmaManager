@@ -6,3 +6,4 @@ wasm
 .DS_Store
 preferences.json
 *.list
+.venv-upload/
