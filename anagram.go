@@ -24,12 +24,20 @@ func NewAnnotatedDict(d *Dictionary) annotatedDict {
 	return ad
 }
 
+// GetAnnotatedDict returns a cached annotated dict, building it on first call.
+func GetAnnotatedDict(d *Dictionary) annotatedDict {
+	if d.annotated == nil {
+		d.annotated = NewAnnotatedDict(d)
+	}
+	return d.annotated
+}
+
 func FilterAnnotatedDict(input string, d *Dictionary) (annotatedDict, *RuneCluster) {
 	if d == nil {
 		log.Panicln("Got null dictionary for input ", input)
 	}
 
-	ad := NewAnnotatedDict(d)
+	ad := GetAnnotatedDict(d)
 
 	rc := NewRuneCluster(input)
 

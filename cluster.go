@@ -5,21 +5,31 @@ import (
 	"unicode"
 )
 
-type RuneCluster map[rune]int
+// RuneCluster is a fixed-size array of letter frequencies (a-z).
+// Using [26]int instead of map[rune]int avoids map allocation overhead
+// and is cache-friendly for the tight loops in anagram search.
+type RuneCluster [26]int
+
+func runeIndex(r rune) int {
+	return int(unicode.ToLower(r)) - 'a'
+}
 
 func NewRuneCluster(input string) *RuneCluster {
-	rc := make(RuneCluster)
-	for i := 0; i < len(input); i++ {
-		r := rune(input[i])
+	var rc RuneCluster
+	for _, r := range input {
 		if unicode.IsLetter(r) {
-			rc[unicode.ToLower(r)] += 1
+			rc[runeIndex(r)]++
 		}
 	}
 	return &rc
 }
 
 func (rc *RuneCluster) Count(r rune) int {
-	return (*rc)[unicode.ToLower(r)]
+	idx := runeIndex(r)
+	if idx < 0 || idx >= 26 {
+		return 0
+	}
+	return rc[idx]
 }
 
 func (rc *RuneCluster) Has(r rune) bool {
@@ -27,8 +37,8 @@ func (rc *RuneCluster) Has(r rune) bool {
 }
 
 func (rc *RuneCluster) SubSetOf(other *RuneCluster) bool {
-	for r, c := range *rc {
-		if c > other.Count(r) {
+	for i := 0; i < 26; i++ {
+		if rc[i] > other[i] {
 			return false
 		}
 	}
@@ -36,39 +46,32 @@ func (rc *RuneCluster) SubSetOf(other *RuneCluster) bool {
 }
 
 func (rc *RuneCluster) Equals(other *RuneCluster) bool {
-	if len(*rc) != len(*other) {
-		return false
-	}
-
-	for r, c := range *rc {
-		if c != other.Count(r) {
-			return false
-		}
-	}
-
-	return true
+	return *rc == *other
 }
 
 func (rc *RuneCluster) Minus(other *RuneCluster) (*RuneCluster, error) {
-	result := NewRuneCluster("")
-	for r, c := range *rc {
-		oc := other.Count(r)
-		if c > oc {
-			(*result)[r] = c - oc
-		} else if c < oc {
+	var result RuneCluster
+	for i := 0; i < 26; i++ {
+		diff := rc[i] - other[i]
+		if diff < 0 {
 			return nil, errors.New("Not a superset of other cluster")
 		}
+		result[i] = diff
 	}
-
-	return result, nil
+	return &result, nil
 }
 
 func (rc *RuneCluster) Add(other *RuneCluster) {
-	for r, c := range *other {
-		(*rc)[r] += c
+	for i := 0; i < 26; i++ {
+		rc[i] += other[i]
 	}
 }
 
 func (rc *RuneCluster) IsEmpty() bool {
-	return len(*rc) == 0
+	for i := 0; i < 26; i++ {
+		if rc[i] != 0 {
+			return false
+		}
+	}
+	return true
 }

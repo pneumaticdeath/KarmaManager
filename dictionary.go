@@ -15,9 +15,10 @@ var jsonFS embed.FS
 const nonSeperable = false
 
 type Dictionary struct {
-	Name    string
-	Words   []string
-	Enabled bool
+	Name      string
+	Words     []string
+	Enabled   bool
+	annotated annotatedDict // cached RuneClusters, built once
 }
 
 type MainDictionaryConfig struct {
@@ -39,7 +40,7 @@ const (
 )
 
 func NewDictionary(name string) *Dictionary {
-	d := &Dictionary{name, make([]string, 50), true}
+	d := &Dictionary{Name: name, Words: make([]string, 50), Enabled: true}
 	return d
 }
 
