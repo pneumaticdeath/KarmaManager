@@ -80,6 +80,10 @@ cp "$DEVICE_APP/PkgInfo"    "$SIM_APP/"
 cp "$DEVICE_APP/Assets.car" "$SIM_APP/"
 [ -d "$DEVICE_APP/assets" ] && cp -r "$DEVICE_APP/assets" "$SIM_APP/" || true
 
+# Step 5: Inject custom Info.plist keys that Fyne doesn't support
+/usr/libexec/PlistBuddy -c "Add :NSPhotoLibraryAddUsageDescription string 'Save animations to your photo library'" "$SIM_APP/Info.plist" 2>/dev/null \
+    || /usr/libexec/PlistBuddy -c "Set :NSPhotoLibraryAddUsageDescription 'Save animations to your photo library'" "$SIM_APP/Info.plist"
+
 echo "Done: $SIM_APP"
 echo ""
 echo "Install:  xcrun simctl install booted $SIM_APP"
