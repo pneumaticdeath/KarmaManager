@@ -9,6 +9,24 @@ case "$1" in
 		;;
 	ios)
 		fyne release --target ios --certificate "${IOSDEVCERT}" --profile "${IOSDEVPROF}"
+
+		# Inject custom Info.plist keys (same as release_mobile.sh)
+		echo "Injecting custom Info.plist keys into IPA..."
+		IPA_DIR=$(mktemp -d)
+		unzip -q KarmaManager.ipa -d "$IPA_DIR"
+		APP_DIR=$(find "$IPA_DIR/Payload" -name "*.app" -maxdepth 1)
+		PLIST="$APP_DIR/Info.plist"
+		/usr/libexec/PlistBuddy -c "Add :NSPhotoLibraryAddUsageDescription string 'Save animations to your photo library'" "$PLIST" 2>/dev/null \
+			|| /usr/libexec/PlistBuddy -c "Set :NSPhotoLibraryAddUsageDescription 'Save animations to your photo library'" "$PLIST"
+		ENTITLEMENTS=$(mktemp /tmp/entitlements.XXXXXX.plist)
+		codesign -d --entitlements "$ENTITLEMENTS" --xml "$APP_DIR" 2>/dev/null || true
+		codesign --force --sign "${IOSDEVCERT}" --entitlements "$ENTITLEMENTS" --preserve-metadata=identifier,flags "$APP_DIR"
+		rm -f "$ENTITLEMENTS"
+		rm -f KarmaManager.ipa
+		(cd "$IPA_DIR" && zip -qr - Payload) > KarmaManager.ipa
+		rm -rf "$IPA_DIR"
+		echo "Done — IPA updated."
+
 		DEVICE=$(xcrun devicectl list devices 2>&1 | awk 'NR>2 && (/available/ || /connected/) && /iPhone/ {print $3; exit}')
 		if [ -z "$DEVICE" ]; then
 			echo "No connected iPhone found"
