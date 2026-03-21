@@ -15,6 +15,11 @@
         "enabled": false
     },
     {
+	"description": "Abbreviations",
+	"file": "abbreviations.json",
+	"enabled": false
+    },
+    {
         "description": "Offensive",
         "file": "offensive.json",
         "enabled": false
