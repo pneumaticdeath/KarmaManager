@@ -8,10 +8,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"strings"
 	"log"
 	"net/http"
 	"net/url"
+	"strings"
 	"sync"
 	"time"
 
@@ -24,12 +24,12 @@ const syncBaseURL = "https://karmamanager-sync.fly.dev"
 var SyncSvc *SyncClient
 
 type SyncClient struct {
-	mu        sync.Mutex
-	syncMu    sync.Mutex // serializes FullSync — prevents concurrent runs
-	authToken string
-	userID    string
-	userEmail string
-	prefs     fyne.Preferences
+	mu         sync.Mutex
+	syncMu     sync.Mutex // serializes FullSync — prevents concurrent runs
+	authToken  string
+	userID     string
+	userEmail  string
+	prefs      fyne.Preferences
 	httpClient *http.Client
 	httpSem    chan struct{} // limits concurrent in-flight HTTP requests
 }
@@ -178,13 +178,13 @@ func (sc *SyncClient) DeleteAccount() error {
 
 // pbFavorite is the JSON shape returned by PocketBase for a favorites record.
 type pbFavorite struct {
-	ID          string `json:"id"`
-	ClientID    string `json:"client_id"`
-	Dicts       string `json:"dictionaries"`
-	Input       string `json:"input"`
-	Anagram     string `json:"anagram"`
-	ShareToken  string `json:"share_token"`
-	Deleted     bool   `json:"deleted"`
+	ID         string `json:"id"`
+	ClientID   string `json:"client_id"`
+	Dicts      string `json:"dictionaries"`
+	Input      string `json:"input"`
+	Anagram    string `json:"anagram"`
+	ShareToken string `json:"share_token"`
+	Deleted    bool   `json:"deleted"`
 }
 
 type pbListResult struct {

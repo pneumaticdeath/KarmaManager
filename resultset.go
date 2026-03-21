@@ -172,7 +172,6 @@ func (rs *ResultSet) DumpCache() {
 	rs.setState(rs.state.input, rs.state.included, rs.state.excluded, rs.state.combinedDictName)
 }
 
-
 func (rs *ResultSet) Abort() {
 	if rs.inFetch {
 		log.Println("Aborting in-process FetchTo()")

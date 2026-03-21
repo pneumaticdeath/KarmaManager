@@ -26,7 +26,6 @@ import (
 const oauthRedirectURI = "https://karmamanager-sync.fly.dev/oauth/callback"
 
 var searchtimeout time.Duration = time.Second
-var searchlimit int = 100000
 var MainWindow fyne.Window
 var Icon fyne.Resource
 var AppPreferences fyne.Preferences
@@ -98,7 +97,7 @@ func (f *flowLayout) Layout(objects []fyne.CanvasObject, containerSize fyne.Size
 	}
 }
 
-func ShowPrivateDictSettings(private *Dictionary, saveCallback func(),  window fyne.Window) {
+func ShowPrivateDictSettings(private *Dictionary, saveCallback func(), window fyne.Window) {
 	wl := NewWordList(private.Words)
 	d := dialog.NewCustom("Private words", "submit", wl, window)
 	d.Resize(fyne.NewSize(300, 500))
@@ -277,14 +276,117 @@ func ShowMultiPicker(title, submitlabel, dismisslabel, shufflelabel string, choi
 	d.Show()
 }
 
-func ShowInterestingWordsList(rs *ResultSet, n int, include func(string), exclude func(string), window fyne.Window) {
-	// fmt.Printf("Trying to get item at %d\n", searchlimit)
-	rs.GetAt(searchlimit - 10) // just to get a little bit of data to work with
-	// fmt.Println("Found it")
-	topN := rs.TopNWords(n)
+const interestingWordCap = 10000
+const interestingSearchLimit = 100000
+
+// analyzeInterestingWords examines anagram results to find word frequencies.
+// It runs its own FindAnagrams searches using the ResultSet's dictionary.
+// When any first word exceeds interestingWordCap, the search is abandoned and
+// restarted with that word excluded from the dictionary. All other first words
+// seen in that run are also excluded on restart to prevent double-counting.
+// Stops after interestingSearchLimit total results across all runs.
+func analyzeInterestingWords(rs *ResultSet, progress func(int, int)) (map[string]int, map[string]bool, int) {
+	wordCount := make(map[string]int)
+	capped := make(map[string]bool)
+	totalResults := 0
+	normalizedInput := Normalize(rs.state.input)
+
+	// Build set of included words so we can skip them when finding
+	// the "leading word" for capping. Included phrases are always the
+	// prefix of every result, so capping on them would be wrong.
+	includeWords := make(map[string]bool)
+	for _, phrase := range rs.state.included {
+		for _, w := range strings.Fields(phrase) {
+			includeWords[strings.TrimSpace(w)] = true
+		}
+	}
+
+	localExcludes := make([]string, len(rs.state.excluded))
+	copy(localExcludes, rs.state.excluded)
+
+	for {
+		dict := MergeDictionaries(localExcludes, rs.state.combinedDict)
+		ch := FindAnagrams(rs.state.input, rs.state.included, dict)
+
+		leadingWordCount := make(map[string]int)
+		hitCap := false
+
+		for result := range ch {
+			if Normalize(UnmarkSpaces(result)) == normalizedInput {
+				continue
+			}
+
+			words := strings.Split(result, " ")
+
+			// Find the first word that isn't part of the include phrases
+			leadingWord := ""
+			for _, w := range words {
+				if w != "" && !includeWords[w] {
+					leadingWord = w
+					break
+				}
+			}
+
+			if leadingWord != "" {
+				leadingWordCount[leadingWord]++
+			}
+			totalResults++
+
+			for _, word := range words {
+				if word != "" {
+					wordCount[word]++
+				}
+			}
+
+			if progress != nil && totalResults%100 == 0 {
+				progress(totalResults, interestingSearchLimit)
+			}
+
+			if leadingWord != "" && leadingWordCount[leadingWord] >= interestingWordCap {
+				log.Printf("Interesting words: capping '%s' at %d results, restarting", leadingWord, interestingWordCap)
+				capped[leadingWord] = true
+				// Exclude all leading words seen this run to prevent double-counting
+				for lw := range leadingWordCount {
+					localExcludes = append(localExcludes, lw)
+				}
+				hitCap = true
+				break // abandon this channel, restart with words excluded
+			}
+
+			if totalResults >= interestingSearchLimit {
+				log.Printf("Interesting words: hit overall limit of %d results", interestingSearchLimit)
+				break
+			}
+		}
+
+		if !hitCap || totalResults >= interestingSearchLimit {
+			break
+		}
+	}
+
+	if progress != nil {
+		progress(totalResults, interestingSearchLimit)
+	}
+
+	return wordCount, capped, totalResults
+}
+
+func ShowInterestingWordsList(rs *ResultSet, n int, progress func(int, int), include func(string), exclude func(string), window fyne.Window) {
+	wordCount, capped, totalResults := analyzeInterestingWords(rs, progress)
+
+	// Build sorted counts
+	words := make(Counts, 0, len(wordCount))
+	for w, c := range wordCount {
+		words = append(words, WordCount{w, c, len(w) * len(w) * c})
+	}
+	sort.Sort(words)
+	if len(words) > n {
+		words = words[:n]
+	}
+
 	var closeDialog func()
 	topList := widget.NewList(func() int {
-		return len(topN)
+		return len(words)
 	}, func() fyne.CanvasObject {
 		return NewTapLabel("TopN")
 	}, func(id widget.ListItemID, obj fyne.CanvasObject) {
@@ -292,14 +394,18 @@ func ShowInterestingWordsList(rs *ResultSet, n int, include func(string), exclud
 		if !ok {
 			return
 		}
-		label.Label.Text = fmt.Sprintf("%s %d", UnmarkSpaces(topN[id].Word), topN[id].Count)
+		countStr := fmt.Sprintf("%d", words[id].Count)
+		if capped[words[id].Word] {
+			countStr = fmt.Sprintf("%d+", interestingWordCap)
+		}
+		label.Label.Text = fmt.Sprintf("%s %s", UnmarkSpaces(words[id].Word), countStr)
 		label.OnTapped = func(pe *fyne.PointEvent) {
 			includeMI := fyne.NewMenuItem("Include", func() {
-				include(topN[id].Word)
+				include(words[id].Word)
 				closeDialog()
 			})
 			excludeMI := fyne.NewMenuItem("Exclude", func() {
-				exclude(topN[id].Word)
+				exclude(words[id].Word)
 				closeDialog()
 			})
 			pumenu := fyne.NewMenu("Pop up", includeMI, excludeMI)
@@ -308,7 +414,7 @@ func ShowInterestingWordsList(rs *ResultSet, n int, include func(string), exclud
 
 		label.Refresh()
 	})
-	d := dialog.NewCustom(fmt.Sprintf("Interesting words in %d results", rs.Count()), "dismiss", topList, window)
+	d := dialog.NewCustom(fmt.Sprintf("Interesting words in %d results", totalResults), "dismiss", topList, window)
 	d.Resize(fyne.NewSize(400, 400))
 	closeDialog = func() {
 		fyne.Do(d.Hide)
@@ -831,7 +937,7 @@ func main() {
 
 	interestingButton.OnTapped = func() {
 		go func() {
-			ShowInterestingWordsList(resultSet, 1000, includeFunc, excludeFunc, MainWindow)
+			ShowInterestingWordsList(resultSet, 1000, pbCallback, includeFunc, excludeFunc, MainWindow)
 		}()
 	}
 	exclusionlabel := container.New(layout.NewHBoxLayout(), widget.NewLabel("Exclude"), exclusionaddbutton, exclusionClearButton)
