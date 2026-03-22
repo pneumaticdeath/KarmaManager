@@ -150,13 +150,23 @@ func findTuples(current string, target *RuneCluster, dict annotatedDict, output 
 
 	trials += 1
 
-	totalCounts := NewRuneCluster("")
-	for _, dp := range dict {
-		totalCounts.Add(dp.cluster)
+	if len(dict) == 0 {
+		return
 	}
-	if len(dict) == 0 || !target.SubSetOf(totalCounts) { // Then this branch can't yield results
+
+	// Build suffix-sum array: suffixCounts[i] holds the combined rune counts
+	// for dict[i:]. This lets us check feasibility at each loop iteration in
+	// O(26) instead of rebuilding from scratch in O(n*26).
+	suffixCounts := make([]RuneCluster, len(dict))
+	suffixCounts[len(dict)-1] = *dict[len(dict)-1].cluster
+	for i := len(dict) - 2; i >= 0; i-- {
+		suffixCounts[i] = suffixCounts[i+1]
+		suffixCounts[i].Add(dict[i].cluster)
+	}
+
+	// Check if the full dictionary can cover the target at all
+	if !target.SubSetOf(&suffixCounts[0]) {
 		if len(dict) >= 10 {
-			// log.Printf("Pruning significant impossible branch \"%s\" with %d words left after %d tivial prunes\n", current, len(dict), pruneCount)
 			pruneCount = 0
 		} else {
 			pruneCount += 1
@@ -165,6 +175,11 @@ func findTuples(current string, target *RuneCluster, dict annotatedDict, output 
 	}
 
 	for index, dp := range dict {
+		// Check if dict[index:] can still cover the target
+		if !target.SubSetOf(&suffixCounts[index]) {
+			break // remaining words can't help, and they only get smaller
+		}
+
 		var trial string
 		if current == "" {
 			trial = dp.Word
