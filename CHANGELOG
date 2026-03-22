@@ -1,3 +1,11 @@
+# Changed in v1.0.5
+* Anagram search performance improvements: array-based letter matching, cached dictionaries, and suffix-sum pruning
+* "Interesting words" now caps dominant first words at 10,000 and restarts, giving a broader view of results
+* iOS share sheet now shows "Save to Photos" for GIF and video exports
+* Re-enabled pause at start of animation
+* Cleaned dictionaries: removed abbreviations, short non-words, and misplaced place names
+* Added Google Play upload automation
+
 # Changed in v1.0.3
 * Enhanced guided tour: animated demo search, "Interesting words" step, and a seed favorite for new users
 * Sync auth tokens now refresh automatically; extended token lifetime to 90 days
