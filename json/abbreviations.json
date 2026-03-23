@@ -7,6 +7,8 @@
 "hdqrs",
 "hgwy",
 "hwy",
+"kg",
+"km",
 "mfrs",
 "phys",
 "pkwy",
@@ -18,5 +20,7 @@
 "tnpk",
 "ttys",
 "wkly",
+"yd",
+"yr",
 "yrs"
 ]
