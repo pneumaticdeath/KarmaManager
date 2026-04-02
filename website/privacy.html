@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Privacy Policy — Karma Manager</title>
+    <meta name="description" content="Privacy policy for Karma Manager, the anagram maker app.">
+    <link rel="icon" type="image/png" href="images/icon.png">
+    <style>
+        :root {
+            --purple: #7c4dff;
+            --bg: #fafafa;
+            --text: #1a1a2e;
+            --text-muted: #555;
+            --card-bg: #fff;
+            --card-shadow: 0 2px 12px rgba(0,0,0,0.08);
+        }
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --bg: #1a1a2e;
+                --text: #e8e8f0;
+                --text-muted: #aaa;
+                --card-bg: #242440;
+                --card-shadow: 0 2px 12px rgba(0,0,0,0.3);
+            }
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            color: var(--text);
+            background: var(--bg);
+            line-height: 1.7;
+        }
+        a { color: var(--purple); text-decoration: none; }
+        a:hover { text-decoration: underline; }
+        nav {
+            position: sticky;
+            top: 0;
+            background: var(--card-bg);
+            box-shadow: var(--card-shadow);
+            z-index: 100;
+            padding: 0.75rem 1.5rem;
+            display: flex;
+            align-items: center;
+        }
+        nav .logo {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-weight: 700;
+            font-size: 1.1rem;
+            color: var(--text);
+        }
+        nav .logo img { width: 32px; height: 32px; border-radius: 6px; }
+        .content {
+            max-width: 720px;
+            margin: 0 auto;
+            padding: 3rem 1.5rem;
+        }
+        h1 {
+            font-size: 2rem;
+            margin-bottom: 0.5rem;
+        }
+        .last-updated {
+            color: var(--text-muted);
+            font-size: 0.9rem;
+            margin-bottom: 2rem;
+        }
+        h2 {
+            font-size: 1.3rem;
+            margin-top: 2rem;
+            margin-bottom: 0.5rem;
+        }
+        p, ul { margin-bottom: 1rem; }
+        ul { padding-left: 1.5rem; }
+        li { margin-bottom: 0.35rem; }
+        footer {
+            text-align: center;
+            padding: 2rem 1.5rem;
+            color: var(--text-muted);
+            font-size: 0.9rem;
+            border-top: 1px solid rgba(128,128,128,0.2);
+        }
+    </style>
+</head>
+<body>
+
+<nav>
+    <a href="index.html" class="logo">
+        <img src="images/icon.png" alt="Karma Manager icon">
+        <span>Karma Manager</span>
+    </a>
+</nav>
+
+<div class="content">
+    <h1>Privacy Policy</h1>
+    <p class="last-updated">Last updated: March 29, 2026</p>
+
+    <p>
+        Karma Manager ("the app") is developed by Mitch Patenaude. This policy explains
+        what data the app collects, how it is used, and your choices.
+    </p>
+
+    <h2>Data that stays on your device</h2>
+    <p>
+        The core functionality of Karma Manager runs entirely on your device. Your search
+        queries, results, dictionary selections, animation settings, and private word lists
+        are stored locally and are never sent to any server unless you explicitly choose to
+        use the optional sync feature described below.
+    </p>
+
+    <h2>Optional account and sync</h2>
+    <p>
+        You may create a free account to sync your saved favorites across devices. If you
+        do, the following data is transmitted to and stored on our server:
+    </p>
+    <ul>
+        <li>Your email address (used for authentication)</li>
+        <li>Your saved favorite anagrams (input phrase, anagram text, and dictionary selection)</li>
+    </ul>
+    <p>
+        Sync data is stored on servers operated by <a href="https://fly.io">Fly.io</a> and
+        is associated with your account. You can delete your account and all associated data
+        at any time from within the app.
+    </p>
+
+    <h2>Share links</h2>
+    <p>
+        When you generate a share link for a favorite anagram, the anagram's content
+        (input phrase, anagram text, and dictionary) is stored on our server and made
+        accessible via a public URL. You can remove a share link at any time from within
+        the app.
+    </p>
+
+    <h2>Sign-in providers</h2>
+    <p>
+        If you sign in with Google or Apple, authentication is handled by those providers.
+        We receive only your email address and a unique identifier. We do not receive or
+        store your password.
+    </p>
+
+    <h2>Photo library access</h2>
+    <p>
+        On iOS, the app may request permission to save exported GIF or video animations to
+        your photo library. This access is used only when you explicitly choose to save a
+        file. No photos are read or uploaded.
+    </p>
+
+    <h2>Analytics and tracking</h2>
+    <p>
+        Karma Manager does not include any analytics SDKs, advertising frameworks, or
+        third-party tracking. We do not collect usage statistics, crash reports, or
+        device information.
+    </p>
+
+    <h2>Children's privacy</h2>
+    <p>
+        The app does not knowingly collect personal information from children under 13.
+        The optional account feature requires an email address; if you believe a child has
+        created an account, please contact us to have it removed.
+    </p>
+
+    <h2>Changes to this policy</h2>
+    <p>
+        If this policy is updated, the revised version will be posted on this page with an
+        updated date. Continued use of the app after changes constitutes acceptance.
+    </p>
+
+    <h2>Contact</h2>
+    <p>
+        If you have questions about this privacy policy, contact
+        <a href="mailto:support@karma-manager.com">support@karma-manager.com</a>.
+    </p>
+</div>
+
+<footer>
+    <p>&copy; 2025, 2026 Mitch Patenaude. All rights reserved.</p>
+</footer>
+
+</body>
+</html>

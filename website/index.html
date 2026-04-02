@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Karma Manager — The Anagram Maker</title>
+    <meta name="description" content="Karma Manager finds multi-word anagrams of any phrase. Available on iOS, Android, macOS, and the web.">
+    <link rel="icon" type="image/png" href="images/icon.png">
+    <style>
+        :root {
+            --purple: #7c4dff;
+            --purple-light: #b47cff;
+            --purple-dark: #5c35cc;
+            --bg: #fafafa;
+            --text: #1a1a2e;
+            --text-muted: #555;
+            --card-bg: #fff;
+            --card-shadow: 0 2px 12px rgba(0,0,0,0.08);
+            --section-alt: #f0ecf8;
+        }
+
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --bg: #1a1a2e;
+                --text: #e8e8f0;
+                --text-muted: #aaa;
+                --card-bg: #242440;
+                --card-shadow: 0 2px 12px rgba(0,0,0,0.3);
+                --section-alt: #1e1e35;
+            }
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            color: var(--text);
+            background: var(--bg);
+            line-height: 1.6;
+        }
+
+        a { color: var(--purple); text-decoration: none; }
+        a:hover { text-decoration: underline; }
+
+        /* Navigation */
+        nav {
+            position: sticky;
+            top: 0;
+            background: var(--card-bg);
+            box-shadow: var(--card-shadow);
+            z-index: 100;
+            padding: 0.75rem 1.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        nav .logo {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-weight: 700;
+            font-size: 1.1rem;
+            color: var(--text);
+        }
+        nav .logo img { width: 32px; height: 32px; border-radius: 6px; }
+        nav ul {
+            list-style: none;
+            display: flex;
+            gap: 1.5rem;
+        }
+        nav ul a {
+            color: var(--text-muted);
+            font-size: 0.95rem;
+            font-weight: 500;
+        }
+        nav ul a:hover { color: var(--purple); text-decoration: none; }
+
+        /* Hero */
+        .hero {
+            text-align: center;
+            padding: 5rem 1.5rem 4rem;
+            background: linear-gradient(135deg, var(--purple) 0%, var(--purple-light) 100%);
+            color: #fff;
+        }
+        .hero img.app-icon {
+            width: 120px;
+            height: 120px;
+            border-radius: 24px;
+            box-shadow: 0 4px 24px rgba(0,0,0,0.2);
+            margin-bottom: 1.5rem;
+        }
+        .hero h1 {
+            font-size: 3rem;
+            font-weight: 800;
+            margin-bottom: 0.25rem;
+        }
+        .hero .subtitle {
+            font-size: 1.5rem;
+            font-weight: 400;
+            opacity: 0.9;
+            font-style: italic;
+            margin-bottom: 1rem;
+        }
+        .hero p {
+            font-size: 1.15rem;
+            max-width: 600px;
+            margin: 0 auto 2rem;
+            opacity: 0.95;
+        }
+        .hero .cta-buttons {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1rem;
+            justify-content: center;
+        }
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.75rem 1.5rem;
+            border-radius: 10px;
+            font-size: 1rem;
+            font-weight: 600;
+            transition: transform 0.15s, box-shadow 0.15s;
+        }
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 16px rgba(0,0,0,0.2);
+            text-decoration: none;
+        }
+        .btn-primary {
+            background: #fff;
+            color: var(--purple-dark);
+        }
+        .btn-secondary {
+            background: rgba(255,255,255,0.2);
+            color: #fff;
+            border: 2px solid rgba(255,255,255,0.5);
+        }
+        .btn svg { width: 20px; height: 20px; fill: currentColor; }
+
+        /* Sections */
+        section { padding: 4rem 1.5rem; }
+        section.alt { background: var(--section-alt); }
+        .container { max-width: 1100px; margin: 0 auto; }
+        .section-title {
+            text-align: center;
+            font-size: 2rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+        }
+        .section-subtitle {
+            text-align: center;
+            color: var(--text-muted);
+            font-size: 1.1rem;
+            margin-bottom: 3rem;
+        }
+
+        /* Features */
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1.5rem;
+        }
+        .feature-card {
+            background: var(--card-bg);
+            border-radius: 12px;
+            padding: 1.5rem;
+            box-shadow: var(--card-shadow);
+        }
+        .feature-card h3 {
+            font-size: 1.15rem;
+            margin-bottom: 0.5rem;
+            color: var(--purple);
+        }
+        .feature-card p {
+            color: var(--text-muted);
+            font-size: 0.95rem;
+        }
+
+        /* Screenshots */
+        .screenshots-scroll {
+            display: flex;
+            gap: 1.5rem;
+            overflow-x: auto;
+            padding: 1rem 0 2rem;
+            scroll-snap-type: x mandatory;
+            -webkit-overflow-scrolling: touch;
+        }
+        .screenshots-scroll::-webkit-scrollbar { height: 6px; }
+        .screenshots-scroll::-webkit-scrollbar-thumb {
+            background: var(--purple-light);
+            border-radius: 3px;
+        }
+        .screenshot-item {
+            flex: 0 0 auto;
+            scroll-snap-align: center;
+            text-align: center;
+        }
+        .screenshot-item img {
+            height: 500px;
+            width: auto;
+            border-radius: 16px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+        }
+        .screenshot-item.ipad img {
+            height: 380px;
+        }
+        .screenshot-caption {
+            margin-top: 0.75rem;
+            font-size: 0.9rem;
+            color: var(--text-muted);
+            font-weight: 500;
+        }
+
+        /* How it works */
+        .steps {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 2rem;
+            text-align: center;
+        }
+        .step-number {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            background: var(--purple);
+            color: #fff;
+            font-weight: 700;
+            font-size: 1.25rem;
+            margin-bottom: 0.75rem;
+        }
+        .steps h3 { margin-bottom: 0.5rem; }
+        .steps p { color: var(--text-muted); font-size: 0.95rem; }
+
+        /* Try it */
+        .try-it-frame {
+            text-align: center;
+        }
+        .try-it-frame p {
+            color: var(--text-muted);
+            margin-bottom: 1.5rem;
+        }
+        .try-it-frame .btn {
+            font-size: 1.1rem;
+            padding: 1rem 2rem;
+        }
+
+        /* Footer */
+        footer {
+            text-align: center;
+            padding: 2rem 1.5rem;
+            color: var(--text-muted);
+            font-size: 0.9rem;
+            border-top: 1px solid rgba(128,128,128,0.2);
+        }
+        footer a { color: var(--text-muted); }
+        footer .footer-links {
+            display: flex;
+            justify-content: center;
+            gap: 1.5rem;
+            margin-bottom: 0.75rem;
+        }
+
+        /* Responsive */
+        @media (max-width: 640px) {
+            .hero h1 { font-size: 2.2rem; }
+            .hero .subtitle { font-size: 1.2rem; }
+            .screenshot-item img { height: 400px; }
+            .screenshot-item.ipad img { height: 300px; }
+            nav ul { gap: 1rem; }
+            nav ul a { font-size: 0.85rem; }
+        }
+    </style>
+</head>
+<body>
+
+<nav>
+    <div class="logo">
+        <img src="images/icon.png" alt="Karma Manager icon">
+        <span>Karma Manager</span>
+    </div>
+    <ul>
+        <li><a href="#features">Features</a></li>
+        <li><a href="#screenshots">Screenshots</a></li>
+        <li><a href="#try">Try It</a></li>
+        <li><a href="privacy.html">Privacy</a></li>
+    </ul>
+</nav>
+
+<div class="hero">
+    <img class="app-icon" src="images/icon.png" alt="Karma Manager">
+    <h1>Karma Manager</h1>
+    <div class="subtitle">anagram maker</div>
+    <p>
+        Find clever multi-word anagrams of any name or phrase.
+        Search dictionaries of nearly 80,000 words, save your favorites,
+        and share animated letter-by-letter transformations.
+    </p>
+    <div class="cta-buttons">
+        <a href="#" class="btn btn-primary" id="appstore-link">
+            <svg viewBox="0 0 24 24"><path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.8-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11"/></svg>
+            App Store
+        </a>
+        <a href="#" class="btn btn-primary" id="playstore-link">
+            <svg viewBox="0 0 24 24"><path d="M3 20.5v-17c0-.59.34-1.11.84-1.35L13.69 12l-9.85 9.85c-.5-.24-.84-.76-.84-1.35m13.81-5.38L6.05 21.34l8.49-8.49 2.27 2.27m3.35-4.31c.34.27.56.69.56 1.19s-.22.92-.56 1.19l-2.29 1.32-2.5-2.5 2.5-2.5 2.29 1.3M6.05 2.66l10.76 6.22-2.27 2.27-8.49-8.49"/></svg>
+            Google Play
+        </a>
+        <a href="https://karma-manager.com/wasm/" class="btn btn-secondary">
+            Try in Your Browser
+        </a>
+    </div>
+</div>
+
+<section id="features">
+    <div class="container">
+        <h2 class="section-title">What makes Karma Manager special?</h2>
+        <p class="section-subtitle">More than a simple anagram solver</p>
+        <div class="features-grid">
+            <div class="feature-card">
+                <h3>Multi-Word Anagrams</h3>
+                <p>Most anagram tools only find single-word rearrangements. Karma Manager finds multi-word combinations, turning "University of California, Davis" into "I saved oily victorian ruffians."</p>
+            </div>
+            <div class="feature-card">
+                <h3>Huge Dictionaries</h3>
+                <p>Search across nearly 80,000 words with dictionaries for US, UK, Canadian, and Australian English. Optionally include proper names, place names, and your own custom words.</p>
+            </div>
+            <div class="feature-card">
+                <h3>Interesting Words Analysis</h3>
+                <p>Not sure where to start? The "Interesting words" feature analyzes results to show which uncommon words appear most often, helping you find the most creative anagrams.</p>
+            </div>
+            <div class="feature-card">
+                <h3>Include &amp; Exclude</h3>
+                <p>Steer your search by requiring specific words to appear in results, or excluding words you don't want. Narrow thousands of results down to the gems.</p>
+            </div>
+            <div class="feature-card">
+                <h3>Animated Transformations</h3>
+                <p>Watch letters glide from the original phrase into the anagram, one character at a time. Customize colors and timing. Export as GIF or video to share anywhere.</p>
+            </div>
+            <div class="feature-card">
+                <h3>Favorites &amp; Sync</h3>
+                <p>Save your best finds, organize them by input phrase, and edit the word order with drag-and-drop tiles. Sync favorites across all your devices with a free account.</p>
+            </div>
+            <div class="feature-card">
+                <h3>Share Links</h3>
+                <p>Generate a shareable link for any favorite anagram. Recipients can view it on the web or import it directly into their own Karma Manager app.</p>
+            </div>
+            <div class="feature-card">
+                <h3>Runs Everywhere</h3>
+                <p>Available on iPhone, iPad, Android, macOS, and in any modern web browser. Your anagram toolkit is always within reach.</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section id="screenshots" class="alt">
+    <div class="container">
+        <h2 class="section-title">See it in action</h2>
+        <p class="section-subtitle">Swipe through to explore the app</p>
+        <div class="screenshots-scroll">
+            <div class="screenshot-item">
+                <img src="images/screenshot-search.png" alt="Anagram search results with context menu">
+                <div class="screenshot-caption">Search &amp; context actions</div>
+            </div>
+            <div class="screenshot-item">
+                <img src="images/screenshot-interesting.png" alt="Interesting words analysis dialog">
+                <div class="screenshot-caption">Interesting words analysis</div>
+            </div>
+            <div class="screenshot-item">
+                <img src="images/screenshot-editor.png" alt="Drag-to-reorder word tile editor">
+                <div class="screenshot-caption">Drag-to-reorder editor</div>
+            </div>
+            <div class="screenshot-item">
+                <img src="images/screenshot-animation.png" alt="Animated anagram transformation">
+                <div class="screenshot-caption">Animated transformation</div>
+            </div>
+            <div class="screenshot-item ipad">
+                <img src="images/screenshot-ipad.png" alt="Favorites on iPad">
+                <div class="screenshot-caption">Favorites on iPad</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section id="how">
+    <div class="container">
+        <h2 class="section-title">How it works</h2>
+        <p class="section-subtitle">From phrase to perfect anagram in seconds</p>
+        <div class="steps">
+            <div>
+                <div class="step-number">1</div>
+                <h3>Type a phrase</h3>
+                <p>Enter any name, phrase, or sentence. The longer the input, the more anagram possibilities there are to discover.</p>
+            </div>
+            <div>
+                <div class="step-number">2</div>
+                <h3>Browse results</h3>
+                <p>Karma Manager instantly streams multi-word anagrams as it finds them. Use include/exclude to focus the search.</p>
+            </div>
+            <div>
+                <div class="step-number">3</div>
+                <h3>Save &amp; share</h3>
+                <p>Save favorites, rearrange the word order, create animated GIFs or videos, and share links with friends.</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section id="try" class="alt">
+    <div class="container">
+        <div class="try-it-frame">
+            <h2 class="section-title">Try it right now</h2>
+            <p>No download needed. Karma Manager runs entirely in your browser.</p>
+            <a href="https://karma-manager.com/wasm/" class="btn btn-primary" style="background: var(--purple); color: #fff;">
+                Open Web App
+            </a>
+        </div>
+    </div>
+</section>
+
+<footer>
+    <div class="footer-links">
+        <a href="privacy.html">Privacy Policy</a>
+        <a href="https://karma-manager.com/wasm/">Web App</a>
+        <a href="mailto:support@karma-manager.com">Contact</a>
+    </div>
+    <p>&copy; 2025, 2026 Mitch Patenaude. All rights reserved.</p>
+    <p style="margin-top: 0.25rem; font-size: 0.85rem; opacity: 0.7;">
+        Inspired by the classic '80s Mac shareware of the same name.
+    </p>
+</footer>
+
+</body>
+</html>
