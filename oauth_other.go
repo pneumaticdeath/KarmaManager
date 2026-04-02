@@ -2,7 +2,18 @@
 
 package main
 
-import "fyne.io/fyne/v2"
+import (
+	"net/url"
 
-func OpenOAuthBrowser(_ string, _ fyne.Window) {}
-func DismissOAuthBrowser()                     {}
+	"fyne.io/fyne/v2"
+)
+
+func OpenOAuthBrowser(rawURL string, _ fyne.Window) {
+	parsed, err := url.Parse(rawURL)
+	if err != nil {
+		return
+	}
+	_ = fyne.CurrentApp().OpenURL(parsed)
+}
+
+func DismissOAuthBrowser() {}
