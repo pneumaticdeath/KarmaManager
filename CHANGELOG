@@ -1,3 +1,8 @@
+# Changed in v1.0.6
+* Fixed OAuth sign-in (Google/Apple) not opening browser on macOS desktop
+* Added macOS App Store release script and sandbox entitlements
+* Added marketing website and privacy policy
+
 # Changed in v1.0.5
 * Anagram search performance improvements: array-based letter matching, cached dictionaries, and suffix-sum pruning
 * "Interesting words" now caps dominant first words at 10,000 and restarts, giving a broader view of results
