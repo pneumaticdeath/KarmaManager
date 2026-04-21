@@ -5,7 +5,7 @@ Icon = "Icon.png"
 Name = "KarmaManager"
 ID = "io.patenaude.karmamanager"
 Version = "1.0.6"
-Build = 456
+Build = 463
 
 [LinuxAndBSD]
 GenericName = "Anagram Maker"

@@ -112,6 +112,65 @@ func (c ConfigT) setDuration(key string, value time.Duration) {
 	c.app.Preferences().SetInt(key, int(value.Milliseconds()))
 }
 
+func (c ConfigT) FontScaleName() string {
+	return c.app.Preferences().StringWithFallback(fontScaleKey, FontScaleDefault)
+}
+
+func (c ConfigT) SetFontScaleName(name string) {
+	c.app.Preferences().SetString(fontScaleKey, name)
+}
+
+func (c ConfigT) FontScale() float32 {
+	name := c.FontScaleName()
+	if f, ok := fontScaleFactors[name]; ok {
+		return f
+	}
+	return 1.0
+}
+
+func (c ConfigT) HighContrast() bool {
+	return c.app.Preferences().BoolWithFallback(highContrastKey, false)
+}
+
+func (c ConfigT) SetHighContrast(on bool) {
+	c.app.Preferences().SetBool(highContrastKey, on)
+}
+
+func (c ConfigT) ApplyAccessibleTheme() {
+	c.app.Settings().SetTheme(newAccessibleTheme(c.FontScale(), c.HighContrast()))
+}
+
+func (c ConfigT) ShowAccessibilityDialog() {
+	fontScaleSelector := widget.NewSelect(fontScaleOptions, nil)
+	current := c.FontScaleName()
+	for i, opt := range fontScaleOptions {
+		if opt == current {
+			fontScaleSelector.SetSelectedIndex(i)
+			break
+		}
+	}
+
+	highContrastCheck := widget.NewCheck("High contrast", nil)
+	highContrastCheck.SetChecked(c.HighContrast())
+
+	entries := []*widget.FormItem{
+		widget.NewFormItem("Text size", fontScaleSelector),
+		widget.NewFormItem("", highContrastCheck),
+	}
+
+	dialog.ShowForm("Display Settings", "Apply", "Cancel", entries, func(apply bool) {
+		if apply {
+			selected := fontScaleSelector.Selected
+			if selected == "" {
+				selected = FontScaleDefault
+			}
+			c.SetFontScaleName(selected)
+			c.SetHighContrast(highContrastCheck.Checked)
+			c.ApplyAccessibleTheme()
+		}
+	}, MainWindow)
+}
+
 func (c ConfigT) ShowPreferencesDialog() {
 
 	pulseDurationSelector := widget.NewSelect([]string{"quick", "regular", "stately"}, nil)

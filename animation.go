@@ -22,9 +22,22 @@ import (
 	"fyne.io/fyne/v2/widget"
 )
 
-var glyphSize fyne.Size = fyne.NewSize(15, 20)
-var textSize float32 = 20.0
-var glyphSpacing float32 = 1.0
+var baseGlyphSize fyne.Size = fyne.NewSize(15, 20)
+var baseTextSize float32 = 20.0
+var baseGlyphSpacing float32 = 1.0
+
+func scaledGlyphSize() fyne.Size {
+	s := Config.FontScale()
+	return fyne.NewSize(baseGlyphSize.Width*s, baseGlyphSize.Height*s)
+}
+
+func scaledTextSize() float32 {
+	return baseTextSize * Config.FontScale()
+}
+
+func scaledGlyphSpacing() float32 {
+	return baseGlyphSpacing * Config.FontScale()
+}
 
 type RuneGlyph struct {
 	Letter   rune
@@ -53,6 +66,8 @@ func NthGlyphIndex(glyphs []RuneGlyph, r rune, n int) int {
 }
 
 func layoutCenterOffset(layout []RuneLayoutElement, dispSize fyne.Size) fyne.Position {
+	glyphSize := scaledGlyphSize()
+	glyphSpacing := scaledGlyphSpacing()
 	maxCol, maxRow := 0, 0
 	for _, e := range layout {
 		if e.Col > maxCol {
@@ -71,6 +86,8 @@ func layoutCenterOffset(layout []RuneLayoutElement, dispSize fyne.Size) fyne.Pos
 }
 
 func NewAnimation(input string, anagrams []string, dispSize fyne.Size) (*Animation, error) {
+	glyphSize := scaledGlyphSize()
+	glyphSpacing := scaledGlyphSpacing()
 	maxCols := int(math.Floor(float64(dispSize.Width / (glyphSize.Width + glyphSpacing))))
 
 	inputRC := NewRuneCluster(input)
@@ -243,7 +260,7 @@ func (ad *AnimationDisplay) startAnimation(input string, anagrams []string, disp
 	for index, glyph := range animation.Glyphs {
 		text := canvas.NewText(string(unicode.ToUpper(glyph.Letter)), theme.TextColor())
 		text.TextStyle = style
-		text.TextSize = textSize
+		text.TextSize = scaledTextSize()
 		animElements[index] = text
 		ad.surface.Add(text)
 	}

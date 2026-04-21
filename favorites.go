@@ -462,12 +462,11 @@ func NewFavoritesDisplay(list *FavoritesSlice, sendToMain func(string)) *Favorit
 		fd.updateListItem,
 	)
 
-	preferencesButton := widget.NewButtonWithIcon("Animation Settings", theme.SettingsIcon(), Config.ShowPreferencesDialog)
 	importButton := widget.NewButtonWithIcon("Import", theme.DownloadIcon(), func() {
 		ShowImportFromLinkDialog(fd.baseList, AppPreferences, RebuildFavorites, MainWindow)
 	})
 	syncButton := widget.NewButtonWithIcon("Sync", theme.UploadIcon(), func() { ShowAccountDialog(MainWindow) })
-	buttons := container.New(layout.NewGridLayout(3), preferencesButton, importButton, syncButton)
+	buttons := container.New(layout.NewGridLayout(2), importButton, syncButton)
 	fd.surface = container.NewBorder(buttons, nil, nil, nil, fd.list)
 	fd.ExtendBaseWidget(fd)
 	return fd

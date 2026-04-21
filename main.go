@@ -683,6 +683,7 @@ func main() {
 	MainWindow = App.NewWindow("Karma Manger")
 
 	InitConfig(App)
+	Config.ApplyAccessibleTheme()
 
 	Icon = App.Metadata().Icon
 	AppPreferences = App.Preferences()
@@ -1075,9 +1076,17 @@ func main() {
 		}), layout.NewSpacer()),
 		layout.NewSpacer())
 
+	animSettingsButton := widget.NewButtonWithIcon("Animation Settings", theme.SettingsIcon(), Config.ShowPreferencesDialog)
+	displayButton := widget.NewButtonWithIcon("Display Settings", theme.ZoomInIcon(), Config.ShowAccessibilityDialog)
+	settingsContent := container.New(layout.NewVBoxLayout(),
+		animSettingsButton,
+		displayButton,
+		layout.NewSpacer())
+
 	content := container.NewAppTabs(
 		container.NewTabItem("Find", findContent),
 		container.NewTabItem("Favorites", favsContent),
+		container.NewTabItem("Settings", settingsContent),
 		container.NewTabItem("About", aboutContent))
 
 	MainWindow.SetContent(content)
