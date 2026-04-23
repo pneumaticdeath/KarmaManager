@@ -1,3 +1,9 @@
+# Changed in v1.0.7
+* Display accessibility settings: adjustable text size (Small/Default/Large/Extra Large) and high contrast mode
+* Animation text scales with display text size setting
+* New Settings tab for Animation and Display preferences
+* Favorites tab simplified to Import and Sync buttons
+
 # Changed in v1.0.6
 * Fixed OAuth sign-in (Google/Apple) not opening browser on macOS desktop
 * Added macOS App Store release script and sandbox entitlements
